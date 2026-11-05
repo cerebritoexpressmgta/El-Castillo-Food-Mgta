@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipo Comida Rápida</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Todas las imágenes del menú (categorías, productos, combos, anuncios) viven en i.ibb.co;
+         abrir la conexión desde ya evita que cada imagen pague su propio handshake TCP/TLS. -->
+    <link rel="preconnect" href="https://wsrv.nl">
+    <link rel="dns-prefetch" href="https://wsrv.nl">
+    <!-- i.ibb.co sigue siendo el respaldo si el redimensionador no responde -->
+    <style>
+        .step { display: none; }
+        .step.active { display: block; }
+        /* Ocultar flechas nativas del input de número para mantener diseño limpio */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
+</head>
+<body class="bg-gray-200 font-sans text-gray-900 min-h-screen flex flex-col pb-24">
+
+    <header class="bg-red-700 text-white py-4 shadow-md sticky top-0 z-40 w-full">
+        <div class="max-w-md w-full mx-auto flex items-center justify-between px-3">
+            <div class="w-20 flex items-center gap-1">
+                <button id="header-settings-btn" onclick="abrirModalEditarDatos()" title="Mis datos" class="hidden text-base w-9 h-9 items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer flex-shrink-0">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+                <button id="header-back-btn" onclick="goToStep(1)" class="invisible text-2xl font-bold w-9 h-9 flex items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer flex-shrink-0">
+                    ←
+                </button>
+            </div>
+            <div class="text-center flex-grow min-w-0">
+                <h1 class="text-xl font-bold tracking-wide"><span data-marca="emoji">🍔</span> <span data-marca="nombre-mayus">COMIDA RÁPIDA</span></h1>
+                <p class="text-xs text-red-100" data-marca="eslogan">Mesa, para llevar y delivery</p>
+            </div>
+            <div class="w-20 flex items-center justify-end">
+                <button id="header-logout-btn" onclick="cerrarSesionCliente()" title="Cerrar sesión" class="hidden text-base w-9 h-9 items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer flex-shrink-0">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="banner-mesa" class="hidden bg-amber-100 text-amber-900 text-center text-sm font-semibold py-2 px-3 border-b border-amber-200">🍽️ Estás en la <b id="banner-mesa-nombre"></b>. Tu pedido llegará a tu mesa.</div>
+
+    <main class="max-w-md w-full mx-auto p-4 bg-gray-50 shadow-xl">
+        
+        <div id="step-auth" class="step active space-y-5 py-6">
+            <div class="text-center">
+                <span class="text-4xl">📱</span>
+                <h2 class="text-2xl font-bold text-gray-800 mt-2">¡Bienvenido a <span data-marca="nombre">Prototipo Comida Rápida</span>!</h2>
+                <p class="text-gray-500 text-sm mt-1">Ingresa tu número de teléfono para comenzar tu orden</p>
+            </div>
+            
+            <p class="text-[11px] text-center text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5 leading-relaxed">🧪 Prueba con <b>04120000001</b> (Ana, clave 1234) o <b>04140000002</b> (Luis, clave 1234), o escribe cualquier número para registrarte (clave de mínimo 4 caracteres).</p>
+            <form onsubmit="procesarVerificacionTelefono(event)" class="space-y-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                <div>
+                    <label class="block text-gray-700 font-bold text-sm mb-1">Número de Celular</label>
+                    <input type="tel" id="auth-phone" required class="w-full p-3 border border-gray-300 rounded-xl text-lg focus:outline-none focus:border-red-500 text-center font-semibold tracking-wider" placeholder="Ej. 04121234567">
+                    <p class="text-[11px] text-gray-400 mt-1.5 text-center">¿Número de otro país? Escríbelo con el + y su código. Ej. +1 305 555 1234</p>
+                </div>
+                <button type="submit" id="btn-auth-submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-lg py-3.5 rounded-2xl shadow-md transition cursor-pointer">
+                    Ingresar ➔
+                </button>
+            </form>
+        </div>
+
+        <div id="step-registro" class="step space-y-4">
+            <div class="text-center py-2">
+                <h2 class="text-xl font-bold text-gray-800">Completa tu Perfil</h2>
+                <p class="text-gray-500 text-xs mt-0.5">Regístrate una sola vez y agiliza tus futuros pedidos</p>
+            </div>
+
+            <form onsubmit="procesarRegistroCliente(event)" class="space-y-3 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                <div>
+                    <label class="block text-gray-600 text-xs font-bold mb-1">Nombre y Apellido <span class="text-red-500">*</span></label>
+                    <input type="text" id="reg-name" required class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. Pedro Pérez">
+                </div>
+                <div>
+                    <label class="block text-gray-600 text-xs font-bold mb-1">Cédula / RIF <span class="font-normal text-gray-400">(opcional)</span></label>
+                    <div class="flex gap-2">
+                        <select id="reg-doc-tipo" class="p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500 bg-white">
+                            <option value="V">V</option>
+                            <option value="E">E</option>
+                            <option value="J">J</option>
+                            <option value="G">G</option>
+                            <option value="P">P</option>
+                        </select>
+                        <input type="text" id="reg-cedula-numero" inputmode="numeric" class="flex-1 p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. 12345678">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-600 text-xs font-bold mb-1">Dirección de Entrega Principal <span class="text-red-500">*</span></label>
+                    <textarea id="reg-address" required class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" rows="2" placeholder="Indica calle, residencia, número de casa/apto..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-gray-600 text-xs font-bold mb-1">Crea una clave <span class="text-red-500">*</span></label>
+                    <input type="password" id="reg-clave" required minlength="4" autocomplete="new-password" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Mínimo 4 caracteres">
+                    <input type="password" id="reg-clave-2" required minlength="4" autocomplete="new-password" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500 mt-2" placeholder="Repite la clave">
+                    <p class="text-[10px] text-gray-400 mt-1">Para pedir solo necesitas tu número. La clave te la pediremos únicamente si quieres cambiar tu número o tus direcciones.</p>
+                </div>
+                <p class="text-[10px] text-gray-400"><span class="text-red-500">*</span> Campos obligatorios</p>
+                <button type="submit" id="btn-reg-submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-3 rounded-2xl shadow-md transition cursor-pointer mt-2">
+                    Crear Cuenta y Ver Menú 🎉
+                </button>
+            </form>
+        </div>
+
+        <!-- Clientes registrados antes de que existiera la clave: se les pide
+             crearla una sola vez, la primera vez que entran. -->
+        <div id="step-crear-clave" class="step space-y-4">
+            <div class="text-center py-2">
+                <span class="text-4xl">🔐</span>
+                <h2 class="text-xl font-bold text-gray-800 mt-2">Protege tu cuenta</h2>
+                <p class="text-gray-500 text-xs mt-1">Crea una clave una sola vez. Para pedir seguirás entrando solo con tu número; la clave te la pediremos únicamente si quieres cambiar tu número o tus direcciones.</p>
+            </div>
+
+            <form onsubmit="procesarCrearClave(event)" class="space-y-3 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                <div>
+                    <label class="block text-gray-600 text-xs font-bold mb-1">Nueva clave</label>
+                    <input type="password" id="nueva-clave" required minlength="4" autocomplete="new-password" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Mínimo 4 caracteres">
+                    <input type="password" id="nueva-clave-2" required minlength="4" autocomplete="new-password" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500 mt-2" placeholder="Repite la clave">
+                </div>
+                <button type="submit" id="btn-crear-clave" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-3 rounded-2xl shadow-md transition cursor-pointer">
+                    Guardar clave y ver el menú
+                </button>
+            </form>
+        </div>
+        
+        <div id="step-1" class="step space-y-4">
+
+            <h2 class="text-2xl font-bold text-center my-3 text-gray-800">¿Qué te provoca comer hoy?</h2>
+            <p class="text-center text-gray-500 text-sm mb-4">Toca una categoría para agregar platos a tu carrito</p>
+            
+            <div id="contenedor-categorias" class="grid grid-cols-1 gap-4 mt-4">
+                <div class="text-center text-gray-400 text-sm py-4">Cargando menú...</div>
+            </div>
+
+        </div>
+        <div id="step-2" class="step space-y-4">
+            <div class="my-3 text-center">
+                <h2 id="category-title" class="text-xl font-bold text-gray-800 bg-gray-100 py-2 rounded-xl">Platos</h2>
+            </div>
+            <div id="items-container" class="space-y-3"></div>
+            <button onclick="goToStep(1)" class="w-full bg-gray-800 text-white font-bold text-lg py-4 rounded-2xl shadow-md mt-4 cursor-pointer transition">
+                ↩️ Volver a ver otras categorías
+            </button>
+        </div>
+
+        <div id="step-3" class="step space-y-4">
+            <div class="my-3 text-center">
+                <h2 class="text-xl font-bold text-gray-800 bg-gray-100 py-2 rounded-xl">Finalizar Orden</h2>
+            </div>
+
+            <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 shadow-sm">
+                <h3 class="font-bold text-amber-900 text-lg mb-2">Tu Carrito de Compras:</h3>
+                <div id="checkout-cart-summary" class="space-y-2"></div>
+                
+                <button type="button" onclick="goToStep(1)" class="w-full mt-3 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-1 cursor-pointer border border-amber-300">
+                    ➕ Añadir más platos o bebidas
+                </button>
+
+                <div class="border-t border-amber-200 mt-4 pt-2 flex justify-between font-bold text-lg text-amber-900">
+                    <span>Total a Pagar:</span>
+                    <span id="checkout-total-price">$0.00</span>
+                </div>
+            </div>
+
+            <div id="banner-cerrado" class="hidden bg-red-50 border border-red-300 text-red-800 text-sm p-4 rounded-2xl font-semibold text-center"></div>
+
+            <form id="order-form" onsubmit="sendOrder(event)" class="space-y-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                    <p class="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Datos de facturación:</p>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="chk-usar-mis-datos" checked onchange="toggleFormularioDatosEnvio()" class="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300">
+                        <label for="chk-usar-mis-datos" class="font-semibold text-slate-800 cursor-pointer">El pedido es para mí (Titular de la cuenta)</label>
+                    </div>
+                </div>
+
+                <div id="wrapper-datos-destinatario" class="hidden space-y-3 border-t border-slate-100 pt-3">
+                    <div>
+                        <label class="block text-gray-700 font-bold text-sm mb-1">Nombre del Destinatario</label>
+                        <input type="text" id="client-name" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. Maria Gómez">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold text-sm mb-1">Teléfono de Contacto</label>
+                        <input type="tel" id="client-phone" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. 04141234567">
+                        <p class="text-[11px] text-gray-400 mt-1">Si es de otro país, escríbelo con el + y su código.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold text-sm mb-1">¿Cómo lo vas a recibir?</label>
+                    <select id="delivery-type" onchange="toggleAddress()" class="w-full p-3 border border-gray-300 rounded-xl text-md bg-gray-50 focus:outline-none focus:border-red-500">
+                        <option value="Delivery">Delivery (A mi casa / oficina)</option>
+                        <option value="Pickup">Retiro en el local</option>
+                        <option value="Mesa">Comer aquí (en mi mesa)</option>
+                    </select>
+                </div>
+
+                <div id="mesa-container" class="space-y-2 hidden">
+                    <label class="block text-gray-700 font-bold text-sm mb-1">¿En qué mesa estás?</label>
+                    <select id="sel-mesa" class="w-full p-3 border border-gray-300 rounded-xl text-md bg-gray-50 focus:outline-none focus:border-red-500"><option value="">Cargando mesas...</option></select>
+                    <p class="text-[11px] text-gray-400">Te llevamos el pedido a la mesa. Pagas al final de tu visita.</p>
+                </div>
+
+                <div id="address-container" class="space-y-3">
+                    <div>
+                        <label class="block text-gray-700 font-bold text-sm mb-1">Selecciona Dirección de Entrega</label>
+                        <select id="sel-direccion-entrega" onchange="manejarSeleccionDireccion()" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm bg-gray-50 focus:outline-none focus:border-red-500 font-medium text-gray-800">
+                            </select>
+                    </div>
+
+                    <div id="wrapper-direccion-manual" class="space-y-2 hidden">
+                        <label class="block text-gray-600 text-xs font-semibold">Especifica la Dirección Alternativa</label>
+                        <textarea id="client-address" class="w-full p-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" rows="2" placeholder="Indica calle, playa, local o puntos de referencia..."></textarea>
+                        
+                        <div class="flex items-center gap-2 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
+                            <input type="checkbox" id="chk-guardar-frecuente" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <label for="chk-guardar-frecuente" class="text-xs font-semibold text-blue-900 cursor-pointer">Guardar como dirección frecuente</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold text-sm mb-1">Método de Pago</label>
+                    <select id="payment-method" class="w-full p-3 border border-gray-300 rounded-xl text-lg bg-gray-50 focus:outline-none focus:border-red-500">
+                        <option value="Pago Movil">Pago Móvil</option>
+                        <option value="Efectivo">Efectivo / Divisas</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="submit-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xl py-4 rounded-2xl shadow-lg mt-2 cursor-pointer transition">
+                    🚀 Confirmar y Enviar Pedido
+                </button>
+            </form>
+        </div>
+
+        <div id="step-4" class="step text-center space-y-5 py-10">
+            <div class="text-6xl text-green-500">✅</div>
+            <h2 class="text-3xl font-bold text-gray-800">¡Pedido Recibido!</h2>
+            <p id="msg-pedido-recibido" class="text-base text-gray-600 px-4">Hemos enviado tu orden al sistema. En unos instantes recibirás la confirmación automatizada en tu WhatsApp.</p>
+            <button onclick="resetForm()" class="bg-gray-200 text-gray-700 font-bold px-6 py-3 rounded-xl hover:bg-gray-300 transition cursor-pointer">Hacer otro pedido</button>
+        </div>
+
+        <footer class="w-full flex flex-col items-center justify-center gap-1.5 py-8 opacity-70">
+            <span class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Prototipo de demostración · datos inventados</span>
+        </footer>
+
+    </main>
+
+    <div id="sticky-cart-bar" class="hidden fixed bottom-0 left-0 right-0 bg-green-600 text-white p-4 shadow-2xl flex items-center justify-between max-w-md mx-auto rounded-t-2xl border-t border-green-500 z-50">
+        <div>
+            <p class="text-xs text-green-100 uppercase font-bold">Tu Pedido</p>
+            <p class="text-xl font-black" id="sticky-cart-total">$0.00</p>
+        </div>
+        <button onclick="irACheckout()" class="bg-white text-green-700 font-bold text-md px-5 py-3 rounded-xl shadow-md cursor-pointer hover:bg-green-50 transition">
+            Ver Pedido y Pagar 🛒
+        </button>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="demo-config.js"></script>
+    <script src="mock-api.js"></script>
+    <script src="menu.js"></script>
+
+    <div id="modal-editar-datos" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl overflow-y-auto max-h-[85vh] animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                <div>
+                    <h3 class="text-lg font-black text-gray-800">Mis Datos ⚙️</h3>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Cliente Activo: <span class="font-bold text-red-800" id="lbl-cliente-activo">Cargando...</span></p>
+                </div>
+                <button onclick="cerrarModalEditarDatos()" class="text-gray-400 hover:text-red-600 text-2xl font-bold cursor-pointer">&times;</button>
+            </div>
+
+            <div class="space-y-2 pb-4 border-b border-gray-100">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Número de Teléfono</label>
+                <div class="flex gap-2">
+                    <input type="tel" id="edit-telefono" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-red-500 text-gray-700" placeholder="Ej. 04121234567">
+                    <button type="button" id="btn-guardar-telefono" onclick="guardarTelefonoCliente()" class="flex-shrink-0 bg-gray-800 hover:bg-gray-900 text-white font-bold px-4 rounded-xl transition text-xs shadow-sm cursor-pointer">
+                        Actualizar
+                    </button>
+                </div>
+                <p class="text-[10px] text-gray-400">Este es el número con el que inicias sesión. Para cambiarlo te pediremos tu clave.</p>
+            </div>
+
+            <div>
+                <h4 class="text-sm font-black text-gray-800 mb-2">Mis Direcciones 📍</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Dirección Principal</label>
+                        <textarea id="edit-dir-principal" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-red-500 text-gray-700" rows="2"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Direcciones Frecuentes</label>
+                        <div id="lista-direcciones-extra" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="btn-guardar-datos" onclick="guardarEdicionDatos()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl transition text-sm shadow-md cursor-pointer mt-2">
+                💾 Guardar Direcciones
+            </button>
+
+            <button type="button" onclick="cerrarModalEditarDatos(); cerrarSesionCliente();" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2.5 rounded-xl transition text-xs cursor-pointer flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+            </button>
+        </div>
+    </div>
+    <div id="modal-eliminar-variantes" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+                <div>
+                    <h3 class="font-black text-gray-900 text-lg leading-tight">¿Cuál quieres quitar?</h3>
+                    <p id="eliminar-variantes-subtitulo" class="text-xs text-gray-500 mt-1">Tienes varias personalizaciones de este combo</p>
+                </div>
+                <button onclick="cerrarSelectorEliminarVariantes()" class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-100 hover:text-red-600 text-gray-600 rounded-full transition font-bold cursor-pointer">✕</button>
+            </div>
+
+            <div class="p-4 overflow-y-auto space-y-2" id="lista-variantes-eliminar"></div>
+
+            <div class="p-4 border-t border-gray-100 flex-shrink-0">
+                <button onclick="cerrarSelectorEliminarVariantes()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-xl transition cursor-pointer text-sm">
+                    Listo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-combos-pendientes" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 bg-amber-50 flex-shrink-0">
+                <h3 class="font-black text-gray-900 text-lg leading-tight">⚠️ Te faltan combos por personalizar</h3>
+                <p class="text-xs text-gray-600 mt-1">Elige sus piezas/opciones antes de enviar el pedido, o quítalos desde el carrito</p>
+            </div>
+
+            <div class="p-4 overflow-y-auto space-y-2" id="lista-combos-pendientes"></div>
+
+            <div class="p-4 border-t border-gray-100 flex-shrink-0">
+                <button onclick="cerrarModalCombosPendientes()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition cursor-pointer text-sm">
+                    Volver al pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-combo" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                <div>
+                    <h3 id="modal-combo-title" class="font-black text-gray-900 text-lg leading-tight">Personaliza tu combo</h3>
+                    <p class="text-xs text-gray-500 mt-1">Elige las opciones incluidas</p>
+                </div>
+                <button onclick="cerrarModalCombo()" class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-100 hover:text-red-600 text-gray-600 rounded-full transition font-bold cursor-pointer">✕</button>
+            </div>
+
+            <!-- El encabezado (con la ✕) y el botón de confirmar quedan siempre fijos y
+                 visibles; solo esta zona de en medio hace scroll, para que el modal nunca
+                 se desborde por arriba de la pantalla en móvil cuando el combo tiene mucho
+                 contenido (aviso de progreso + piezas + nota). -->
+            <div class="overflow-y-auto flex-1 min-h-0">
+                <!-- Aviso de progreso cuando el cliente pidió varias unidades del mismo
+                     combo y hay que personalizarlas una tras otra -->
+                <div id="modal-combo-progreso" class="hidden px-5 py-3 bg-amber-50 border-b border-amber-200"></div>
+
+                <div class="p-5" id="modal-combo-options-container">
+                </div>
+
+                <div class="px-5 pt-1 pb-3 bg-white border-t border-gray-100">
+                    <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider mb-1">📝 Nota especial (opcional)</label>
+                    <input type="text" id="modal-combo-nota" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-red-500 placeholder-gray-400" placeholder="Ej. sin cebollín, extra picante...">
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t border-gray-100 shrink-0">
+                <button id="btn-confirmar-combo" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-2xl shadow-md transition cursor-pointer text-sm">
+                    Confirmar Selección
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-detalle-producto" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col">
+            <button onclick="cerrarModalDetalleProducto()" class="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-red-100 hover:text-red-600 text-gray-700 rounded-full transition font-bold cursor-pointer shadow">✕</button>
+            <div id="modal-detalle-producto-imagen-wrap" class="w-full h-64 bg-gray-100 flex-shrink-0"></div>
+            <div class="p-5 overflow-y-auto">
+                <h3 id="modal-detalle-producto-nombre" class="font-black text-gray-900 text-lg leading-tight"></h3>
+                <p id="modal-detalle-producto-desc" class="text-sm text-gray-500 mt-2 leading-relaxed"></p>
+                <span id="modal-detalle-producto-precio" class="text-red-600 font-bold text-lg block mt-3"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-lightbox-imagen" onclick="cerrarLightboxImagen()" class="fixed inset-0 bg-black/90 z-[60] hidden items-center justify-center p-4 cursor-zoom-out">
+        <button onclick="cerrarLightboxImagen()" class="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition font-bold cursor-pointer">✕</button>
+        <img id="lightbox-imagen-img" src="" alt="" class="max-w-full max-h-full object-contain rounded-lg">
+    </div>
+
+    <div id="modal-anuncio" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button onclick="cerrarAnuncioActual()" class="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white rounded-full transition font-bold cursor-pointer">✕</button>
+            <img id="anuncio-modal-imagen" src="" alt="" onclick="irAItemDeAnuncio()" fetchpriority="high" class="w-full max-h-[55vh] object-cover flex-shrink-0">
+            <div class="p-5 overflow-y-auto">
+                <h3 id="anuncio-modal-titulo" class="font-black text-gray-900 text-lg leading-tight"></h3>
+                <p id="anuncio-modal-texto" class="text-sm text-gray-600 mt-2 leading-relaxed"></p>
+                <button id="anuncio-modal-btn-pedir" onclick="irAItemDeAnuncio()" class="hidden mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition cursor-pointer">🛒 Ordenar esta promoción</button>
+                <button id="anuncio-modal-btn" onclick="cerrarAnuncioActual()" class="mt-3 w-full font-bold py-3 rounded-xl transition cursor-pointer">Entendido, ver menú</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

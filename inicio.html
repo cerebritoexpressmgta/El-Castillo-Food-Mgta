@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de pedidos para restaurantes: mesas, delivery y cocina en vivo</title>
+<meta name="description" content="Menú digital con QR por mesa, pedidos para llevar y delivery, tablero de cocina en tiempo real, cobro de cuentas y estadísticas. Pruébalo aquí mismo.">
+<link rel="stylesheet" href="web.css">
+</head>
+<body class="web">
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="#"><i>🍽️</i><span data-web="marca">El Castillo Food Mgta</span></a>
+    <nav class="nav-links">
+      <a href="#demo">Demo en vivo</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#como">Cómo funciona</a>
+      <a class="btn btn-pri btn-sm" href="#contacto">Lo quiero</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <span class="tag">Para restaurantes y locales de comida</span>
+      <h1>Pedidos en mesa, para llevar y delivery, <em>en un solo sistema</em></h1>
+      <p class="lead">Tus clientes piden desde su celular, la cocina ve cada pedido al instante y tú controlas mesas, cuentas y ventas desde un panel. Pruébalo abajo: es la aplicación de verdad, con datos de ejemplo.</p>
+      <div class="cta">
+        <a class="btn btn-pri" href="#demo">▶ Probar la demo ahora</a>
+        <a class="btn btn-sec" href="#funciones">Ver qué incluye</a>
+      </div>
+      <div class="mini"><span>Sin instalar nada</span><span>QR por mesa</span><span>Cocina en tiempo real</span><span>Con tu nombre y tu menú</span></div>
+    </div>
+  </section>
+
+  <section class="sec" id="demo">
+    <div class="wrap">
+      <h2>Pruébalo tú mismo</h2>
+      <p class="sub">A la izquierda, lo que ve tu cliente. A la derecha, lo que ves tú. Haz un pedido en el celular y míralo llegar a la cocina.</p>
+      <div id="visor-demo"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="funciones">
+    <div class="wrap">
+      <h2>Todo lo que necesita tu local</h2>
+      <p class="sub">Un solo sistema para el salón, el mostrador y el reparto.</p>
+      <div class="grid3">
+        <div class="card"><div class="ic">📱</div><h3>Menú digital del cliente</h3><p>Combos que el cliente arma a su gusto, promociones automáticas, productos agotados y horarios de atención.</p></div>
+        <div class="card"><div class="ic">📍</div><h3>QR en cada mesa</h3><p>El cliente escanea, ve el menú con su mesa ya elegida y pide sin esperar al mesonero.</p></div>
+        <div class="card"><div class="ic">👨‍🍳</div><h3>Tablero de cocina en vivo</h3><p>Los pedidos aparecen solos y avanzan por estados: cobro, cocina y despacho. Con comanda para imprimir.</p></div>
+        <div class="card"><div class="ic">🍽️</div><h3>Plano de mesas y cuentas</h3><p>Mesas libres, ocupadas o con la cuenta pedida. Consumo acumulado por mesa y cobro en un toque.</p></div>
+        <div class="card"><div class="ic">🛵</div><h3>Delivery y retiro</h3><p>Cálculo del delivery, pago móvil o efectivo, tasa del día y aviso al repartidor con los datos del pedido.</p></div>
+        <div class="card"><div class="ic">🧾</div><h3>Caja para tu personal</h3><p>Toma pedidos por teléfono o en mostrador, edítalos y asígnalos a una mesa. Cada usuario con su rol.</p></div>
+        <div class="card"><div class="ic">⚙️</div><h3>Panel de administración</h3><p>Productos, categorías, combos, mesas, horarios, usuarios y anuncios. Tú mismo cambias lo que quieras.</p></div>
+        <div class="card"><div class="ic">📊</div><h3>Estadísticas de ventas</h3><p>Ventas por día, lo más pedido y búsqueda de clientes para entender qué funciona.</p></div>
+        <div class="card"><div class="ic">💬</div><h3>Avisos al cliente</h3><p>Mensajes con plantillas editables para cada momento: pedido recibido, cobro, aprobado y listo.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="como">
+    <div class="wrap">
+      <h2>Así lo ponemos en marcha</h2>
+      <p class="sub">Lo adaptamos a tu negocio antes de entregártelo.</p>
+      <div class="pasos">
+        <div class="paso"><h3>Tu marca y tu menú</h3><p>Cargamos tu nombre, tus productos, combos y precios.</p></div>
+        <div class="paso"><h3>Tus mesas y tu equipo</h3><p>Creamos las mesas de tu local con su QR y los usuarios de tu personal.</p></div>
+        <div class="paso"><h3>Listo para vender</h3><p>Tus clientes ya pueden pedir y tu cocina recibe los pedidos al momento.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="contacto">
+    <div class="wrap">
+      <div class="cta-final">
+        <h2>¿Lo probamos con tu negocio?</h2>
+        <p>Cuéntanos qué vendes y cuántas mesas tienes. Te mostramos cómo quedaría con tu nombre y tu menú.</p>
+        <div class="cta" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+          <a class="btn btn-pri" id="cta-wa" href="#" hidden>💬 Escribir por WhatsApp</a>
+          <a class="btn btn-pri" id="cta-mail" href="#" hidden>✉️ Escribir por correo</a>
+          <a class="btn btn-pri" id="cta-demo" href="#demo">▶ Volver a la demo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer"><div class="wrap">© <span id="anio"></span> <span data-web="marca">El Castillo Food Mgta</span> · La demo usa datos inventados que solo viven en tu navegador.</div></footer>
+
+<script src="demo-config.js"></script>
+<script>
+  // Datos comerciales: se editan en demo-config.js (WEB_CONFIG)
+  (function () {
+    const W = window.WEB_CONFIG || {};
+    document.querySelectorAll('[data-web="marca"]').forEach(el => { el.textContent = W.marca || 'El Castillo Food Mgta'; });
+    document.title = (W.marca ? W.marca + ' · ' : '') + document.title;
+    document.getElementById('anio').textContent = new Date().getFullYear();
+    if (W.whatsapp) {
+      const a = document.getElementById('cta-wa');
+      a.href = 'https://wa.me/' + String(W.whatsapp).replace(/\D/g, '') + '?text=' + encodeURIComponent(W.mensajeWhatsapp || '');
+      a.target = '_blank'; a.rel = 'noopener'; a.hidden = false; document.getElementById('cta-demo').className = 'btn btn-sec';
+    }
+    if (W.email) {
+      const m = document.getElementById('cta-mail');
+      m.href = 'mailto:' + W.email + '?subject=' + encodeURIComponent('Quiero más información del sistema de pedidos');
+      m.hidden = false; document.getElementById('cta-demo').className = 'btn btn-sec';
+    }
+  })();
+</script>
+<script src="visor.js"></script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipo Comida Rápida - Estadísticas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-300 font-sans min-h-screen p-4 md:p-8">
+
+    <div id="vistaLoginEstadisticas" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <span class="text-5xl" data-marca="emoji">🍔</span>
+                <h2 class="text-2xl font-bold text-white tracking-tight">Acceso Operativo</h2>
+                <p class="text-xs text-slate-400"><span data-marca="nombre">Prototipo Comida Rápida</span> - Estadísticas</p>
+            </div>
+
+            <form id="formLoginEstadisticas" onsubmit="iniciarSesionEstadisticas(event)" class="space-y-4">
+                <p class="text-[11px] text-center text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 leading-relaxed">🧪 Usuario de prueba: <b>admin</b> · PIN <b>1234</b></p>
+                <div>
+                    <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Nombre de Usuario</label>
+                    <input type="text" id="loginUsernameEstadisticas" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 transition" placeholder="Ej. cajero_carlos">
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase font-bold text-slate-400 mb-1">PIN / Código de Acceso</label>
+                    <input type="password" id="loginPINEstadisticas" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 tracking-widest text-center text-lg transition" placeholder="••••">
+                </div>
+
+                <div id="loginErrorEstadisticas" class="bg-red-500/15 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg text-center hidden">
+                    Credenciales incorrectas.
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition shadow-lg cursor-pointer">
+                    Entrar al Sistema <i class="fa-solid fa-arrow-right-to-bracket ml-1"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="vistaEstadisticas" class="hidden">
+    <div class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+                <i class="fa-solid fa-chart-pie text-indigo-500"></i> Panel de Estadísticas
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">Análisis de ventas, clientes y repartidores</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 bg-slate-900 p-2 rounded-lg border border-slate-700">
+            <button onclick="cambiarFiltroActivo(this, 'hoy')" class="btn-filtro bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold transition">Hoy</button>
+            <button onclick="cambiarFiltroActivo(this, 'ayer')" class="btn-filtro text-slate-400 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Ayer</button>
+            <button onclick="cambiarFiltroActivo(this, 'semana')" class="btn-filtro text-slate-400 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Esta Semana</button>
+            <button onclick="cambiarFiltroActivo(this, 'mes')" class="btn-filtro text-slate-400 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Este Mes</button>
+
+            <div class="h-6 w-px bg-slate-700 mx-1"></div>
+
+            <input type="date" id="fechaCustom" onchange="apagarBotonesFiltro(); aplicarFiltroEstadisticas('custom')" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none focus:border-indigo-500">
+            <button onclick="exportarCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-xs font-bold transition flex items-center gap-2 ml-auto lg:ml-4 shadow-lg shadow-emerald-900/20 border border-emerald-500/50">
+                <i class="fa-solid fa-file-csv"></i> Exportar
+            </button>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto mb-6">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-6 shadow-lg">
+            <h3 class="text-indigo-400 text-sm font-bold mb-4 flex items-center gap-2 uppercase tracking-wider">
+                <i class="fa-solid fa-magnifying-glass"></i> Buscador de Clientes
+            </h3>
+            <form onsubmit="buscarClientes(event)" class="flex flex-col sm:flex-row gap-2 mb-4">
+                <input type="text" id="input-buscar-cliente" placeholder="Teléfono, nombre o cédula/RIF..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition cursor-pointer">Buscar</button>
+            </form>
+            <div id="resultado-busqueda-cliente"></div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+
+        <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl flex flex-col justify-center">
+            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-2">Ingresos Totales</span>
+            <h2 id="widgetTotalUSD" class="text-4xl font-bold text-emerald-400">$0.00</h2>
+            <p id="widgetTotalBS" class="text-sm font-semibold text-amber-500 mt-1">Bs. 0.00</p>
+            <p id="widgetCantPedidos" class="text-xs text-slate-400 mt-3"><i class="fa-solid fa-receipt"></i> 0 pedidos procesados</p>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 md:col-span-2 lg:col-span-1 flex flex-col items-center justify-center">
+            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-2 w-full text-left">Métodos de Pago</span>
+            <div class="relative w-full h-40 flex justify-center">
+                <canvas id="graficoPagos"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 lg:col-span-2">
+            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-crown text-amber-400"></i> Mejores Clientes</span>
+            <div id="listaClientes" class="space-y-2 max-h-40 overflow-y-auto pr-2"></div>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 md:col-span-2">
+            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-fire text-orange-500"></i> Productos Más Vendidos</span>
+            <div id="listaProductos" class="space-y-2 max-h-48 overflow-y-auto pr-2"></div>
+        </div>
+
+        <div id="cardRepartidores" class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 md:col-span-2">
+            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-motorcycle text-sky-400"></i> Nómina de Repartidores</span>
+            <div id="listaRepartidores" class="space-y-3 max-h-48 overflow-y-auto pr-2"></div>
+        </div>
+        
+        <div class="col-span-full bg-slate-900/80 border border-slate-800 rounded-xl p-6 mt-2 shadow-lg">
+            <h3 class="text-emerald-400 text-sm font-bold mb-4 flex items-center gap-2 border-b border-slate-700/50 pb-3 uppercase tracking-wider">
+                <i class="fa-solid fa-check-double"></i> Historial de Pedidos Finalizados
+            </h3>
+            <div id="historial-finalizados-container" class="max-h-[400px] overflow-y-auto flex flex-col gap-3 pr-2"></div>
+        </div>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="config.js"></script>
+    <script src="demo-config.js"></script>
+    <script src="mock-api.js"></script>
+    <script src="estadisticas.js"></script>
+
+    <div id="modal-repartidor" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300" id="modal-repartidor-content">
+            <div class="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-800/50">
+                <h3 class="text-lg font-bold text-sky-400 flex items-center gap-2">
+                    <i class="fa-solid fa-motorcycle"></i> Historial de Entregas: <span id="modal-nombre-repartidor" class="text-white"></span>
+                </h3>
+                <button onclick="cerrarModalRepartidor()" class="text-slate-400 hover:text-white transition text-2xl leading-none">&times;</button>
+            </div>
+            
+            <div class="p-5 max-h-[60vh] overflow-y-auto" id="modal-lista-pedidos"></div>
+            
+            <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-between items-center">
+                <span class="text-sm text-slate-400 uppercase font-bold tracking-wider">Total deuda acumulada:</span>
+                <span class="text-xl font-bold text-emerald-400" id="modal-total-repartidor">$0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDetalle" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-5 shadow-2xl relative flex flex-col max-h-[95vh]">
+            <div class="flex justify-between items-start border-b border-slate-700 pb-3 shrink-0">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> Detalle del Pedido
+                    </h3>
+                    <p class="text-xs text-slate-400" id="modalID">ID: ---</p>
+                </div>
+                <button onclick="cerrarModalDetalle()" class="text-slate-400 hover:text-white transition duration-150 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4 text-sm text-slate-300 overflow-y-auto flex-1 py-4 pr-2 scrollbar-thin scrollbar-thumb-slate-600" id="modalCuerpo"></div>
+            
+            <div class="flex justify-end pt-3 border-t border-slate-700 shrink-0">
+                <button onclick="cerrarModalDetalle()" class="bg-slate-700 hover:bg-slate-600 text-white font-medium px-5 py-2 rounded-lg transition cursor-pointer shadow-md">
+                    Cerrar Recibo
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

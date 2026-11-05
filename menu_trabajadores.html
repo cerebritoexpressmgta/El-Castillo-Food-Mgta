@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipo Comida Rápida · Registrar Pedido</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://wsrv.nl">
+    <link rel="dns-prefetch" href="https://wsrv.nl">
+    <style>
+        .step { display: none; }
+        .step.active { display: block; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-gray-900 min-h-screen flex flex-col pb-28">
+
+    <!-- Cabecera oscura, igual que el tablero de cocina, para que se note de un
+         vistazo que esta es una pantalla del personal y no el menú del cliente. -->
+    <header class="bg-slate-900 border-b border-slate-700 text-white shadow-lg sticky top-0 z-40 w-full">
+        <div class="max-w-[1500px] w-full mx-auto flex items-center justify-between gap-4 px-5 py-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <button id="btn-atras" onclick="retrocederPaso()" title="Volver al paso anterior" class="invisible w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center transition cursor-pointer flex-shrink-0">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="min-w-0">
+                    <!-- El texto cambia solo cuando se llega aquí a editar un pedido
+                         que ya existe (ver pintarPantallaDeEdicion). -->
+                    <h1 id="titulo-pantalla" class="text-lg font-bold tracking-wide truncate">🍣 Registrar Pedido</h1>
+                    <p id="subtitulo-pantalla" class="text-[11px] text-slate-400 -mt-0.5">Menú de trabajadores</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 flex-shrink-0">
+                <div id="badge-usuario" class="hidden sm:flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 h-10"></div>
+                <button onclick="volverAlTablero()" class="hidden md:flex bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold h-10 px-4 rounded-lg items-center gap-2 transition cursor-pointer">
+                    <i class="fa-solid fa-table-columns"></i> Tablero
+                </button>
+            </div>
+        </div>
+
+        <!-- Buscador siempre a mano mientras se arma el pedido (se esconde al cerrar) -->
+        <div id="barra-busqueda" class="border-t border-slate-800 bg-slate-900/60">
+            <div class="max-w-[1500px] w-full mx-auto px-5 py-2.5">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="text" id="buscador-menu" autocomplete="off"
+                           oninput="buscarEnMenuTrabajador()"
+                           placeholder="Buscar plato o combo por nombre..."
+                           class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-11 pr-11 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition">
+                    <button type="button" id="btn-limpiar-busqueda" onclick="limpiarBusqueda()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1500px] w-full mx-auto px-5 py-6 flex-1">
+
+        <!-- Solo se ve al editar un pedido del tablero, y en todos los pasos: sirve
+             para que nadie confunda esta pantalla con la de tomar un pedido nuevo. -->
+        <div id="aviso-modo-edicion" class="hidden mb-5 bg-amber-50 border-2 border-amber-300 text-amber-900 text-sm px-4 py-3 rounded-2xl shadow-sm"></div>
+
+        <!-- PASO 1: categorías (y resultados del buscador) -->
+        <div id="step-1" class="step active">
+
+            <div id="resultados-busqueda" class="hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-700">
+                        <span id="contador-resultados">0</span> resultado(s)
+                    </h2>
+                    <button onclick="limpiarBusqueda()" class="text-sm font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer">
+                        <i class="fa-solid fa-xmark"></i> Limpiar búsqueda
+                    </button>
+                </div>
+                <div id="lista-resultados" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+                <div id="resultados-vacio" class="hidden text-center text-slate-400 py-16">
+                    <div class="text-5xl mb-3">🔍</div>
+                    <p class="font-semibold">No hay ningún plato con ese nombre.</p>
+                </div>
+            </div>
+
+            <div id="vista-categorias">
+                <h2 class="text-xl font-bold text-slate-700 mb-1">Elige una categoría</h2>
+                <p class="text-sm text-slate-500 mb-5">O usa el buscador de arriba si ya sabes qué te pidieron.</p>
+                <div id="contenedor-categorias" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+                    <div class="col-span-full text-center text-slate-400 text-sm py-10">Cargando menú...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASO 2: platos de la categoría elegida -->
+        <div id="step-2" class="step">
+            <div class="mb-5">
+                <h2 id="category-title" class="text-xl font-bold text-slate-800">Platos</h2>
+            </div>
+            <div id="items-container" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- PASO 3: cierre del pedido -->
+        <div id="step-3" class="step">
+            <h2 class="text-xl font-bold text-slate-800 mb-5">Cerrar el pedido</h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+
+                <div class="lg:col-span-3 space-y-4">
+                    <div class="bg-amber-50 p-5 rounded-2xl border border-amber-200 shadow-sm">
+                        <h3 class="font-bold text-amber-900 text-lg mb-2">Artículos del pedido</h3>
+                        <div id="checkout-cart-summary" class="space-y-2"></div>
+
+                        <button type="button" onclick="goToStep(1)" class="w-full mt-3 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-1 cursor-pointer border border-amber-300">
+                            ➕ Añadir más platos
+                        </button>
+
+                        <div class="border-t border-amber-200 mt-4 pt-3 flex justify-between font-bold text-xl text-amber-900">
+                            <span>Total:</span>
+                            <span id="checkout-total-price">$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Línea escrita a mano: solo la ve admin/superadmin -->
+                    <div id="bloque-linea-manual" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1 flex-wrap">
+                            <i class="fa-solid fa-pen text-indigo-500"></i>
+                            <h3 class="font-bold text-slate-800">Añadir línea a mano</h3>
+                            <span class="text-[10px] uppercase font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded">Solo admin</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3">Para algo fuera de carta o un cobro especial. El precio que escribas aquí es el que se cobra.</p>
+                        <div class="flex flex-wrap gap-2">
+                            <input type="text" id="manual-nombre" placeholder="Nombre de lo que se cobra" class="flex-1 min-w-[180px] p-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="manual-cantidad" value="1" min="1" title="Cantidad" class="w-20 p-2.5 border border-slate-300 rounded-xl text-sm text-center focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="manual-precio" step="0.01" min="0" placeholder="Precio $" class="w-28 p-2.5 border border-slate-300 rounded-xl text-sm text-center focus:outline-none focus:border-indigo-500">
+                            <button type="button" onclick="agregarLineaManual()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition cursor-pointer">
+                                Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <form id="order-form" onsubmit="enviarPedidoTrabajador(event)" class="space-y-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+
+                        <div>
+                            <label class="block text-slate-700 font-bold text-sm mb-1">
+                                Teléfono
+                                <span class="font-normal text-slate-400 text-xs">— empieza por aquí, buscamos al cliente solo</span>
+                            </label>
+                            <input type="tel" id="trab-telefono"
+                                   onblur="buscarClienteTrabajador()"
+                                   class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500" placeholder="Ej. 04121234567">
+                            <div id="trab-estado-cliente" class="hidden mt-1.5 text-xs px-2.5 py-2 rounded-lg border"></div>
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-700 font-bold text-sm mb-1">Nombre del cliente <span class="text-red-500">*</span></label>
+                            <input type="text" id="trab-cliente" required class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500" placeholder="Ej. Pedro Pérez">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-slate-700 font-bold text-sm mb-1">Entrega</label>
+                                <select id="trab-entrega" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:outline-none focus:border-emerald-500">
+                                    <option value="Pickup">Pickup (Retiro)</option>
+                                    <option value="Mesa">Mesa (comer en el local)</option>
+                                    <option value="Delivery">Delivery</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-700 font-bold text-sm mb-1">Método de pago</label>
+                                <select id="trab-pago" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:outline-none focus:border-emerald-500">
+                                    <option value="Pago Movil">Pago Móvil</option>
+                                    <option value="Efectivo">Efectivo / Divisas</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="trab-wrap-mesa" class="hidden">
+                            <label class="block text-slate-700 font-bold text-sm mb-1">Mesa</label>
+                            <select id="trab-mesa" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:outline-none focus:border-emerald-500"><option value="">Cargando mesas...</option></select>
+                        </div>
+
+                        <div id="trab-wrap-direccion">
+                            <label class="block text-slate-700 font-bold text-sm mb-1">Dirección</label>
+                            <textarea id="trab-direccion" rows="2" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500" placeholder="Ej. Av. Principal, Res. Los Robles, apto 3-B"></textarea>
+                        </div>
+
+                        <button type="submit" id="btn-enviar-pedido" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg py-3.5 rounded-2xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2">
+                            Procesar Pedido <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASO 4: confirmación -->
+        <div id="step-4" class="step text-center space-y-5 py-16">
+            <div class="text-6xl text-emerald-500">✅</div>
+            <h2 class="text-3xl font-bold text-slate-800">¡Pedido registrado!</h2>
+            <p class="text-base text-slate-600">Ya aparece en el tablero de cocina y el cliente recibió su mensaje de WhatsApp.</p>
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button onclick="reiniciarPedidoTrabajador()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl transition cursor-pointer">
+                    ➕ Registrar otro pedido
+                </button>
+                <button onclick="volverAlTablero()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-6 py-3 rounded-xl transition cursor-pointer">
+                    Volver al tablero
+                </button>
+            </div>
+        </div>
+
+        <!-- menu.js escribe aquí si el local está cerrado; al personal nunca lo bloquea -->
+        <div id="banner-cerrado" class="hidden"></div>
+
+    </main>
+
+    <!-- Barra fija con el total -->
+    <div id="sticky-cart-bar" class="hidden fixed bottom-0 left-0 right-0 bg-emerald-600 text-white px-6 py-4 shadow-2xl border-t border-emerald-500 z-50">
+        <div class="max-w-[1500px] mx-auto flex items-center justify-between gap-4">
+            <div>
+                <p class="text-xs text-emerald-100 uppercase font-bold tracking-wider">Pedido en curso</p>
+                <p class="text-2xl font-black" id="sticky-cart-total">$0.00</p>
+            </div>
+            <button onclick="irACheckout()" class="bg-white text-emerald-700 font-bold text-base px-6 py-3 rounded-xl shadow-md cursor-pointer hover:bg-emerald-50 transition">
+                Continuar al cierre 🛒
+            </button>
+        </div>
+    </div>
+
+    <!-- Modales copiados tal cual del menu del cliente (menu.html): son los que
+         menu.js manipula para personalizar combos, elegir piezas, quitar variantes
+         y ver la foto grande. Si cambian alla, hay que traer el cambio aqui. -->
+    <div id="modal-eliminar-variantes" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+                <div>
+                    <h3 class="font-black text-gray-900 text-lg leading-tight">¿Cuál quieres quitar?</h3>
+                    <p id="eliminar-variantes-subtitulo" class="text-xs text-gray-500 mt-1">Tienes varias personalizaciones de este combo</p>
+                </div>
+                <button onclick="cerrarSelectorEliminarVariantes()" class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-100 hover:text-red-600 text-gray-600 rounded-full transition font-bold cursor-pointer">✕</button>
+            </div>
+
+            <div class="p-4 overflow-y-auto space-y-2" id="lista-variantes-eliminar"></div>
+
+            <div class="p-4 border-t border-gray-100 flex-shrink-0">
+                <button onclick="cerrarSelectorEliminarVariantes()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-xl transition cursor-pointer text-sm">
+                    Listo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-combos-pendientes" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 bg-amber-50 flex-shrink-0">
+                <h3 class="font-black text-gray-900 text-lg leading-tight">⚠️ Te faltan combos por personalizar</h3>
+                <p class="text-xs text-gray-600 mt-1">Elige sus piezas/opciones antes de enviar el pedido, o quítalos desde el carrito</p>
+            </div>
+
+            <div class="p-4 overflow-y-auto space-y-2" id="lista-combos-pendientes"></div>
+
+            <div class="p-4 border-t border-gray-100 flex-shrink-0">
+                <button onclick="cerrarModalCombosPendientes()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition cursor-pointer text-sm">
+                    Volver al pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-combo" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                <div>
+                    <h3 id="modal-combo-title" class="font-black text-gray-900 text-lg leading-tight">Personaliza tu combo</h3>
+                    <p class="text-xs text-gray-500 mt-1">Elige las opciones incluidas</p>
+                </div>
+                <button onclick="cerrarModalCombo()" class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-100 hover:text-red-600 text-gray-600 rounded-full transition font-bold cursor-pointer">✕</button>
+            </div>
+
+            <!-- El encabezado (con la ✕) y el botón de confirmar quedan siempre fijos y
+                 visibles; solo esta zona de en medio hace scroll, para que el modal nunca
+                 se desborde por arriba de la pantalla en móvil cuando el combo tiene mucho
+                 contenido (aviso de progreso + piezas + nota). -->
+            <div class="overflow-y-auto flex-1 min-h-0">
+                <!-- Aviso de progreso cuando el cliente pidió varias unidades del mismo
+                     combo y hay que personalizarlas una tras otra -->
+                <div id="modal-combo-progreso" class="hidden px-5 py-3 bg-amber-50 border-b border-amber-200"></div>
+
+                <div class="p-5" id="modal-combo-options-container">
+                </div>
+
+                <div class="px-5 pt-1 pb-3 bg-white border-t border-gray-100">
+                    <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider mb-1">📝 Nota especial (opcional)</label>
+                    <input type="text" id="modal-combo-nota" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-red-500 placeholder-gray-400" placeholder="Ej. sin cebollín, extra picante...">
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t border-gray-100 shrink-0">
+                <button id="btn-confirmar-combo" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-2xl shadow-md transition cursor-pointer text-sm">
+                    Confirmar Selección
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-detalle-producto" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col">
+            <button onclick="cerrarModalDetalleProducto()" class="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-red-100 hover:text-red-600 text-gray-700 rounded-full transition font-bold cursor-pointer shadow">✕</button>
+            <div id="modal-detalle-producto-imagen-wrap" class="w-full h-64 bg-gray-100 flex-shrink-0"></div>
+            <div class="p-5 overflow-y-auto">
+                <h3 id="modal-detalle-producto-nombre" class="font-black text-gray-900 text-lg leading-tight"></h3>
+                <p id="modal-detalle-producto-desc" class="text-sm text-gray-500 mt-2 leading-relaxed"></p>
+                <span id="modal-detalle-producto-precio" class="text-red-600 font-bold text-lg block mt-3"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-lightbox-imagen" onclick="cerrarLightboxImagen()" class="fixed inset-0 bg-black/90 z-[60] hidden items-center justify-center p-4 cursor-zoom-out">
+        <button onclick="cerrarLightboxImagen()" class="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition font-bold cursor-pointer">✕</button>
+        <img id="lightbox-imagen-img" src="" alt="" class="max-w-full max-h-full object-contain rounded-lg">
+    </div>
+
+    <script src="config.js"></script>
+    <script src="demo-config.js"></script>
+    <script src="mock-api.js"></script>
+    <!-- menu.js trae todo el motor del menu (catalogo, carrito, combos).
+         menu_trabajadores.js va despues porque reemplaza las piezas que cambian
+         para el personal: arranque, navegacion, categorias y cierre del pedido. -->
+    <script src="menu.js"></script>
+    <script src="menu_trabajadores.js"></script>
+
+</body>
+</html>
