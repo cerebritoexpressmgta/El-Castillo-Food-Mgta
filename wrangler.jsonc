@@ -7,6 +7,9 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
+  "vars": {
+    "SUPABASE_URL": "https://cncrupyxesbzinvjunqm.supabase.co"
+  },
   // Solicitud diaria a Supabase (12:00 UTC = 8:00 a. m. Venezuela)
   "triggers": { "crons": ["0 12 * * *"] },
   "observability": { "enabled": true }
