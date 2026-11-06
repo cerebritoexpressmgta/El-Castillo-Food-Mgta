@@ -102,7 +102,6 @@
             <h2 class="text-2xl font-bold text-white mb-2 tracking-wide">Acceso Restringido</h2>
             <p class="text-sm text-slate-400 mb-6">Área exclusiva de administración. Ingresa tus credenciales.</p>
             
-            <p style="font-size:12px;text-align:center;color:#fcd34d;margin:0 0 12px">🧪 Usuario de prueba: <b>admin</b> · PIN <b>1234</b></p>
             <div class="relative mb-4">
                 <input type="text" id="input-user-admin" placeholder="Usuario" class="w-full bg-slate-950/50 border-2 border-slate-700/50 rounded-xl p-4 text-center text-white text-xl outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 transition-all duration-300" onkeypress="if(event.key === 'Enter') document.getElementById('input-pin-admin').focus()">
             </div>
@@ -220,7 +219,7 @@
                         <input type="text" id="usr-username" placeholder="Ej: ana123" required>
                         
                         <label>PIN o Contraseña</label>
-                        <input type="password" id="usr-pin" placeholder="Ej: 1234">
+                        <input type="password" id="usr-pin" placeholder="Contraseña">
                         
                         <label>Rol en el sistema</label>
                         <select id="usr-rol" required>
@@ -602,7 +601,7 @@
     </script>
     <script src="config.js"></script>
     <script src="demo-config.js"></script>
-    <script src="mock-api.js"></script>
+    <script src="api-cliente.js"></script>
     <script src="admin.js"></script>
     <script src="admin-mesas.js"></script>
     <script src="menu-dueno.js"></script>

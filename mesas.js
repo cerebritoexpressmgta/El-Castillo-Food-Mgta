@@ -8,7 +8,7 @@ let mesaAbierta = null; // id de la mesa con el modal abierto
 
 // Esta pantalla es solo para el personal: sin sesión se vuelve al tablero (donde se inicia sesión)
 if (!localStorage.getItem('usuarioActivo') || !localStorage.getItem('tokioAuthToken')) {
-    window.location.replace('index.html');
+    window.location.replace('cocina.html');
 }
 
 const ESTILOS = {
@@ -29,7 +29,7 @@ function textoTiempo(min) { return min < 60 ? `${min} min` : `${Math.floor(min /
 
 async function pedir(url, opciones) {
     const res = await fetch(url, Object.assign({ headers: authHeaders() }, opciones || {}));
-    if (res.status === 401) { localStorage.removeItem('usuarioActivo'); localStorage.removeItem('tokioAuthToken'); window.location.replace('index.html'); throw new Error('sesión'); }
+    if (res.status === 401) { localStorage.removeItem('usuarioActivo'); localStorage.removeItem('tokioAuthToken'); window.location.replace('cocina.html'); throw new Error('sesión'); }
     return res;
 }
 

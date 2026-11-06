@@ -1,5 +1,13 @@
 {
   "name": "el-castillo-food-mgta",
+  "main": "worker/index.mjs",
   "compatibility_date": "2025-01-01",
-  "assets": { "directory": "./" }
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Solicitud diaria a Supabase (12:00 UTC = 8:00 a. m. Venezuela)
+  "triggers": { "crons": ["0 12 * * *"] },
+  "observability": { "enabled": true }
 }

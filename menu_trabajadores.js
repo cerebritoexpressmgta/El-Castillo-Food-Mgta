@@ -62,7 +62,7 @@ function volverAlTablero() {
     // estaban: mejor preguntar, porque el cajero llegó aquí desde el tablero.
     if (pedidoEnEdicion && !confirm('¿Salir sin guardar los cambios del pedido?')) return;
     limpiarPedidoEnEdicionGuardado();
-    window.location.href = 'index.html';
+    window.location.href = 'cocina.html';
 }
 
 function pintarBadgeUsuario() {
@@ -94,14 +94,14 @@ window.onload = async function() {
     // Sin sesión de personal esta pantalla no tiene nada que hacer: al tablero,
     // que es donde se inicia sesión.
     if (!sesion || !token) {
-        window.location.replace('index.html');
+        window.location.replace('cocina.html');
         return;
     }
 
     try {
         usuarioActivoTrabajador = JSON.parse(sesion);
     } catch (e) {
-        window.location.replace('index.html');
+        window.location.replace('cocina.html');
         return;
     }
 
@@ -364,7 +364,7 @@ async function buscarClienteTrabajador() {
             _ultimoTelefonoBuscado_reintentable();
             _estadoClienteTrab('error',
                 '<i class="fa-solid fa-lock"></i> <b>Tu sesión venció.</b> No se puede buscar al cliente. ' +
-                'Termina este pedido a mano o <a href="index.html" class="underline font-bold">inicia sesión otra vez</a> ' +
+                'Termina este pedido a mano o <a href="cocina.html" class="underline font-bold">inicia sesión otra vez</a> ' +
                 '(perderías lo que llevas en el carrito).');
             return;
         }
@@ -599,7 +599,7 @@ async function entrarEnModoEdicion(idPedido) {
     const pedido = await recuperarPedidoAEditar(idPedido);
     if (!pedido) {
         alert('No se encontró el pedido que querías editar. Vuelve al tablero e inténtalo de nuevo.');
-        window.location.replace('index.html');
+        window.location.replace('cocina.html');
         return;
     }
 
@@ -833,7 +833,7 @@ async function guardarEdicionDePedido() {
 
         limpiarPedidoEnEdicionGuardado();
         pedidoEnEdicion = null; // para que volverAlTablero no vuelva a preguntar
-        window.location.href = 'index.html';
+        window.location.href = 'cocina.html';
     } catch (e) {
         console.error('Error guardando la edición:', e);
         alert('Fallo de conexión al guardar. Revisa el internet e intenta de nuevo.');

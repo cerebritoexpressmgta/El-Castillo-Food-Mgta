@@ -46,7 +46,7 @@ function ocultarSiExiste(selector) {
     if (el) el.style.display = 'none';
 }
 
-// Headers de autenticación para llamadas de staff logueado (index.html, admin.html, estadisticas.html)
+// Headers de autenticación para llamadas de staff logueado (cocina.html, admin.html, estadisticas.html)
 function authHeaders() {
     const token = localStorage.getItem('tokioAuthToken');
     return token
@@ -70,7 +70,7 @@ function forzarNuevoLogin(mensaje) {
     localStorage.removeItem('tokioAuthToken');
     localStorage.removeItem('usuarioActivo');
     alert(mensaje || 'Tu sesión venció. Inicia sesión de nuevo para continuar.');
-    window.location.href = 'index.html';
+    window.location.href = 'cocina.html';
 }
 
 // El backend explica por qué rechaza un pedido ("X se agotó", "espera unos

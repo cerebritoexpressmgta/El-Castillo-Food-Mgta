@@ -99,14 +99,3 @@ if (typeof _cargarDatosAdminOriginal === 'function') {
         return r;
     };
 }
-
-// Demo embebida: entrar sin teclear usuario ni PIN (?auto=staff)
-window.addEventListener('load', () => {
-    if (new URLSearchParams(location.search).get('auto') !== 'staff') return;
-    const token = localStorage.getItem('tokioAuthToken');
-    if (!token) return;
-    adminToken = token;
-    const pantalla = document.getElementById('pantalla-bloqueo-admin');
-    if (pantalla) pantalla.classList.add('hidden');
-    try { cargarDatosAdmin(); cargarMensajesWP(); cargarHorarios(); cargarAnuncios(); } catch (e) { console.error(e); }
-});

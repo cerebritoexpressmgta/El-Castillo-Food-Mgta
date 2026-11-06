@@ -12,7 +12,7 @@ let pedidosFiltradosActuales = [];
 
 let filtroActivo = 'hoy';
 
-// --- ACCESO: reutiliza la sesión de index.html si ya existe en este navegador ---
+// --- ACCESO: reutiliza la sesión de cocina.html si ya existe en este navegador ---
 function verificarSesionEstadisticas() {
     const token = localStorage.getItem('tokioAuthToken');
     const vistaLogin = document.getElementById('vistaLoginEstadisticas');
