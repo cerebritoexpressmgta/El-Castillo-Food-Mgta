@@ -454,13 +454,15 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     ruta('GET', '/api/usuarios', (ctx, db) => { requiereAdmin(ctx); return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol })); });
     ruta('POST', '/api/usuarios/guardar', async (ctx, db) => {
         const admin = requiereAdmin(ctx); const d = ctx.body;
+        d.username = String(d.username || '').trim(); d.nombre = String(d.nombre || '').trim();
+        if (!d.username || !d.nombre) return { success: false, error: 'Nombre y usuario son obligatorios' };
         const rolNuevo = String(d.rol || '').trim().toLowerCase();
         if (!ROLES_VALIDOS.includes(rolNuevo)) return { success: false, error: 'Rol no valido' };
         if (d.pin && ['admin', 'superadmin'].includes(rolNuevo) && String(d.pin).length < 8) return { success: false, error: 'La contraseña de un administrador debe tener al menos 8 caracteres' };
         if (d.pin && String(d.pin).length > 72) return { success: false, error: 'Contraseña demasiado larga' };
         const esSuper = String(admin.rol || '').toLowerCase() === 'superadmin';
         if (rolNuevo === 'superadmin' && !esSuper) throw new HttpError(403, 'Solo un superadmin puede asignar ese rol');
-        const repetido = db.usuarios.some(u => u.username === d.username && u.id !== d.id);
+        const repetido = db.usuarios.some(u => String(u.username).toLowerCase() === d.username.toLowerCase() && u.id !== d.id);
         if (repetido) return { success: false, error: 'No se pudo guardar el usuario (¿nombre de usuario repetido?)' };
         if (d.id) {
             const u = db.usuarios.find(x => x.id === d.id);
@@ -480,6 +482,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const admin = requiereAdmin(ctx);
         const u = db.usuarios.find(x => x.id === ctx.body.id);
         if (u && String(u.rol).toLowerCase() === 'superadmin' && String(admin.rol).toLowerCase() !== 'superadmin') throw new HttpError(403, 'Solo un superadmin puede eliminar a otro superadmin');
+        if (u && String(u.username).toLowerCase() === String(admin.sub).toLowerCase()) throw new HttpError(400, 'No puedes eliminar tu propio usuario');
         if (u) db.usuarios = db.usuarios.filter(x => x.id !== u.id);
         return ok();
     });
@@ -820,7 +823,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 
 
 // ---- Web pública: datos del sitio y sucursales ----
-const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', email: '' };
+const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '' };
+const colorOk = v => (/^#[0-9a-fA-F]{6}$/.test(String(v || '').trim()) ? String(v).trim().toLowerCase() : '');
 function esAdminSesion(ctx) { return !!ctx.sesion && ['admin', 'superadmin'].includes(String(ctx.sesion.rol || '').toLowerCase()); }
 function urlSegura(v) { v = limpiarTexto(v, 400, true); return /^https:\/\//i.test(v) ? v : ''; }
 ruta('GET', '/api/sitio', (ctx, db) => {
@@ -834,7 +838,9 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
     db.sitio = {
         titulo: limpiarTexto(s.titulo, 80, true), eslogan: limpiarTexto(s.eslogan, 160, true), historia: limpiarTexto(s.historia, 800),
         whatsapp: String(s.whatsapp || '').replace(/\D/g, '').slice(0, 18), instagram: limpiarTexto(s.instagram, 60, true).replace(/^@/, ''),
-        email: limpiarTexto(s.email, 120, true)
+        email: limpiarTexto(s.email, 120, true),
+        colorPrincipal: colorOk(s.colorPrincipal), colorSecundario: colorOk(s.colorSecundario), colorPortada: colorOk(s.colorPortada),
+        imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo)
     };
     const lista = Array.isArray(d.sucursales) ? d.sucursales.slice(0, 12) : [];
     db.sucursales = lista.map(x => ({
