@@ -823,7 +823,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 
 
 // ---- Web pública: datos del sitio y sucursales ----
-const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '' };
+const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', tituloSobrePortada: false };
 const colorOk = v => (/^#[0-9a-fA-F]{6}$/.test(String(v || '').trim()) ? String(v).trim().toLowerCase() : '');
 function esAdminSesion(ctx) { return !!ctx.sesion && ['admin', 'superadmin'].includes(String(ctx.sesion.rol || '').toLowerCase()); }
 function urlSegura(v) { v = limpiarTexto(v, 400, true); return /^https:\/\//i.test(v) ? v : ''; }
@@ -840,7 +840,7 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
         whatsapp: String(s.whatsapp || '').replace(/\D/g, '').slice(0, 18), instagram: limpiarTexto(s.instagram, 60, true).replace(/^@/, ''),
         email: limpiarTexto(s.email, 120, true),
         colorPrincipal: colorOk(s.colorPrincipal), colorSecundario: colorOk(s.colorSecundario), colorPortada: colorOk(s.colorPortada),
-        imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo)
+        imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo), tituloSobrePortada: s.tituloSobrePortada === true
     };
     const lista = Array.isArray(d.sucursales) ? d.sucursales.slice(0, 12) : [];
     db.sucursales = lista.map(x => ({
