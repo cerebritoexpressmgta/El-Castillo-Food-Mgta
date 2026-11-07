@@ -3,7 +3,7 @@
 ## 1) Supabase (base de datos)
 1. supabase.com → New project (guarda la contraseña de la base).
 2. SQL Editor → pega y ejecuta `supabase/schema.sql`.
-3. Project Settings → API: copia **Project URL** y la llave **service_role** (secreta; nunca va en el código ni en GitHub).
+3. Project Settings → API: copia **Project URL** y la llave **secret** (sb_secret_...) o la service_role (secreta; nunca va en el código ni en GitHub).
 
 ## 2) GitHub
 Reemplaza el contenido del repositorio por esta carpeta (los archivos deben quedar en la raíz, junto a `wrangler.jsonc`).
@@ -38,3 +38,6 @@ Luego **Deployments → Retry deployment** (o haz un commit) para que tome los s
 ## Solicitud diaria a Supabase
 El Worker tiene un Cron (`wrangler.jsonc`) que cada día a las 12:00 UTC toca la base para que Supabase no pause el proyecto.
 Revisa en el Worker → **Settings → Trigger Events** que aparezca el cron, y en **Logs** el mensaje `Ping diario a Supabase OK`.
+
+## Apariencia
+En `/panel.html` → **Apariencia**: elige una combinación lista o tus propios colores (principal, acento, portada), sube un logo y/o una imagen de portada. Se aplica a la web pública y al menú donde piden los clientes. Las pantallas internas (cocina, mesas, administración) mantienen su estilo.

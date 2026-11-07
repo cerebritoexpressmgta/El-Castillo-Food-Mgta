@@ -70,6 +70,33 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     </div>
   </div>
 
+  <h2>Apariencia</h2>
+  <div class="card">
+    <label>Combinaciones listas</label>
+    <div class="row" id="presets" style="margin:6px 0 14px"></div>
+    <div class="row2">
+      <div><label>Color principal (botones, encabezado del menú)</label><input id="c-principal" type="color" value="#b4231a" style="height:46px;padding:4px"></div>
+      <div><label>Color de acento (estrellas, detalles)</label><input id="c-secundario" type="color" value="#d99a1e" style="height:46px;padding:4px"></div>
+      <div><label>Color de la portada</label><input id="c-portada" type="color" value="#6b2412" style="height:46px;padding:4px"></div>
+    </div>
+    <div class="row2" style="margin-top:6px">
+      <div>
+        <label>Logo (opcional, reemplaza el emoji)</label>
+        <div class="row"><input id="logo-file" type="file" accept="image/*" style="margin:0"><button class="sec" id="logo-quitar" type="button">Quitar</button></div>
+        <img id="logo-prev" alt="" style="display:none;height:56px;margin-top:8px;border-radius:8px;background:#fff;padding:4px">
+      </div>
+      <div>
+        <label>Imagen de portada (opcional, reemplaza el color)</label>
+        <div class="row"><input id="port-file" type="file" accept="image/*" style="margin:0"><button class="sec" id="port-quitar" type="button">Quitar</button></div>
+        <img id="port-prev" alt="" style="display:none;height:70px;margin-top:8px;border-radius:8px">
+      </div>
+    </div>
+    <div id="vista-previa" style="margin-top:16px;border-radius:14px;overflow:hidden;border:1px solid var(--bd)">
+      <div id="vp-hero" style="padding:22px;text-align:center;color:#fff"><div id="vp-logo" style="font-size:34px">🏰</div><b>Así se verá tu portada</b><div style="margin-top:10px"><span id="vp-btn" style="display:inline-block;padding:8px 18px;border-radius:999px;font-weight:800;font-size:13px;color:#fff">Pedir ahora</span> <span id="vp-est" style="font-size:18px;letter-spacing:2px;margin-left:10px">★★★★★</span></div></div>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="sec" id="tema-reset" type="button">Volver a los colores originales</button><small>No olvides pulsar "Guardar todos los cambios de la web".</small></div>
+  </div>
+
   <h2>Sucursales</h2>
   <div id="suc-lista"></div>
   <div class="row" style="margin-top:10px"><button id="suc-add" class="sec">+ Agregar sucursal</button><button id="guardar-web">Guardar web y sucursales</button><span id="msg-web" class="err"></span></div>
@@ -131,13 +158,13 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     });
     $('gal-info').textContent = galeria.length + ' de 12 fotos. Pulsa "Guardar" al terminar.';
   }
-  function reducir(archivo) {
+  function reducir(archivo, maxLado) {
     return new Promise((resolve, reject) => {
       const fr = new FileReader(); fr.onerror = () => reject(fr.error);
       fr.onload = () => {
         const img = new Image(); img.onerror = () => reject(new Error('Imagen no válida'));
         img.onload = () => {
-          const esc = Math.min(1, 1200 / Math.max(img.width, img.height));
+          const esc = Math.min(1, (maxLado || 1200) / Math.max(img.width, img.height));
           const c = document.createElement('canvas'); c.width = Math.round(img.width * esc); c.height = Math.round(img.height * esc);
           c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); resolve(c.toDataURL('image/jpeg', 0.82));
         };
@@ -180,6 +207,47 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
   }
   $('res-add').onclick = () => { resenas.push({ nombre: '', texto: '', estrellas: 5, activa: true }); pintarRes(); };
 
+
+  // ---- Apariencia (colores, logo, portada) ----
+  const TEMA_VACIO = { colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '' };
+  let tema = Object.assign({}, TEMA_VACIO);
+  const PRESETS = [
+    ['Castillo', '#b4231a', '#d99a1e', '#6b2412'], ['Océano', '#1d4ed8', '#f59e0b', '#0b3b8c'], ['Bosque', '#15803d', '#eab308', '#14532d'],
+    ['Naranja', '#ea580c', '#facc15', '#7c2d12'], ['Uva', '#7e22ce', '#f472b6', '#4c1d95'], ['Noche', '#0f172a', '#38bdf8', '#020617']
+  ];
+  function pintarTema() {
+    $('c-principal').value = tema.colorPrincipal || '#b4231a'; $('c-secundario').value = tema.colorSecundario || '#d99a1e'; $('c-portada').value = tema.colorPortada || '#6b2412';
+    const pi = $('port-prev'), lg = $('logo-prev');
+    pi.style.display = tema.imagenPortada ? 'block' : 'none'; if (tema.imagenPortada) pi.src = tema.imagenPortada;
+    lg.style.display = tema.logo ? 'inline-block' : 'none'; if (tema.logo) lg.src = tema.logo;
+    const p = tema.colorPrincipal || '#b4231a', a = tema.colorSecundario || '#d99a1e', h = tema.colorPortada || '#6b2412';
+    $('vp-hero').style.background = tema.imagenPortada ? 'linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55)), url("' + tema.imagenPortada + '") center/cover' : 'linear-gradient(135deg,' + h + ',#000)';
+    $('vp-btn').style.background = p; $('vp-est').style.color = a;
+    $('vp-logo').innerHTML = tema.logo ? '<img src="' + tema.logo + '" style="height:46px;border-radius:8px">' : '🏰';
+  }
+  PRESETS.forEach(pr => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'sec';
+    b.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + pr[1] + ';margin-right:6px;vertical-align:-1px"></span>' + pr[0];
+    b.onclick = () => { tema.colorPrincipal = pr[1]; tema.colorSecundario = pr[2]; tema.colorPortada = pr[3]; pintarTema(); };
+    $('presets').appendChild(b);
+  });
+  $('c-principal').oninput = e => { tema.colorPrincipal = e.target.value; pintarTema(); };
+  $('c-secundario').oninput = e => { tema.colorSecundario = e.target.value; pintarTema(); };
+  $('c-portada').oninput = e => { tema.colorPortada = e.target.value; pintarTema(); };
+  $('tema-reset').onclick = () => { tema.colorPrincipal = tema.colorSecundario = tema.colorPortada = ''; pintarTema(); };
+  $('logo-quitar').onclick = () => { tema.logo = ''; pintarTema(); };
+  $('port-quitar').onclick = () => { tema.imagenPortada = ''; pintarTema(); };
+  async function subirUna(archivo, campo, max) {
+    try {
+      const imagen = await reducir(archivo, max);
+      const r = await api('POST', '/api/subir-imagen', { imagen });
+      if (r.d && r.d.success) { tema[campo] = r.d.data.url; pintarTema(); }
+      else alert((r.d && r.d.detail) || 'No se pudo subir la imagen');
+    } catch (err) { alert('Error: ' + err.message); }
+  }
+  $('logo-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'logo', 600); };
+  $('port-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'imagenPortada', 1600); };
+
   // ---- Datos de la web y sucursales ----
   let sucursales = [];
   function pintarSuc() {
@@ -209,6 +277,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     if (r.s !== 200) return;
     const s = r.d.sitio || {};
     ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'email'].forEach(k => { $('s-' + k).value = s[k] || ''; });
+    tema = Object.assign({}, TEMA_VACIO, { colorPrincipal: s.colorPrincipal || '', colorSecundario: s.colorSecundario || '', colorPortada: s.colorPortada || '', imagenPortada: s.imagenPortada || '', logo: s.logo || '' }); pintarTema();
     sucursales = r.d.sucursales || []; pintarSuc();
     galeria = r.d.galeria || []; pintarGal(); resenas = r.d.resenas || []; pintarRes();
   }
@@ -216,6 +285,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
   async function guardarWeb() {
     const ms = [$('msg-web'), $('msg-web2')]; ms.forEach(m => { m.className = 'err'; m.textContent = ''; });
     const sitio = {}; ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });
+    Object.assign(sitio, tema);
     const r = await api('POST', '/api/sitio/guardar', { sitio, sucursales, galeria, resenas });
     if (r.d && r.d.success) { ms.forEach(m => { m.className = 'ok'; m.textContent = 'Guardado. Ya se ve en la web.'; }); cargarWeb(); }
     else ms.forEach(m => { m.textContent = (r.d && (r.d.error || r.d.detail)) || 'No se pudo guardar'; });
