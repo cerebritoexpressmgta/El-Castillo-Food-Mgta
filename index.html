@@ -49,6 +49,13 @@ footer a{color:#fff}footer .links{display:flex;gap:18px;justify-content:center;f
 .res .est{color:var(--ac2);font-size:18px;letter-spacing:2px}.res p{margin:0;font-size:15px}.res b{font-size:14px;color:var(--mu)}
 .vacio{color:var(--mu);text-align:center;padding:30px 0}
 .flot{display:none;position:fixed;right:16px;bottom:16px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+/* Portada con imagen: se ve completa, y el texto y los botones van abajo */
+.tiene-portada .hero{min-height:clamp(520px,56.25vw,88vh);padding:0;display:flex;align-items:flex-end;justify-content:center;background-position:center 30%}
+.tiene-portada .hero .wrap{padding-bottom:34px;width:100%}
+.tiene-portada .hero #h-em{display:none}
+.tiene-portada .hero p{margin-bottom:18px;text-shadow:0 2px 10px rgba(0,0,0,.7)}
+.tiene-portada:not(.portada-titulo) .hero h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tiene-portada.portada-titulo .hero h1{font-size:clamp(28px,4.5vw,46px);margin:0 0 6px;text-shadow:0 3px 14px rgba(0,0,0,.8)}
 @media(max-width:640px){.flot{display:block}nav .h{display:none}.hero{padding:48px 0 56px}section{padding:40px 0}}
 </style>
     <!-- PWA: app de clientes -->

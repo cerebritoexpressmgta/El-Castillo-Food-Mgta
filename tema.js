@@ -3,7 +3,7 @@
 (function () {
     'use strict';
     var KEY = 'tema_castillo_v1';
-    var CAMPOS = ['colorPrincipal', 'colorSecundario', 'colorPortada', 'imagenPortada', 'logo'];
+    var CAMPOS = ['colorPrincipal', 'colorSecundario', 'colorPortada', 'imagenPortada', 'logo', 'tituloSobrePortada'];
     var HEX = /^#[0-9a-fA-F]{6}$/;
 
     function rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
@@ -37,8 +37,10 @@
             st.setProperty('--dk', mezclar(s.colorPortada, '#000000', 0.7));
         }
         if (urlOk(s.imagenPortada)) {
-            st.setProperty('--hero-img', 'linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55)), url("' + s.imagenPortada.replace(/"/g, '%22') + '") center/cover no-repeat');
+            st.setProperty('--hero-img', 'linear-gradient(to bottom, rgba(0,0,0,.06) 38%, rgba(0,0,0,.82) 100%), url("' + s.imagenPortada.replace(/"/g, '%22') + '") center/cover no-repeat');
         }
+        document.documentElement.classList.toggle('tiene-portada', urlOk(s.imagenPortada));
+        document.documentElement.classList.toggle('portada-titulo', urlOk(s.imagenPortada) && s.tituloSobrePortada === true);
         if (HEX.test(s.colorPrincipal || '') && !/\/(panel|cocina|mesas|admin|estadisticas|menu_trabajadores)\.html$/.test(location.pathname)) {
             var mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute('content', s.colorPrincipal);
         }
