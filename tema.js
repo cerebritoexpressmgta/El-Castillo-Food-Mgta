@@ -39,6 +39,9 @@
         if (urlOk(s.imagenPortada)) {
             st.setProperty('--hero-img', 'linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55)), url("' + s.imagenPortada.replace(/"/g, '%22') + '") center/cover no-repeat');
         }
+        if (HEX.test(s.colorPrincipal || '') && !/\/(panel|cocina|mesas|admin|estadisticas|menu_trabajadores)\.html$/.test(location.pathname)) {
+            var mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute('content', s.colorPrincipal);
+        }
         window.TEMA = s;
         pintarLogo();
     }

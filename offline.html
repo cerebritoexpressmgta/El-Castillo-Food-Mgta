@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>Sin conexión · El Castillo Food Mgta</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;
+font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#f5ece0;background:radial-gradient(circle at 50% 0,#1b2a5a,#0b1220 70%)}
+img{width:120px;height:120px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.5))}h1{margin:18px 0 8px;font-size:26px}p{margin:0 auto 22px;max-width:340px;color:#b9c3d8;line-height:1.5}
+button{background:#b4231a;color:#fff;border:0;border-radius:999px;padding:13px 26px;font-size:16px;font-weight:800;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <img src="/icons/icon-192.png" alt="El Castillo Food Mgta">
+  <h1>Sin conexión</h1>
+  <p>No pudimos conectarnos a internet. Revisa tu señal o tu Wi‑Fi y vuelve a intentarlo.</p>
+  <button onclick="location.reload()">Reintentar</button>
+</main>
+<script>addEventListener('online', function () { location.reload(); });</script>
+</body>
+</html>

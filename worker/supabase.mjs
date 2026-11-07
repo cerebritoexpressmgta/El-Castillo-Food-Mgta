@@ -3,8 +3,13 @@ function base(env) {
     if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) throw new Error('Faltan SUPABASE_URL y/o SUPABASE_SERVICE_KEY');
     return env.SUPABASE_URL.replace(/\/$/, '');
 }
+// Llaves nuevas de Supabase (sb_secret_...) van solo en "apikey"; las antiguas (service_role, JWT) también en Authorization.
+function auth(env) {
+    const k = env.SUPABASE_SERVICE_KEY;
+    return String(k).startsWith('sb_') ? { apikey: k } : { apikey: k, Authorization: 'Bearer ' + k };
+}
 function cab(env, extra) {
-    return Object.assign({ apikey: env.SUPABASE_SERVICE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_KEY, 'Content-Type': 'application/json' }, extra || {});
+    return Object.assign({ 'Content-Type': 'application/json' }, auth(env), extra || {});
 }
 async function pedir(env, ruta, init) {
     const r = await fetch(base(env) + ruta, init);
@@ -46,7 +51,7 @@ export async function mantenerActivo(env) {
 }
 export async function subirImagen(env, nombre, bytes, tipo) {
     const r = await fetch(`${base(env)}/storage/v1/object/imagenes/${nombre}`, {
-        method: 'POST', headers: { apikey: env.SUPABASE_SERVICE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_KEY, 'Content-Type': tipo, 'x-upsert': 'true' }, body: bytes
+        method: 'POST', headers: Object.assign({ 'Content-Type': tipo, 'x-upsert': 'true' }, auth(env)), body: bytes
     });
     if (!r.ok) throw new Error(`Storage ${r.status}: ${(await r.text()).slice(0, 200)}`);
     return `${base(env)}/storage/v1/object/public/imagenes/${nombre}`;

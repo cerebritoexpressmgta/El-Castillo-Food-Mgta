@@ -41,3 +41,11 @@ Revisa en el Worker → **Settings → Trigger Events** que aparezca el cron, y 
 
 ## Apariencia
 En `/panel.html` → **Apariencia**: elige una combinación lista o tus propios colores (principal, acento, portada), sube un logo y/o una imagen de portada. Se aplica a la web pública y al menú donde piden los clientes. Las pantallas internas (cocina, mesas, administración) mantienen su estilo.
+
+## App instalable (PWA) e íconos
+- Íconos y favicon salen del escudo de El Castillo (`favicon.ico` e `icons/`).
+- **Clientes:** en la web `/` aparece el botón "Instalar app" (Android/PC); en iPhone se muestra la guía "Compartir → Añadir a pantalla de inicio".
+- **Personal:** abre `/panel.html` e instala desde ahí: queda como otra app, "Castillo Staff", con accesos directos a Cocina, Mesas, Tomar pedido y Estadísticas.
+- Sin internet solo abren las páginas ya visitadas; los pedidos y el menú siempre se leen en vivo (nunca se guardan en el teléfono).
+- Si cambias archivos de la web y quieres forzar que todos los teléfonos renueven su copia, cambia `VERSION` al inicio de `sw.js` (por ejemplo a `v2`).
+- Para usar el escudo como logo en la web: panel → Apariencia → Logo → sube `icons/icon-512.png`.

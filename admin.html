@@ -92,6 +92,18 @@
         .chip-categoria-inactivo { background-color: #1e293b; color: #94a3b8; border-color: #334155; }
         .chip-categoria-inactivo:hover { border-color: #64748b; color: #e2e8f0; }
     </style>
+    <!-- PWA: app del personal -->
+    <link rel="manifest" href="/manifest-personal.webmanifest">
+    <meta name="theme-color" content="#0b1220">
+    <meta name="apple-mobile-web-app-title" content="Castillo Staff">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="pwa.js" defer></script>
 </head>
 <body>
     <div id="pantalla-bloqueo-admin" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
@@ -225,6 +237,7 @@
                         <select id="usr-rol" required>
                             <option value="cajero">Cajero / Operador</option>
                             <option value="admin">Administrador</option>
+                            <option value="superadmin">Superadministrador (dueño)</option>
                         </select>
 
                         <button type="submit" class="btn-submit" id="btn-save-usr">💾 Guardar Usuario</button>

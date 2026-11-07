@@ -289,7 +289,8 @@ function renderListaUsuarios() {
     USUARIOS_SISTEMA.forEach(u => {
         const esAdmin = (String(u.rol).toLowerCase() === 'admin' || String(u.rol).toLowerCase() === 'superadmin');
         let botones = esAdmin 
-            ? `<span style="font-size: 10px; background: rgba(239,68,68,0.2); color: #f87171; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239,68,68,0.3); text-transform: uppercase; font-weight: bold;">Protegido 🛡️</span>`
+            ? `<button type=\"button\" class=\"action-btn btn-edit\" onclick=\"editarUsuario(${u.id})\" title=\"Editar\">✏️</button>
+               <span style="font-size: 10px; background: rgba(239,68,68,0.2); color: #f87171; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239,68,68,0.3); text-transform: uppercase; font-weight: bold;">Protegido 🛡️</span>`
             : `<button type="button" class="action-btn btn-edit" onclick="editarUsuario(${u.id})" title="Editar">✏️</button>
                <button type="button" class="action-btn btn-delete" onclick="eliminarUsuario(${u.id})" title="Eliminar">🗑️</button>`;
 
@@ -355,7 +356,7 @@ function editarUsuario(id) {
     // solo se sobreescribe si el admin escribe uno nuevo.
     const inputPin = document.getElementById('usr-pin');
     inputPin.value = '';
-    inputPin.placeholder = 'Dejar en blanco para no cambiar el PIN';
+    inputPin.placeholder = 'Dejar en blanco para no cambiar la contraseña';
     document.getElementById('usr-rol').value = u.rol;
     document.getElementById('titulo-form-usr').innerText = "Editar Usuario";
     document.getElementById('btn-save-usr').innerText = "💾 Actualizar Usuario";
@@ -366,7 +367,7 @@ function editarUsuario(id) {
 function resetFormUsr() {
     document.getElementById('form-usuario').reset();
     document.getElementById('usr-id').value = "";
-    document.getElementById('usr-pin').placeholder = 'Ej: 1234';
+    document.getElementById('usr-pin').placeholder = 'Contraseña';
     document.getElementById('titulo-form-usr').innerText = "Crear Usuario";
     document.getElementById('btn-save-usr').innerText = "💾 Guardar Usuario";
     document.getElementById('btn-cancel-usr').style.display = "none";
