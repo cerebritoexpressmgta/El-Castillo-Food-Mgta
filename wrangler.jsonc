@@ -2,11 +2,14 @@
   "name": "el-castillo-food-mgta",
   "main": "worker/index.mjs",
   "compatibility_date": "2025-01-01",
+  // Evita que cada despliegue borre las variables que pongas a mano en el panel de Cloudflare
+  "keep_vars": true,
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
+  // Solo datos NO secretos. Las llaves (SUPABASE_SERVICE_KEY, JWT_SECRET) van como "Secreto" en el panel.
   "vars": {
     "SUPABASE_URL": "https://cncrupyxesbzinvjunqm.supabase.co"
   },
