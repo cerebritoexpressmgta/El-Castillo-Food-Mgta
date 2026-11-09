@@ -73,6 +73,14 @@ footer a{color:#fff}footer .links{display:flex;gap:18px;justify-content:center;f
 #lista-menu{grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px}
 #lista-menu .foto{height:auto;aspect-ratio:3/2;font-size:84px}
 #lista-menu .info b{font-size:18px}#lista-menu .info p{font-size:14px}#lista-menu .precio{font-size:19px}
+/* Foto completa (sin recortar) en el menú y texto centrado en las tarjetas */
+#lista-menu .foto:not(.fi){aspect-ratio:auto;min-height:200px;flex:1}
+#lista-menu .info{flex:none}
+#lista-menu .info p{flex:none}
+#lista-menu .foto.fi{aspect-ratio:auto;height:auto;display:block;flex:none}
+#lista-menu .foto.fi img{width:100%;height:auto;max-height:340px;object-fit:cover;display:block}
+.plato .info{text-align:center;align-items:center}
+.plato .info p{width:100%}
 /* Botones de contacto con el color de cada red */
 .btn.red{color:#fff!important;border:0;display:inline-flex;align-items:center;gap:8px}
 .btn.red:hover{filter:brightness(1.08);transform:translateY(-1px)}
@@ -198,7 +206,8 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
   }
   function tarjeta(p) {
     const agotado = p.agotado || p.disponible === false;
-    return '<div class="plato"><div class="foto">' + foto(p.imagen) + '</div><div class="info"><b>' + esc(p.nombre) + '</b>' +
+    const conImg = /^https:\/\//i.test(String(p.imagen || '')) || /^data:image\//i.test(String(p.imagen || ''));
+    return '<div class="plato"><div class="foto' + (conImg ? ' fi' : '') + '">' + foto(p.imagen) + '</div><div class="info"><b>' + esc(p.nombre) + '</b>' +
       (p.descripcion ? '<p>' + esc(p.descripcion) + '</p>' : '<p></p>') +
       '<div>' + (agotado ? '<span class="agot">Agotado por hoy</span>' : '<span class="precio">' + dinero(p.precio) + '</span>') + '</div></div></div>';
   }
