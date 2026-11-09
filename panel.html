@@ -78,6 +78,8 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     <div class="row2">
       <div><label>WhatsApp (con código de país, solo números)</label><input id="s-whatsapp" placeholder="584121234567" inputmode="numeric"></div>
       <div><label>Instagram (sin @)</label><input id="s-instagram"></div>
+      <div><label>Facebook (usuario o enlace)</label><input id="s-facebook" maxlength="200" placeholder="elcastillo o https://facebook.com/..."></div>
+      <div><label>TikTok (sin @)</label><input id="s-tiktok" maxlength="200"></div>
       <div><label>Correo</label><input id="s-email" type="email"></div>
     </div>
   </div>
@@ -303,7 +305,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     const r = await api('GET', '/api/sitio?todas=1');
     if (r.s !== 200) return;
     const s = r.d.sitio || {};
-    ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'email'].forEach(k => { $('s-' + k).value = s[k] || ''; });
+    ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { $('s-' + k).value = s[k] || ''; });
     tema = Object.assign({}, TEMA_VACIO, { colorPrincipal: s.colorPrincipal || '', colorSecundario: s.colorSecundario || '', colorPortada: s.colorPortada || '', imagenPortada: s.imagenPortada || '', logo: s.logo || '', tituloSobrePortada: s.tituloSobrePortada === true }); pintarTema();
     limiteSuc = r.d.limite_sucursales || 1;
     sucursales = r.d.sucursales || []; pintarSuc();
@@ -312,7 +314,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
   $('suc-add').onclick = () => { if (sucursales.filter(s => s.activa !== false).length >= limiteSuc) { alert('Llegaste al límite de tu plan (' + limiteSuc + ' local' + (limiteSuc === 1 ? '' : 'es') + ').'); return; } sucursales.push({ nombre: '', direccion: '', telefono: '', whatsapp: '', horario: '', mapa: '', activa: true }); pintarSuc(); };
   async function guardarWeb() {
     const ms = [$('msg-web'), $('msg-web2')]; ms.forEach(m => { m.className = 'err'; m.textContent = ''; });
-    const sitio = {}; ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });
+    const sitio = {}; ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });
     Object.assign(sitio, tema);
     const r = await api('POST', '/api/sitio/guardar', { sitio, sucursales, galeria, resenas });
     if (r.d && r.d.success) { ms.forEach(m => { m.className = 'ok'; m.textContent = 'Guardado. Ya se ve en la web.'; }); cargarWeb(); }
