@@ -278,6 +278,7 @@
                 </div>
                 <div class="list-panel">
                     <h3>Categorías Existentes</h3>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:-4px 0 12px;">⤒ la manda al primer lugar · ▲ ▼ la suben o bajan un lugar. Este orden se usa en el menú y en la lista de categorías al crear productos.</p>
                     <input type="text" id="buscador-categorias-admin" oninput="filtrarCategoriasAdmin()" placeholder="🔍 Buscar categoría por nombre..." style="width: 100%; padding: 0.75rem; margin-bottom: 15px; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none; position: sticky; top: 0; z-index: 2;">
                     <div id="lista-categorias-container">Cargando...</div>
                 </div>
@@ -296,6 +297,7 @@
                         <label>Categoría</label>
                         <select id="prod-categoria" required>
                             </select>
+                        <a href="#" onclick="event.preventDefault(); document.querySelectorAll('.tab-btn')[0].click(); window.scrollTo({top: 0, behavior: 'smooth'});" style="display:inline-block; margin-top:6px; font-size:0.8rem; color:#38bdf8; text-decoration:none;">↕ Cambiar el orden de las categorías</a>
                         
                         <label>Precio ($)</label>
                         <input type="number" id="prod-precio" step="0.01" placeholder="0.00" required>
