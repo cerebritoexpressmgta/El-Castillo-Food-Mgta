@@ -399,6 +399,14 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         }
         return ok();
     });
+    ruta('POST', '/api/menu/ordenar', (ctx, db) => {
+        requiereAdmin(ctx); const { tipo, ids } = ctx.body || {};
+        const tabla = { producto: 'productos', combo: 'combos' }[tipo];
+        if (!tabla || !Array.isArray(ids)) throw new HttpError(422, 'Datos incompletos');
+        const pos = new Map(ids.map((id, i) => [Number(id), i]));
+        db[tabla] = db[tabla].map((x, i) => [x, pos.has(x.id) ? pos.get(x.id) : 1e9 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+        return ok();
+    });
     ruta('POST', '/api/menu/eliminar-item', (ctx, db) => {
         requiereAdmin(ctx); const { id, tipo } = ctx.body;
         const tablas = { categoria: 'categorias', producto: 'productos', combo: 'combos' };
