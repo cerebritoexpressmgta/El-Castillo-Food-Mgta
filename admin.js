@@ -748,6 +748,7 @@ function renderListaCategorias(lista = adminCategorias) {
             <div class="list-item">
                 <div class="item-info"><p class="item-title">${cat.nombre}</p></div>
                 <div class="item-actions">
+                    <button class="action-btn btn-edit" onclick="moverItem(${cat.id}, 'categoria', 'inicio')" title="Mover al inicio">⤒</button>
                     <button class="action-btn btn-edit" onclick="moverItem(${cat.id}, 'categoria', -1)" title="Subir">▲</button>
                     <button class="action-btn btn-edit" onclick="moverItem(${cat.id}, 'categoria', 1)" title="Bajar">▼</button>
                     <button class="action-btn btn-edit" onclick="editarCategoria(${cat.id})" title="Editar">✏️</button>
@@ -809,14 +810,13 @@ function renderListaProductos(lista = adminProductos) {
         const opacityClass = p.disponible ? '' : 'deshabilitado';
         const badgeAgotado = p.agotado ? ' <span style="color:#f87171; font-weight:bold;">🚫 Agotado</span>' : '';
         cont.innerHTML += `
-            <div class="list-item ${opacityClass}">
+            <div class="list-item ${opacityClass}" data-id="${p.id}">
                 <div class="item-info">
                     <p class="item-title">${p.favorito ? '⭐ ' : ''}${p.nombre} <span style="color:#10b981">$${p.precio}</span>${badgeAgotado}</p>
                     <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}</p>
                 </div>
                 <div class="item-actions">
-                    <button class="action-btn btn-edit" onclick="moverItem(${p.id}, 'producto', -1)" title="Subir">▲</button>
-                    <button class="action-btn btn-edit" onclick="moverItem(${p.id}, 'producto', 1)" title="Bajar">▼</button>
+                    <button class="action-btn btn-edit drag-handle" title="Mantén presionado y arrastra para mover esta tarjeta a donde quieras">↕ Mover</button>
                     <button class="action-btn btn-edit" onclick="editarProducto(${p.id})" title="Editar">✏️</button>
                     <button class="action-btn btn-delete" onclick="eliminarItem(${p.id}, 'producto')" title="Eliminar">🗑️</button>
                 </div>
@@ -950,14 +950,13 @@ function renderListaCombos(lista = adminCombos) {
     lista.forEach(c => {
         const opacityClass = c.disponible ? '' : 'deshabilitado';
         cont.innerHTML += `
-            <div class="list-item ${opacityClass}">
+            <div class="list-item ${opacityClass}" data-id="${c.id}">
                 <div class="item-info">
                     <p class="item-title">${c.favorito ? '⭐ ' : ''}${c.nombre} <span style="color:#10b981">$${c.precio}</span></p>
                     <p class="item-meta">Disp: ${c.disponible ? 'Sí' : 'No'}</p>
                 </div>
                 <div class="item-actions">
-                    <button class="action-btn btn-edit" onclick="moverItem(${c.id}, 'combo', -1)" title="Subir">▲</button>
-                    <button class="action-btn btn-edit" onclick="moverItem(${c.id}, 'combo', 1)" title="Bajar">▼</button>
+                    <button class="action-btn btn-edit drag-handle" title="Mantén presionado y arrastra para mover esta tarjeta a donde quieras">↕ Mover</button>
                     <button class="action-btn btn-edit" onclick="editarCombo(${c.id})" title="Editar">✏️</button>
                     <button class="action-btn btn-delete" onclick="eliminarItem(${c.id}, 'combo')" title="Eliminar">🗑️</button>
                 </div>
@@ -1398,6 +1397,12 @@ async function guardarOrden(tipo, ids) {
     } catch (e) { alert('Error al guardar el orden.'); }
 }
 function moverItem(id, tipo, dir) {
+    if (dir === 'inicio') {
+        const l = tipo === 'combo' ? adminCombos : (tipo === 'categoria' ? adminCategorias : adminProductos);
+        const ids = l.map(x => x.id).filter(x => x !== id);
+        ids.unshift(id);
+        return guardarOrden(tipo, ids);
+    }
     const lista = tipo === 'combo' ? adminCombos : (tipo === 'categoria' ? adminCategorias : adminProductos);
     const buscador = document.getElementById({ combo: 'buscador-combos-admin', categoria: 'buscador-categorias-admin', producto: 'buscador-productos-admin' }[tipo]);
     const txt = buscador ? buscador.value.toLowerCase() : '';
@@ -1409,6 +1414,69 @@ function moverItem(id, tipo, dir) {
     [ids[i], ids[j]] = [ids[j], ids[i]];
     guardarOrden(tipo, ids);
 }
+// Arrastrar tarjetas (ratón o dedo): se mantiene presionado "↕ Mover", se suelta donde se quiere la tarjeta
+function activarArrastre(contId, tipo) {
+    const cont = document.getElementById(contId);
+    if (!cont || cont._arrastre) return;
+    cont._arrastre = true;
+    cont.addEventListener('pointerdown', e => {
+        const h = e.target.closest('.drag-handle');
+        if (!h || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        const card = h.closest('.list-item');
+        if (!card) return;
+        e.preventDefault();
+        try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        let sc = cont.parentElement;
+        while (sc && sc !== document.body && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement;
+        if (!sc || sc === document.body) sc = document.scrollingElement;
+        const esVentana = sc === document.scrollingElement;
+        const y0 = e.clientY, scroll0 = sc.scrollTop;
+        let y = y0, raf = 0, destino = null, alFinal = false;
+        card.classList.add('arrastrando');
+        const hermanas = () => [].slice.call(cont.children).filter(c => c !== card && c.classList.contains('list-item'));
+        const marcar = () => {
+            hermanas().forEach(c => c.classList.remove('drop-antes', 'drop-final'));
+            const hs = hermanas();
+            destino = hs.find(c => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; }) || null;
+            alFinal = !destino;
+            if (destino) destino.classList.add('drop-antes');
+            else if (hs.length) hs[hs.length - 1].classList.add('drop-final');
+        };
+        const tick = () => {
+            const r = esVentana ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect();
+            const zona = 60;
+            if (y < r.top + zona) sc.scrollTop -= 14; else if (y > r.bottom - zona) sc.scrollTop += 14;
+            card.style.transform = 'translateY(' + (y - y0 + (sc.scrollTop - scroll0)) + 'px)';
+            marcar();
+            raf = requestAnimationFrame(tick);
+        };
+        const mover = ev => { y = ev.clientY; };
+        const soltar = ev => {
+            cancelAnimationFrame(raf);
+            window.removeEventListener('pointermove', mover);
+            window.removeEventListener('pointerup', soltar);
+            window.removeEventListener('pointercancel', soltar);
+            const hs = hermanas();
+            hs.forEach(c => c.classList.remove('drop-antes', 'drop-final'));
+            card.classList.remove('arrastrando'); card.style.transform = '';
+            if (ev.type === 'pointercancel') return;
+            const visIds = [].slice.call(cont.children).map(c => +c.dataset.id);
+            const nuevoVis = hs.map(c => +c.dataset.id);
+            nuevoVis.splice(alFinal ? nuevoVis.length : nuevoVis.indexOf(+destino.dataset.id), 0, +card.dataset.id);
+            if (nuevoVis.join() === visIds.join()) return; // no cambió de lugar
+            const lista = tipo === 'combo' ? adminCombos : adminProductos;
+            const enVista = new Set(visIds); let k = 0;
+            guardarOrden(tipo, lista.map(x => x.id).map(id => enVista.has(id) ? nuevoVis[k++] : id));
+        };
+        window.addEventListener('pointermove', mover);
+        window.addEventListener('pointerup', soltar);
+        window.addEventListener('pointercancel', soltar);
+        raf = requestAnimationFrame(tick);
+    });
+}
+activarArrastre('lista-productos-container', 'producto');
+activarArrastre('lista-combos-container', 'combo');
+
 function ordenarPorPrecio(tipo) {
     const lista = tipo === 'combo' ? adminCombos : adminProductos;
     const ids = lista.map((x, i) => [x, i]).sort((a, b) => (Number(a[0].precio) - Number(b[0].precio)) || (a[1] - b[1])).map(x => x[0].id);
