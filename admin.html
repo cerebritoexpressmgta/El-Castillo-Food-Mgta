@@ -311,6 +311,10 @@
                             <input type="checkbox" id="prod-agotado"> Agotado / sin stock por el momento
                         </label>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca esto cuando no puedas preparar el producto hoy (ej. se acabó un ingrediente). A diferencia de "no disponible", esto también lo bloquea dentro de los combos que lo incluyen.</p>
+                        <label style="display: flex; align-items: center; margin-top: 10px; cursor: pointer; color: #fbbf24;">
+                            <input type="checkbox" id="prod-favorito"> ⭐ Mostrar en "Nuestros favoritos" (página principal)
+                        </label>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca los que quieres destacar en el carrusel de la página principal. Si no marcas ninguno, el carrusel muestra todo el menú automáticamente.</p>
                         <div id="prod-sucursales" style="display:none"></div>
 
                         <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
@@ -457,6 +461,10 @@
                         <label style="display: flex; align-items: center; margin-top: 15px; cursor: pointer;">
                             <input type="checkbox" id="combo-disponible" checked> Combo Disponible en Menú
                         </label>
+                        <label style="display: flex; align-items: center; margin-top: 10px; cursor: pointer; color: #fbbf24;">
+                            <input type="checkbox" id="combo-favorito"> ⭐ Mostrar en "Nuestros favoritos" (página principal)
+                        </label>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca los que quieres destacar en el carrusel de la página principal. Si no marcas ninguno, el carrusel muestra todo el menú automáticamente.</p>
                         <div id="combo-sucursales" style="display:none"></div>
 
                         <button type="submit" class="btn-submit" id="btn-save-combo">🍱 Guardar Combo</button>

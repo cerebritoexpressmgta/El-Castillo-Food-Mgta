@@ -29,7 +29,7 @@ section{padding:56px 0}h2{font-size:28px;margin:0 0 6px}.sub{color:var(--mu);mar
 .foto img{width:100%;height:100%;object-fit:cover}
 .info{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}.info b{font-size:16px}.info p{margin:0;color:var(--mu);font-size:13px;flex:1}
 .precio{font-weight:800;color:var(--ac);font-size:17px}.agot{font-size:12px;color:var(--mu);font-weight:700}
-.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:16px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding-bottom:10px;margin-bottom:16px}
 .tab{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
 .tab.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 .alt{background:var(--card);border-top:1px solid var(--bd);border-bottom:1px solid var(--bd)}
@@ -61,8 +61,21 @@ footer a{color:#fff}footer .links{display:flex;gap:18px;justify-content:center;f
 /* Fondos con tema de comida rápida: cada sección con el suyo */
 #destacados{background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22 opacity=%220.28%22%3E%3Ctext x=%2230%22 y=%2245%22 font-size=%2234%22 transform=%22rotate%28-15 30 45%29%22%3E%F0%9F%8D%94%3C/text%3E%3Ctext x=%22110%22 y=%2228%22 font-size=%2234%22 transform=%22rotate%2812 110 28%29%22%3E%F0%9F%8D%9F%3C/text%3E%3Ctext x=%22185%22 y=%2270%22 font-size=%2234%22 transform=%22rotate%28-8 185 70%29%22%3E%F0%9F%8D%95%3C/text%3E%3Ctext x=%2260%22 y=%22120%22 font-size=%2234%22 transform=%22rotate%2820 60 120%29%22%3E%F0%9F%8C%AD%3C/text%3E%3Ctext x=%22140%22 y=%22150%22 font-size=%2234%22 transform=%22rotate%28-18 140 150%29%22%3E%F0%9F%A5%A4%3C/text%3E%3Ctext x=%22205%22 y=%22185%22 font-size=%2234%22 transform=%22rotate%2810 205 185%29%22%3E%F0%9F%8D%97%3C/text%3E%3Ctext x=%2225%22 y=%22195%22 font-size=%2234%22 transform=%22rotate%286 25 195%29%22%3E%F0%9F%8D%A6%3C/text%3E%3Ctext x=%22100%22 y=%22205%22 font-size=%2234%22 transform=%22rotate%28-12 100 205%29%22%3E%F0%9F%8D%A9%3C/text%3E%3C/svg%3E"),radial-gradient(circle at 15% 10%,#ffd23f 0,transparent 45%),linear-gradient(135deg,#ff9f1c,#f0541e 60%,#d62828);background-size:240px 240px,auto,auto;border-bottom:4px solid #ffd23f}
 #menu.alt{background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22 opacity=%220.14%22%3E%3Ctext x=%2230%22 y=%2245%22 font-size=%2234%22 transform=%22rotate%28-15 30 45%29%22%3E%F0%9F%8C%AE%3C/text%3E%3Ctext x=%22110%22 y=%2228%22 font-size=%2234%22 transform=%22rotate%2812 110 28%29%22%3E%F0%9F%8D%BF%3C/text%3E%3Ctext x=%22185%22 y=%2270%22 font-size=%2234%22 transform=%22rotate%28-8 185 70%29%22%3E%F0%9F%A5%93%3C/text%3E%3Ctext x=%2260%22 y=%22120%22 font-size=%2234%22 transform=%22rotate%2820 60 120%29%22%3E%F0%9F%A7%80%3C/text%3E%3Ctext x=%22140%22 y=%22150%22 font-size=%2234%22 transform=%22rotate%28-18 140 150%29%22%3E%F0%9F%A5%AA%3C/text%3E%3Ctext x=%22205%22 y=%22185%22 font-size=%2234%22 transform=%22rotate%2810 205 185%29%22%3E%F0%9F%8D%9F%3C/text%3E%3Ctext x=%2225%22 y=%22195%22 font-size=%2234%22 transform=%22rotate%286 25 195%29%22%3E%F0%9F%A7%83%3C/text%3E%3Ctext x=%22100%22 y=%22205%22 font-size=%2234%22 transform=%22rotate%28-12 100 205%29%22%3E%F0%9F%8D%94%3C/text%3E%3C/svg%3E"),radial-gradient(circle at 85% 0,#6a1b9a 0,transparent 50%),linear-gradient(160deg,#1b1230,#2a1646 55%,#13091f);background-size:240px 240px,auto,auto;border-top:0;border-bottom:4px solid #ff9f1c}
-#destacados h2,#menu h2{color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35)}
-#destacados .sub,#menu .sub,#destacados .vacio,#menu .vacio{color:rgba(255,255,255,.9)}
+/* Encabezado centrado, con un panel oscuro translúcido para que se lea sobre cualquier fondo */
+.cab{text-align:center;margin-bottom:26px}
+.cab-in{display:inline-block;max-width:100%;background:rgba(20,8,0,.58);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border-radius:18px;padding:12px 28px 14px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+.cab h2,.cab .sub{margin:0}.cab .sub{margin-top:2px}
+#destacados h2,#menu h2{color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+#destacados .sub,#menu .sub{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+#destacados .vacio,#menu .vacio{color:#fff;background:rgba(20,8,0,.58);border-radius:14px;padding:14px 18px;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+.hero h1,.hero p{text-shadow:0 2px 10px rgba(0,0,0,.55)}
+/* Flechas del carrusel */
+.car-nav{position:absolute;top:var(--by,140px);transform:translateY(-50%);z-index:3;width:46px;height:46px;border-radius:50%;border:0;padding:0;background:rgba(255,255,255,.95);color:#241a12;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;transition:transform .15s,background .15s}
+.car-nav:hover{background:#fff;transform:translateY(-50%) scale(1.1)}
+.car-nav:focus-visible{outline:3px solid #ffd23f;outline-offset:2px}
+.car-nav[hidden]{display:none}
+.car-nav.prev{left:18px}.car-nav.next{right:18px}
+.car-nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 #destacados .plato,#menu .plato{box-shadow:0 8px 22px rgba(0,0,0,.28);border-color:transparent}
 #menu .tab{border-color:transparent}
 .btn.c-pedir{background:linear-gradient(135deg,#ffb703,#f0541e);box-shadow:0 4px 14px rgba(240,84,30,.4)}
@@ -96,16 +109,20 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
 .car-it .plato{width:100%;cursor:pointer;transition:box-shadow .15s,transform .15s}
 .car-it .plato:hover,.car-it .plato:focus-visible{box-shadow:0 8px 22px rgba(0,0,0,.18);transform:translateY(-2px);outline:none}
 .car{--n:2}@media(max-width:560px){.car{--n:1}}
-.car-it .foto{height:clamp(190px,24vw,280px);font-size:96px}
+.car-it .foto{height:auto;min-height:190px;flex:1 1 auto;font-size:96px}
+.car-it .foto.fi{min-height:0;display:flex;align-items:center;justify-content:center}
+.car-it .foto.fi img{width:100%;height:auto;max-height:380px;object-fit:contain;display:block}
+.car-it .info{flex:none}
 .car-it .info{padding:18px 22px 22px;gap:8px}.car-it .info b{font-size:21px}.car-it .info p{font-size:15px}.car-it .precio{font-size:23px}
 @media(prefers-reduced-motion:reduce){.car-track{transition:none!important}}
 /* Ventana ampliada */
 #dest-modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:18px}
 #dest-modal.on{display:flex}
 .dm{background:var(--card);color:var(--tx);border-radius:22px;max-width:520px;width:100%;max-height:92vh;overflow:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.dm .dm-foto{height:min(52vw,300px);display:flex;align-items:center;justify-content:center;font-size:110px;background:linear-gradient(135deg,#f7e6cd,#f3cfa3);overflow:hidden}
+.dm .dm-foto{min-height:160px;display:flex;align-items:center;justify-content:center;font-size:110px;background:linear-gradient(135deg,#f7e6cd,#f3cfa3);overflow:hidden}
 @media (prefers-color-scheme:dark){.dm .dm-foto{background:linear-gradient(135deg,#3a2a1b,#2a1d12)}}
-.dm .dm-foto img{width:100%;height:100%;object-fit:cover}
+.dm .dm-foto.fi{min-height:0}
+.dm .dm-foto img{width:100%;height:auto;max-height:min(60vh,440px);object-fit:contain;display:block}
 .dm .dm-body{padding:20px 22px 24px;display:flex;flex-direction:column;gap:10px}
 .dm h3{margin:0;font-size:24px}.dm p{margin:0;color:var(--mu);font-size:16px;white-space:pre-line}
 .dm .precio{font-size:26px}
@@ -139,12 +156,15 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
 </div></div>
 
 <section id="destacados"><div class="wrap">
-  <h2>Nuestros favoritos</h2><p class="sub">Lo que más se pide en El Castillo</p>
-  <div class="car" id="car"><div class="car-track" id="lista-dest"><div class="vacio" style="width:100%">Cargando…</div></div></div>
+  <div class="cab"><div class="cab-in"><h2>Nuestros favoritos</h2><p class="sub">Lo que más se pide en El Castillo</p></div></div>
+  <div class="car" id="car"><div class="car-track" id="lista-dest"><div class="vacio" style="width:100%">Cargando…</div></div>
+    <button type="button" class="car-nav prev" id="car-prev" aria-label="Anterior" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button type="button" class="car-nav next" id="car-next" aria-label="Siguiente" hidden><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
 </div></section>
 
 <section id="menu" class="alt"><div class="wrap">
-  <h2>El menú</h2><p class="sub">Elige una categoría. Para pedir, toca “Pedir ahora”.</p>
+  <div class="cab"><div class="cab-in"><h2>El menú</h2><p class="sub">Elige una categoría. Para pedir, toca “Pedir ahora”.</p></div></div>
   <div class="tabs" id="tabs"></div>
   <div class="grid" id="lista-menu"></div>
   <p style="text-align:center;margin-top:26px"><a class="btn" href="menu.html">Pedir ahora</a></p>
@@ -212,45 +232,75 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
       '<div>' + (agotado ? '<span class="agot">Agotado por hoy</span>' : '<span class="precio">' + dinero(p.precio) + '</span>') + '</div></div></div>';
   }
 
-  // ---- Carrusel de favoritos: avanza de a una tarjeta hacia la izquierda ----
+  // ---- Carrusel de favoritos: avanza solo, y también con flechas o deslizando ----
   const INTERVALO_MS = 6000, DURACION_MS = 600;
-  let carTimer = null, carPausa = 0, carItems = [];
+  let carTimer = null, carPausa = 0, carItems = [], carBusy = false, carHover = false;
+  const carN = () => parseInt(getComputedStyle($('car')).getPropertyValue('--n')) || 1;
+  const carMueve = () => carItems.length > carN(); // si caben todas, no hace falta mover nada
+  function carBotones() {
+    const m = carMueve();
+    $('car-prev').hidden = !m; $('car-next').hidden = !m;
+    const fs = [].slice.call($('lista-dest').querySelectorAll('.foto'));
+    if (fs.length) $('car').style.setProperty('--by', (fs.reduce((t, f) => t + f.getBoundingClientRect().height, 0) / fs.length / 2) + 'px'); // flechas al centro de las fotos
+  }
   function carProgramar() {
     clearTimeout(carTimer);
-    const track = $('lista-dest');
-    if (carItems.length < 2) return;
-    const n = parseInt(getComputedStyle($('car')).getPropertyValue('--n')) || 1;
-    if (carItems.length <= n) return; // caben todas: no hace falta mover nada
-    carTimer = setTimeout(function paso() {
-      if (carPausa > 0 || document.hidden) { carProgramar(); return; }
-      const w = track.firstElementChild.getBoundingClientRect().width;
-      track.style.transition = 'transform ' + DURACION_MS + 'ms ease';
-      track.style.transform = 'translateX(-' + w + 'px)';
-      setTimeout(() => {
-        track.style.transition = 'none';
-        track.appendChild(track.firstElementChild);
-        track.style.transform = 'none';
-        carProgramar();
-      }, DURACION_MS + 40);
+    if (!carMueve()) return;
+    carTimer = setTimeout(function () {
+      if (carPausa > 0 || carHover || carBusy || document.hidden) { carProgramar(); return; }
+      carMover(1);
     }, INTERVALO_MS);
   }
+  // dir = 1 siguiente, -1 anterior
+  function carMover(dir) {
+    if (carBusy || !carMueve()) return;
+    carBusy = true; clearTimeout(carTimer);
+    const track = $('lista-dest');
+    const w = track.firstElementChild.getBoundingClientRect().width;
+    const fin = () => { carBusy = false; carProgramar(); };
+    if (dir > 0) {
+      track.style.transition = 'transform ' + DURACION_MS + 'ms ease';
+      track.style.transform = 'translateX(-' + w + 'px)';
+      setTimeout(() => { track.style.transition = 'none'; track.appendChild(track.firstElementChild); track.style.transform = 'none'; fin(); }, DURACION_MS + 40);
+    } else {
+      track.style.transition = 'none';
+      track.insertBefore(track.lastElementChild, track.firstElementChild);
+      track.style.transform = 'translateX(-' + w + 'px)';
+      void track.offsetWidth;
+      track.style.transition = 'transform ' + DURACION_MS + 'ms ease';
+      track.style.transform = 'translateX(0)';
+      setTimeout(() => { track.style.transition = 'none'; track.style.transform = 'none'; fin(); }, DURACION_MS + 40);
+    }
+  }
+  $('car-prev').onclick = () => carMover(-1);
+  $('car-next').onclick = () => carMover(1);
+  $('car').addEventListener('mouseenter', () => { carHover = true; });
+  $('car').addEventListener('mouseleave', () => { carHover = false; });
+  let tx = null;
+  $('car').addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  $('car').addEventListener('touchend', e => {
+    if (tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx; tx = null;
+    if (Math.abs(dx) > 45) carMover(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  $('lista-dest').addEventListener('load', carBotones, true); // cuando carga cada foto, se reacomodan las flechas
+  window.addEventListener('resize', () => { const t = $('lista-dest'); t.style.transition = 'none'; t.style.transform = 'none'; carBusy = false; carBotones(); carProgramar(); });
   function carrusel(items) {
     carItems = items;
     const track = $('lista-dest');
-    if (!items.length) { track.innerHTML = '<div class="vacio" style="width:100%">Pronto publicaremos nuestro menú.</div>'; return; }
-    track.innerHTML = items.map((p, i) => '<div class="car-it" data-i="' + i + '">' + tarjeta(p).replace('<div class="plato"', '<div class="plato" role="button" tabindex="0" aria-label="Ver ' + esc(p.nombre) + '"') + '</div>').join('');
+    if (!items.length) { track.innerHTML = '<div class="vacio" style="width:100%">Pronto publicaremos nuestro menú.</div>'; carBotones(); return; }
+    track.innerHTML = items.map((p, i) => '<div class="car-it" data-i="' + i + '">' + tarjeta(p).replace('<div class="plato"', '<div class="plato" role="button" tabindex="0" aria-label="Ver ' + esc(p.nombre) + '"').replace(' loading="lazy"', ' loading="eager"') + '</div>').join('');
     const abrir = e => {
       const it = e.target.closest('.car-it'); if (!it) return;
       if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault(); verPlato(items[+it.dataset.i]);
     };
     track.onclick = abrir; track.onkeydown = abrir;
-    window.addEventListener('resize', () => { track.style.transition = 'none'; track.style.transform = 'none'; carProgramar(); });
-    carProgramar();
+    carBotones(); carProgramar();
   }
   function verPlato(p) {
     carPausa++;
-    $('dm').innerHTML = '<button class="dm-x" aria-label="Cerrar">×</button><div class="dm-foto">' + foto(p.imagen) + '</div><div class="dm-body"><h3>' + esc(p.nombre) + '</h3>' +
+    $('dm').innerHTML = '<button class="dm-x" aria-label="Cerrar">×</button><div class="dm-foto' + (/^https:\/\//i.test(String(p.imagen || '')) || /^data:image\//i.test(String(p.imagen || '')) ? ' fi' : '') + '">' + foto(p.imagen) + '</div><div class="dm-body"><h3>' + esc(p.nombre) + '</h3>' +
       (p.descripcion ? '<p>' + esc(p.descripcion) + '</p>' : '') + '<span class="precio">' + dinero(p.precio) + '</span>' +
       '<a class="btn" href="menu.html" style="text-align:center;margin-top:6px">🛒 Pedir ahora</a></div>';
     $('dest-modal').classList.add('on'); document.body.style.overflow = 'hidden';
@@ -268,8 +318,10 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
     try {
       const r = await fetch('/api/menu'); const d = (await r.json()).menu;
       const items = d.productos.concat(d.combos || []).filter(x => x.disponible !== false);
-      const favoritos = (d.combos || []).concat(d.productos).filter(x => x.disponible !== false && !x.agotado);
-      carrusel(favoritos);
+      // Los favoritos se eligen en Administración (casilla ⭐). Si no hay ninguno marcado, se muestra todo el menú disponible.
+      const disponibles = (d.combos || []).concat(d.productos).filter(x => x.disponible !== false && !x.agotado);
+      const marcados = disponibles.filter(x => x.favorito);
+      carrusel(marcados.length ? marcados : disponibles);
       const cats = [];
       (d.categorias || []).forEach(c => { if (items.some(i => i.categoria === c.nombre)) cats.push(c.nombre); });
       items.forEach(i => { if (i.categoria && !cats.includes(i.categoria)) cats.push(i.categoria); });

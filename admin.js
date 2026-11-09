@@ -808,7 +808,7 @@ function renderListaProductos(lista = adminProductos) {
         cont.innerHTML += `
             <div class="list-item ${opacityClass}">
                 <div class="item-info">
-                    <p class="item-title">${p.nombre} <span style="color:#10b981">$${p.precio}</span>${badgeAgotado}</p>
+                    <p class="item-title">${p.favorito ? '⭐ ' : ''}${p.nombre} <span style="color:#10b981">$${p.precio}</span>${badgeAgotado}</p>
                     <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}</p>
                 </div>
                 <div class="item-actions">
@@ -886,6 +886,7 @@ if (document.getElementById('form-producto')) {
             id: id ? parseInt(id) : null, nombre: document.getElementById('prod-nombre').value.trim(), categoria: document.getElementById('prod-categoria').value,
             precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked,
             agotado: document.getElementById('prod-agotado').checked,
+            favorito: document.getElementById('prod-favorito').checked,
             no_disponible_en: leerNoDisponible('prod'),
             disponible_desde: document.getElementById('prod-disponible-desde').value || null,
             disponible_hasta: document.getElementById('prod-disponible-hasta').value || null,
@@ -909,6 +910,7 @@ function editarProducto(id) {
     document.getElementById('prod-id').value = p.id; document.getElementById('prod-nombre').value = p.nombre; document.getElementById('prod-categoria').value = p.categoria;
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
     document.getElementById('prod-agotado').checked = !!p.agotado;
+    document.getElementById('prod-favorito').checked = !!p.favorito;
     document.getElementById('prod-disponible-desde').value = p.disponible_desde || '';
     marcarNoDisponible('prod', p.no_disponible_en);
     document.getElementById('prod-disponible-hasta').value = p.disponible_hasta || '';
@@ -945,7 +947,7 @@ function renderListaCombos(lista = adminCombos) {
         cont.innerHTML += `
             <div class="list-item ${opacityClass}">
                 <div class="item-info">
-                    <p class="item-title">${c.nombre} <span style="color:#10b981">$${c.precio}</span></p>
+                    <p class="item-title">${c.favorito ? '⭐ ' : ''}${c.nombre} <span style="color:#10b981">$${c.precio}</span></p>
                     <p class="item-meta">Disp: ${c.disponible ? 'Sí' : 'No'}</p>
                 </div>
                 <div class="item-actions">
@@ -1318,7 +1320,7 @@ if (formCombo) {
 
         const payload = {
             id: id ? parseInt(id) : null, nombre: document.getElementById('combo-nombre').value.trim(), categoria: document.getElementById('combo-categoria').value || null, precio: parseFloat(document.getElementById('combo-precio').value),
-            imagen: imgFinalCombo, descripcion: document.getElementById('combo-descripcion').value.trim(), items: itemsSeleccionados, disponible: document.getElementById('combo-disponible').checked,
+            imagen: imgFinalCombo, descripcion: document.getElementById('combo-descripcion').value.trim(), items: itemsSeleccionados, disponible: document.getElementById('combo-disponible').checked, favorito: document.getElementById('combo-favorito').checked,
             promo_cantidad_minima: promoCantidadMinima, promo_producto_id: promoProductoId, promo_producto_cantidad: promoProductoCantidad,
             no_disponible_en: leerNoDisponible('combo'),
             disponible_desde: document.getElementById('combo-disponible-desde').value || null,
@@ -1343,7 +1345,7 @@ function editarCombo(id) {
     document.getElementById('combo-id').value = c.id; document.getElementById('combo-nombre').value = c.nombre; document.getElementById('combo-precio').value = c.precio;
     document.getElementById('combo-categoria').value = c.categoria || '';
     document.getElementById('combo-categoria-visible').value = c.categoria || '';
-    document.getElementById('combo-imagen').value = c.imagen || ''; document.getElementById('combo-descripcion').value = c.descripcion || ''; document.getElementById('combo-disponible').checked = c.disponible;
+    document.getElementById('combo-imagen').value = c.imagen || ''; document.getElementById('combo-descripcion').value = c.descripcion || ''; document.getElementById('combo-disponible').checked = c.disponible; document.getElementById('combo-favorito').checked = !!c.favorito;
     document.getElementById('combo-promo-cantidad-minima').value = c.promo_cantidad_minima || '';
     document.getElementById('combo-promo-producto-cantidad').value = c.promo_producto_cantidad || '';
     const prodPromo = c.promo_producto_id ? adminProductos.find(p => p.id === c.promo_producto_id) : null;
