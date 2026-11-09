@@ -10,6 +10,7 @@ const ADMIN_URL_GUARDAR_CAT = API_BASE + "/api/menu/guardar-categoria";
 const ADMIN_URL_GUARDAR_PROD = API_BASE + "/api/menu/guardar-producto";
 const ADMIN_URL_GUARDAR_COMBO = API_BASE + "/api/menu/guardar-combo";
 const ADMIN_URL_ELIMINAR = API_BASE + "/api/menu/eliminar-item";
+const ADMIN_URL_ORDENAR = API_BASE + "/api/menu/ordenar";
 
 const URL_OBTENER_USUARIOS_ADMIN = API_BASE + "/api/usuarios/";
 const ADMIN_URL_GUARDAR_USUARIO = API_BASE + "/api/usuarios/guardar";
@@ -812,6 +813,8 @@ function renderListaProductos(lista = adminProductos) {
                     <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}</p>
                 </div>
                 <div class="item-actions">
+                    <button class="action-btn btn-edit" onclick="moverItem(${p.id}, 'producto', -1)" title="Subir">▲</button>
+                    <button class="action-btn btn-edit" onclick="moverItem(${p.id}, 'producto', 1)" title="Bajar">▼</button>
                     <button class="action-btn btn-edit" onclick="editarProducto(${p.id})" title="Editar">✏️</button>
                     <button class="action-btn btn-delete" onclick="eliminarItem(${p.id}, 'producto')" title="Eliminar">🗑️</button>
                 </div>
@@ -951,6 +954,8 @@ function renderListaCombos(lista = adminCombos) {
                     <p class="item-meta">Disp: ${c.disponible ? 'Sí' : 'No'}</p>
                 </div>
                 <div class="item-actions">
+                    <button class="action-btn btn-edit" onclick="moverItem(${c.id}, 'combo', -1)" title="Subir">▲</button>
+                    <button class="action-btn btn-edit" onclick="moverItem(${c.id}, 'combo', 1)" title="Bajar">▼</button>
                     <button class="action-btn btn-edit" onclick="editarCombo(${c.id})" title="Editar">✏️</button>
                     <button class="action-btn btn-delete" onclick="eliminarItem(${c.id}, 'combo')" title="Eliminar">🗑️</button>
                 </div>
@@ -1381,6 +1386,31 @@ function resetFormCombo() {
     construirChipsDias('combo', []);
     agregarFilaProductoCombo(); document.getElementById('titulo-form-combo').innerText = "Crear Combo"; document.getElementById('btn-save-combo').innerText = "🍱 Guardar Combo"; document.getElementById('btn-cancel-combo').style.display = "none";
     if(document.getElementById('buscador-combos-admin')) document.getElementById('buscador-combos-admin').value = '';
+}
+
+// Sube (-1) o baja (+1) un producto/combo en la lista; ese es el orden en que se ve en el menú
+async function guardarOrden(tipo, ids) {
+    try {
+        await fetch(ADMIN_URL_ORDENAR, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ tipo, ids }) });
+        await cargarDatosAdmin();
+    } catch (e) { alert('Error al guardar el orden.'); }
+}
+function moverItem(id, tipo, dir) {
+    const lista = tipo === 'combo' ? adminCombos : adminProductos;
+    const buscador = document.getElementById(tipo === 'combo' ? 'buscador-combos-admin' : 'buscador-productos-admin');
+    const txt = buscador ? buscador.value.toLowerCase() : '';
+    const visibles = txt ? lista.filter(x => x.nombre.toLowerCase().includes(txt)) : lista; // con búsqueda, se mueve entre los que se ven
+    const k = visibles.findIndex(x => x.id === id), vecino = visibles[k + dir];
+    if (k < 0 || !vecino) return;
+    const ids = lista.map(x => x.id);
+    const i = ids.indexOf(id), j = ids.indexOf(vecino.id);
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    guardarOrden(tipo, ids);
+}
+function ordenarPorPrecio(tipo) {
+    const lista = tipo === 'combo' ? adminCombos : adminProductos;
+    const ids = lista.map((x, i) => [x, i]).sort((a, b) => (Number(a[0].precio) - Number(b[0].precio)) || (a[1] - b[1])).map(x => x[0].id);
+    guardarOrden(tipo, ids);
 }
 
 async function eliminarItem(id, tipo) {
