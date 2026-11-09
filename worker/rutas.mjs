@@ -158,7 +158,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 
         for (let d = 0; d < 7; d++) db.horarios.push({ id: d + 1, dia_semana: d, activo: true, hora_apertura: '00:00', hora_cierre: '23:59' });
 
-        db.sitio = { titulo: '', eslogan: marca().eslogan || '', historia: '', whatsapp: '', instagram: '', email: '' };
+        db.sitio = { titulo: '', eslogan: marca().eslogan || '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '' };
         db.sucursales = [{ id: siguienteId(db, 'sucursales'), nombre: 'Sucursal Principal', direccion: '', telefono: '', whatsapp: '', horario: 'Todos los días', mapa: '', coords: '', activa: true }];
         db.galeria = []; db.resenas = [];
 
@@ -873,7 +873,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 
 
 // ---- Web pública: datos del sitio y sucursales ----
-const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', tituloSobrePortada: false };
+const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', tituloSobrePortada: false };
 const colorOk = v => (/^#[0-9a-fA-F]{6}$/.test(String(v || '').trim()) ? String(v).trim().toLowerCase() : '');
 function esAdminSesion(ctx) { return !!ctx.sesion && ['admin', 'superadmin'].includes(String(ctx.sesion.rol || '').toLowerCase()); }
 function urlSegura(v) { v = limpiarTexto(v, 400, true); return /^https:\/\//i.test(v) ? v : ''; }
@@ -891,6 +891,7 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
     db.sitio = {
         titulo: limpiarTexto(s.titulo, 80, true), eslogan: limpiarTexto(s.eslogan, 160, true), historia: limpiarTexto(s.historia, 800),
         whatsapp: String(s.whatsapp || '').replace(/\D/g, '').slice(0, 18), instagram: limpiarTexto(s.instagram, 60, true).replace(/^@/, ''),
+        facebook: limpiarTexto(s.facebook, 200, true), tiktok: limpiarTexto(s.tiktok, 200, true).replace(/^@/, ''),
         email: limpiarTexto(s.email, 120, true),
         colorPrincipal: colorOk(s.colorPrincipal), colorSecundario: colorOk(s.colorSecundario), colorPortada: colorOk(s.colorPortada),
         imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo), tituloSobrePortada: s.tituloSobrePortada === true
