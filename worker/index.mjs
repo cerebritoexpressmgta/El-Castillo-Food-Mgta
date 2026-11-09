@@ -1,6 +1,6 @@
 // Worker de El Castillo Food Mgta: API (/api/*) + solicitud diaria a Supabase.
 // Los archivos de la web los sirve Cloudflare directamente (binding ASSETS).
-import { rutas, HttpError, crearDbInicial, usarFallos, tomarEvento } from './rutas.mjs';
+import { rutas, HttpError, crearDbInicial, usarFallos, tomarEvento, usarLimiteSucursales } from './rutas.mjs';
 import { configurarSecreto, verificarToken, hashClave } from './auth.mjs';
 import { leerEstado, crearEstado, guardarEstado, leerVersion, mantenerActivo, subirImagen } from './supabase.mjs';
 
@@ -63,13 +63,15 @@ async function manejarApi(request, env) {
         const db = est.data;
         db.fallos = db.fallos || {};
         usarFallos(db.fallos);
+        const nMax = parseInt(env.MAX_SUCURSALES, 10);
+        usarLimiteSucursales(Number.isFinite(nMax) ? Math.max(1, nMax) : 1); // sin configurar: negocio sin sucursales
         const ctx = { query, body, authorization, sesion, tras: [] };
         try {
             const resultado = await r.fn(ctx, db);
             if (metodo === 'GET') return json(200, resultado);
             ctx.tras.forEach(fn => fn());
-            const mensaje = tomarEvento() || 'actualizacion';
-            const guardado = await guardarEstado(env, est.version, db, { mensaje, ts: Date.now() });
+            const ev = tomarEvento() || { mensaje: 'actualizacion', sucursal_id: null };
+            const guardado = await guardarEstado(env, est.version, db, { mensaje: ev.mensaje, sucursal_id: ev.sucursal_id || null, ts: Date.now() });
             if (guardado) return json(200, resultado);
             // Otro dispositivo guardó primero: se repite sobre los datos nuevos
         } catch (e) {

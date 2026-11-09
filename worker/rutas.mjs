@@ -9,7 +9,7 @@ function siguienteId(db, tabla) { db.seq[tabla] = (db.seq[tabla] || 0) + 1; retu
 
 // Evento para el tablero en vivo (los clientes lo consultan por "polling")
 let eventoPendiente = null;
-function emitirTablero(mensaje) { eventoPendiente = mensaje; }
+function emitirTablero(mensaje, sucursalId) { eventoPendiente = { mensaje, sucursal_id: sucursalId || null }; }
 export function tomarEvento() { const e = eventoPendiente; eventoPendiente = null; return e; }
 
     // ------------------------------------------------------------------
@@ -62,6 +62,10 @@ function staffOpcional(ctx) { return ctx.sesion || null; }
 // Fallos de login / clave (se guardan dentro del estado)
 let fallos = {};
 export function usarFallos(obj) { fallos = obj; }
+
+// Plan contratado: total de locales (principal + sucursales). Lo define quien administra el servidor (MAX_SUCURSALES).
+let LIMITE_SUCURSALES = 1;
+export function usarLimiteSucursales(n) { LIMITE_SUCURSALES = n; }
 
     function cupoAgotado(clave, max, ventanaSeg) {
         const ahora = Date.now();
@@ -155,7 +159,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         for (let d = 0; d < 7; d++) db.horarios.push({ id: d + 1, dia_semana: d, activo: true, hora_apertura: '00:00', hora_cierre: '23:59' });
 
         db.sitio = { titulo: '', eslogan: marca().eslogan || '', historia: '', whatsapp: '', instagram: '', email: '' };
-        db.sucursales = [{ id: siguienteId(db, 'sucursales'), nombre: 'Sucursal Principal', direccion: '', telefono: '', horario: 'Todos los días', mapa: '', coords: '', activa: true }];
+        db.sucursales = [{ id: siguienteId(db, 'sucursales'), nombre: 'Sucursal Principal', direccion: '', telefono: '', whatsapp: '', horario: 'Todos los días', mapa: '', coords: '', activa: true }];
         db.galeria = []; db.resenas = [];
 
         Object.keys(PLANTILLAS).forEach(id => db.mensajes.push({ id, texto: PLANTILLAS[id] }));
@@ -242,7 +246,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         return cupos;
     }
 
-    function construirResumenPedido(db, articulos, esPersonal) {
+    function construirResumenPedido(db, articulos, esPersonal, sid) {
         articulos = Array.isArray(articulos) ? articulos : [];
         if (articulos.length > MAX_LINEAS_POR_PEDIDO) throw new HttpError(400, 'El pedido tiene demasiadas líneas.');
         const cupos = cuposDeRegalo(db, articulos);
@@ -273,6 +277,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
                 }
             }
 
+            if (fila && sid && !esRegalo && !(tipo === 'p' ? itemDisponibleEn(fila, sid) : comboDisponibleEn(db, fila, sid))) throw new HttpError(400, `${fila.nombre} no está disponible en esta sucursal. Quítalo del carrito para continuar.`);
             if (fila && !esPersonal && !esRegalo && fila.agotado) throw new HttpError(400, `${fila.nombre} se agotó. Quítalo del carrito para continuar.`);
 
             if (esRegalo && tipo === 'p' && fila && (cupos[dbId] || 0) >= cantidad) {
@@ -320,13 +325,35 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     const ok = (extra) => Object.assign({ success: true }, extra || {});
 
     // ---- Menú ----
-    ruta('GET', '/api/menu', (ctx, db) => ({
+    // ------------------------------------------------------------------
+    // Sucursales: quién ve qué
+    // ------------------------------------------------------------------
+    // Solo cuentan las activas que entran en el plan (las primeras N)
+    function sucursalesActivas(db) { return (db.sucursales || []).filter(s => s.activa !== false).slice(0, LIMITE_SUCURSALES); }
+    function usuarioDe(ctx, db) { return ctx.sesion ? (db.usuarios.find(u => String(u.username).toLowerCase() === String(ctx.sesion.sub).toLowerCase()) || null) : null; }
+    // Sucursal fija del personal (null = ve todas, como el dueño)
+    function sucursalDelPersonal(ctx, db) { const u = usuarioDe(ctx, db); return u && u.sucursal_id ? Number(u.sucursal_id) : null; }
+    function mesaEnSucursal(m, sid) { return !sid || !m.sucursal_id || Number(m.sucursal_id) === Number(sid); }
+    function itemDisponibleEn(item, sid) { return !sid || !Array.isArray(item.no_disponible_en) || !item.no_disponible_en.includes(Number(sid)); }
+    function comboDisponibleEn(db, combo, sid) {
+        if (!itemDisponibleEn(combo, sid)) return false;
+        let items = []; try { items = JSON.parse(combo.items_json || '[]'); } catch (e) {}
+        return items.every(it => !(it && it.tipo === 'producto') || itemDisponibleEn(db.productos.find(x => x.id === it.valor) || {}, sid));
+    }
+    function limpiarListaSucursales(db, v) { return Array.isArray(v) ? [...new Set(v.map(Number))].filter(n => (db.sucursales || []).some(s => s.id === n)) : []; }
+    function idSucursalValido(db, v) { const n = parseInt(v, 10); return n && (db.sucursales || []).some(s => s.id === n) ? n : null; }
+    function exigirSucursal(ctx, db, pedido) {
+        const mia = sucursalDelPersonal(ctx, db);
+        if (mia && Number(pedido.sucursal_id) !== mia) throw new HttpError(403, 'Ese pedido es de otra sucursal.');
+    }
+
+    ruta('GET', '/api/menu', (ctx, db) => { const sid = parseInt(ctx.query.sucursal, 10) || 0; return ({
         menu: {
             categorias: db.categorias.map(c => ({ id: c.id, nombre: c.nombre, imagen: c.imagen })),
-            productos: db.productos.map(p => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
-            combos: db.combos.map(c => ({ id: c.id, nombre: c.nombre, categoria: c.categoria, precio: c.precio, imagen: c.imagen, descripcion: c.descripcion, disponible: c.disponible, items_json: c.items_json, promo_cantidad_minima: c.promo_cantidad_minima, promo_producto_id: c.promo_producto_id, promo_producto_cantidad: c.promo_producto_cantidad, disponible_desde: c.disponible_desde, disponible_hasta: c.disponible_hasta, dias_disponibles: c.dias_disponibles, bandejas: c.bandejas, cajas_pizza: c.cajas_pizza }))
+            productos: db.productos.filter(p => itemDisponibleEn(p, sid)).map(p => ({ no_disponible_en: p.no_disponible_en || [], id: p.id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
+            combos: db.combos.filter(c => comboDisponibleEn(db, c, sid)).map(c => ({ no_disponible_en: c.no_disponible_en || [], id: c.id, nombre: c.nombre, categoria: c.categoria, precio: c.precio, imagen: c.imagen, descripcion: c.descripcion, disponible: c.disponible, items_json: c.items_json, promo_cantidad_minima: c.promo_cantidad_minima, promo_producto_id: c.promo_producto_id, promo_producto_cantidad: c.promo_producto_cantidad, disponible_desde: c.disponible_desde, disponible_hasta: c.disponible_hasta, dias_disponibles: c.dias_disponibles, bandejas: c.bandejas, cajas_pizza: c.cajas_pizza }))
         }
-    }));
+    }); });
 
     function guardarEn(tabla, db, datos, campos, nuevo) {
         if (datos.id) {
@@ -342,19 +369,23 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         guardarEn(db.categorias, db, d, ['nombre', 'imagen'], () => db.categorias.push({ id: siguienteId(db, 'categorias'), nombre: d.nombre, imagen: d.imagen || '' }));
         return ok();
     });
-    const CAMPOS_PROD = ['nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'agotado', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'precio_paquete', 'cantidad_paquete', 'bandejas', 'cajas_pizza'];
+    const CAMPOS_PROD = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'agotado', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'precio_paquete', 'cantidad_paquete', 'bandejas', 'cajas_pizza'];
     ruta('POST', '/api/menu/guardar-producto', (ctx, db) => {
         requiereAdmin(ctx); const d = ctx.body;
         if (!d.nombre || !d.categoria || typeof d.precio !== 'number') throw new HttpError(422, 'Datos incompletos');
+        const previo = d.id ? db.productos.find(x => x.id === d.id) : null;
+        d.no_disponible_en = d.no_disponible_en === undefined ? ((previo && previo.no_disponible_en) || []) : limpiarListaSucursales(db, d.no_disponible_en);
         const defaults = { disponible: true, agotado: false, bandejas: 1, cajas_pizza: 0, cantidad_paquete: 0, precio_paquete: null, imagen: '', descripcion: '' };
         const datos = Object.assign({}, defaults, d);
         guardarEn(db.productos, db, datos, CAMPOS_PROD, () => { const f = { id: siguienteId(db, 'productos') }; CAMPOS_PROD.forEach(c => { f[c] = datos[c] === undefined ? null : datos[c]; }); db.productos.push(f); });
         return ok();
     });
-    const CAMPOS_COMBO = ['nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'promo_cantidad_minima', 'promo_producto_id', 'promo_producto_cantidad', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'bandejas', 'cajas_pizza'];
+    const CAMPOS_COMBO = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'promo_cantidad_minima', 'promo_producto_id', 'promo_producto_cantidad', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'bandejas', 'cajas_pizza'];
     ruta('POST', '/api/menu/guardar-combo', (ctx, db) => {
         requiereAdmin(ctx); const d = ctx.body;
         if (!d.nombre || typeof d.precio !== 'number') throw new HttpError(422, 'Datos incompletos');
+        const previoC = d.id ? db.combos.find(x => x.id === d.id) : null;
+        d.no_disponible_en = d.no_disponible_en === undefined ? ((previoC && previoC.no_disponible_en) || []) : limpiarListaSucursales(db, d.no_disponible_en);
         const defaults = { disponible: true, bandejas: 1, cajas_pizza: 0, imagen: '', descripcion: '', items: [] };
         const datos = Object.assign({}, defaults, d);
         const itemsJson = JSON.stringify(datos.items || []);
@@ -449,9 +480,9 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!u || !(await verificarClave(String(d.pin).trim(), u.pin))) { anotarFallo(claveFallos); return { success: false, msg: 'Credenciales incorrectas' }; }
         olvidarFallos(claveFallos);
         if (d.tipo === 'login_admin' && !['admin', 'superadmin'].includes(String(u.rol).toLowerCase())) return { success: false, msg: 'No tienes privilegios de administrador' };
-        return { success: true, token: await crearToken(u.username, u.rol), usuario: { nombre: u.nombre, rol: u.rol, username: u.username } };
+        return { success: true, token: await crearToken(u.username, u.rol), usuario: { nombre: u.nombre, rol: u.rol, username: u.username, sucursal_id: u.sucursal_id || null } };
     });
-    ruta('GET', '/api/usuarios', (ctx, db) => { requiereAdmin(ctx); return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol })); });
+    ruta('GET', '/api/usuarios', (ctx, db) => { requiereAdmin(ctx); return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null })); });
     ruta('POST', '/api/usuarios/guardar', async (ctx, db) => {
         const admin = requiereAdmin(ctx); const d = ctx.body;
         d.username = String(d.username || '').trim(); d.nombre = String(d.nombre || '').trim();
@@ -464,17 +495,19 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (rolNuevo === 'superadmin' && !esSuper) throw new HttpError(403, 'Solo un superadmin puede asignar ese rol');
         const repetido = db.usuarios.some(u => String(u.username).toLowerCase() === d.username.toLowerCase() && u.id !== d.id);
         if (repetido) return { success: false, error: 'No se pudo guardar el usuario (¿nombre de usuario repetido?)' };
+        const sucUsuario = ['admin', 'superadmin'].includes(rolNuevo) ? null : idSucursalValido(db, d.sucursal_id);
         if (d.id) {
             const u = db.usuarios.find(x => x.id === d.id);
             if (u && String(u.rol).toLowerCase() === 'superadmin' && !esSuper) throw new HttpError(403, 'Solo un superadmin puede modificar a otro superadmin');
             if (u) {
                 u.nombre = d.nombre; u.username = d.username;
                 if (String(u.rol).toLowerCase() !== 'superadmin') u.rol = rolNuevo;
+                u.sucursal_id = String(u.rol).toLowerCase() === 'superadmin' ? null : sucUsuario;
                 if (d.pin) u.pin = await hashClave(String(d.pin));
             }
         } else {
             if (!d.pin) return { success: false, error: 'El PIN es obligatorio al crear un usuario' };
-            db.usuarios.push({ id: siguienteId(db, 'usuarios'), nombre: d.nombre, username: d.username, pin: await hashClave(String(d.pin)), rol: rolNuevo });
+            db.usuarios.push({ id: siguienteId(db, 'usuarios'), nombre: d.nombre, username: d.username, pin: await hashClave(String(d.pin)), rol: rolNuevo, sucursal_id: sucUsuario });
         }
         return { success: true, msg: 'Usuario guardado exitosamente' };
     });
@@ -577,13 +610,23 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!esPersonal && !telefonoPublicoValido(telefono)) throw new HttpError(400, 'El número de teléfono no es válido.');
         if (!esPersonal && !estaAbiertoAhora(db)) throw new HttpError(403, 'El restaurante está cerrado en este momento. Intenta durante el horario de atención.');
 
+        // Sucursal del pedido: la fija del personal, o la que eligió el cliente
+        const activas = sucursalesActivas(db);
+        let sid = (esPersonal && sucursalDelPersonal(ctx, db)) || parseInt(p.sucursal_id, 10) || null;
+        if (sid && !activas.some(s => s.id === sid)) sid = null;
+        if (!sid) {
+            if (activas.length === 1) sid = activas[0].id;
+            else if (activas.length > 1) throw new HttpError(400, 'Selecciona la sucursal donde quieres pedir.');
+        }
+        const suc = sid ? db.sucursales.find(s => s.id === sid) : null;
+
         const esMesa = esEntregaMesa(tipo);
-        const mesa = esMesa ? db.mesas.find(m => m.nombre === direccion) : null;
+        const mesa = esMesa ? db.mesas.find(m => m.nombre === direccion && mesaEnSucursal(m, sid)) : null;
         if (esMesa && !mesa) throw new HttpError(400, 'Selecciona una mesa válida.');
 
         const tasa = tasaVigente(db);
         const cli = db.clientes.find(c => c.telefono === telefono);
-        const { texto, total } = construirResumenPedido(db, p.articulos, esPersonal);
+        const { texto, total } = construirResumenPedido(db, p.articulos, esPersonal, sid);
         const emp = calcularEmpaque(db, p.articulos);
         const esPickup = esEntregaPickup(tipo);
 
@@ -594,7 +637,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             referencia_pago: ['Efectivo', 'Punto de Venta'].includes(metodoPago) ? null : 'Pendiente',
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,
             precio_delivery: null, paga_con: null,
-            total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos
+            total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos,
+            sucursal_id: sid, sucursal_nombre: suc ? suc.nombre : null
         };
         db.pedidos.push(nuevo);
         const idVisual = contarNumeroDiario(db, nuevo);
@@ -618,15 +662,15 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
                 : `🍔 ¡Hola, ${cliente}! Hemos recibido tu pedido #${idVisual}. En breve calcularemos el delivery.`;
         }
         enviarWhatsappSimulado(db, telefono, mensaje, 'nuevo pedido');
-        ctx.tras.push(() => emitirTablero(esPickup ? 'actualizacion' : 'nuevo_pedido'));
-        if (esMesa) ctx.tras.push(() => emitirTablero('mesas'));
-        return { success: true };
+        ctx.tras.push(() => emitirTablero(esPickup ? 'actualizacion' : 'nuevo_pedido', sid));
+        if (esMesa) ctx.tras.push(() => emitirTablero('mesas', sid));
+        return { success: true, pedido: { id: nuevo.id, id_visual: idVisual, total }, sucursal: suc ? { id: suc.id, nombre: suc.nombre, whatsapp: suc.whatsapp || '', telefono: suc.telefono || '' } : null };
     });
 
-    function filtrarFecha(db, q) {
+    function filtrarFecha(db, q, filtro) {
         const re = /^\d{4}-\d{2}-\d{2}$/;
         ['fecha', 'fecha_desde', 'fecha_hasta'].forEach(k => { if (q[k] && !re.test(q[k])) throw new HttpError(400, 'Formato de fecha inválido (YYYY-MM-DD)'); });
-        let lista = db.pedidos.slice();
+        let lista = db.pedidos.filter(filtro || (() => true));
         if (q.fecha) return lista.filter(p => p.fecha === q.fecha).sort((a, b) => a.id - b.id);
         if (q.fecha_desde || q.fecha_hasta) {
             if (q.fecha_desde) lista = lista.filter(p => p.fecha >= q.fecha_desde);
@@ -635,13 +679,14 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         }
         return lista.sort((a, b) => b.id - a.id).slice(0, 150);
     }
-    ruta('GET', '/api/pedidos', (ctx, db) => { requiereStaff(ctx); return filtrarFecha(db, ctx.query).map(p => Object.assign({}, p, { id_pedido: p.id })); });
+    ruta('GET', '/api/pedidos', (ctx, db) => { requiereStaff(ctx); const sid = sucursalDelPersonal(ctx, db) || parseInt(ctx.query.sucursal, 10) || 0; return filtrarFecha(db, ctx.query, sid ? (x => Number(x.sucursal_id) === sid) : null).map(p => Object.assign({}, p, { id_pedido: p.id })); });
 
     ruta('POST', '/api/pedidos/actualizar-estado', (ctx, db) => {
         requiereStaff(ctx); const d = ctx.body || {};
         const id = d.id || d.id_pedido;
         const p = db.pedidos.find(x => x.id === Number(id));
         if (!p) return { success: false, msg: 'Pedido no encontrado' };
+        exigirSucursal(ctx, db, p);
         ['estado', 'procesado_por', 'referencia_pago', 'imagen_pago', 'repartidor', 'total_orden', 'pedido_detallado', 'tasa_bcv', 'precio_delivery', 'paga_con'].forEach(k => { if (k in d) p[k] = d[k]; });
         if (d.articulos && d.articulos.length) {
             const emp = calcularEmpaque(db, d.articulos);
@@ -655,8 +700,9 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         requiereStaff(ctx); const d = ctx.body || {};
         const p = db.pedidos.find(x => x.id === Number(d.id));
         if (!p) throw new HttpError(404, 'Pedido no encontrado');
+        exigirSucursal(ctx, db, p);
         if (!d.articulos || !d.articulos.length) throw new HttpError(400, 'El pedido editado llego sin articulos');
-        const { texto, total } = construirResumenPedido(db, d.articulos, true);
+        const { texto, total } = construirResumenPedido(db, d.articulos, true, p.sucursal_id);
         const emp = calcularEmpaque(db, d.articulos);
         p.pedido_detallado = texto; p.total_orden = total;
         p.total_bandejas = emp.bandejas; p.total_cajas_pizza = emp.cajas_pizza; p.total_refrescos = emp.refrescos;
@@ -754,13 +800,14 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     // ---- Mesas ----
     function pedidosDeMesa(db, mesa) {
         if (mesa.estado === 'libre' || !mesa.ocupada_desde) return [];
-        return db.pedidos.filter(p => esEntregaMesa(p.tipo_entrega) && p.direccion === mesa.nombre && p.timestamp >= mesa.ocupada_desde && p.estado !== 'Cancelado')
+        return db.pedidos.filter(p => esEntregaMesa(p.tipo_entrega) && p.direccion === mesa.nombre && (!mesa.sucursal_id || Number(p.sucursal_id) === Number(mesa.sucursal_id)) && p.timestamp >= mesa.ocupada_desde && p.estado !== 'Cancelado')
             .sort((a, b) => a.id - b.id);
     }
     ruta('GET', '/api/mesas', (ctx, db) => {
         const staff = staffOpcional(ctx);
-        return db.mesas.slice().sort((a, b) => a.id - b.id).map(m => {
-            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado };
+        const sidM = (staff && sucursalDelPersonal(ctx, db)) || parseInt(ctx.query.sucursal, 10) || 0;
+        return db.mesas.filter(m => mesaEnSucursal(m, sidM)).sort((a, b) => a.id - b.id).map(m => {
+            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, sucursal_id: m.sucursal_id || null };
             if (!staff) return base;
             const ped = pedidosDeMesa(db, m);
             return Object.assign(base, { ocupada_desde: m.ocupada_desde, pedidos: ped.length, consumo: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100 });
@@ -770,6 +817,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         requiereStaff(ctx);
         const m = db.mesas.find(x => x.id === parseInt(ctx.query.id, 10));
         if (!m) throw new HttpError(404, 'Mesa no encontrada');
+        if (!mesaEnSucursal(m, sucursalDelPersonal(ctx, db))) throw new HttpError(403, 'Esa mesa es de otra sucursal.');
         const ped = pedidosDeMesa(db, m);
         return { mesa: { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, ocupada_desde: m.ocupada_desde }, pedidos: ped.map(p => Object.assign({}, p, { id_pedido: p.id })), total: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100, tasa_bcv: tasaVigente(db) };
     });
@@ -778,14 +826,15 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const nombre = limpiarTexto(d.nombre, 30); const zona = limpiarTexto(d.zona, 30) || 'Salón';
         const capacidad = Math.max(1, Math.min(30, parseInt(d.capacidad, 10) || 4));
         if (!nombre) return { success: false, error: 'La mesa necesita un nombre.' };
-        if (db.mesas.some(m => m.nombre.toLowerCase() === nombre.toLowerCase() && m.id !== d.id)) return { success: false, error: 'Ya existe una mesa con ese nombre.' };
+        const sucMesa = idSucursalValido(db, d.sucursal_id);
+        if (db.mesas.some(m => m.nombre.toLowerCase() === nombre.toLowerCase() && m.id !== d.id && Number(m.sucursal_id || 0) === Number(sucMesa || 0))) return { success: false, error: 'Ya existe una mesa con ese nombre.' };
         if (d.id) {
             const m = db.mesas.find(x => x.id === d.id);
             if (!m) return { success: false, error: 'Mesa no encontrada.' };
-            if (m.nombre !== nombre) db.pedidos.filter(p => esEntregaMesa(p.tipo_entrega) && p.direccion === m.nombre).forEach(p => { p.direccion = nombre; });
-            m.nombre = nombre; m.zona = zona; m.capacidad = capacidad;
+            if (m.nombre !== nombre) db.pedidos.filter(p => esEntregaMesa(p.tipo_entrega) && p.direccion === m.nombre && (!m.sucursal_id || Number(p.sucursal_id) === Number(m.sucursal_id))).forEach(p => { p.direccion = nombre; });
+            m.nombre = nombre; m.zona = zona; m.capacidad = capacidad; m.sucursal_id = sucMesa;
         } else {
-            db.mesas.push({ id: siguienteId(db, 'mesas'), nombre, zona, capacidad, estado: 'libre', ocupada_desde: null });
+            db.mesas.push({ id: siguienteId(db, 'mesas'), nombre, zona, capacidad, estado: 'libre', ocupada_desde: null, sucursal_id: sucMesa });
         }
         ctx.tras.push(() => emitirTablero('mesas'));
         return ok();
@@ -803,6 +852,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const staff = requiereStaff(ctx); const d = ctx.body || {};
         const m = db.mesas.find(x => x.id === d.id);
         if (!m) throw new HttpError(404, 'Mesa no encontrada');
+        if (!mesaEnSucursal(m, sucursalDelPersonal(ctx, db))) throw new HttpError(403, 'Esa mesa es de otra sucursal.');
         let total = 0;
         if (d.estado === 'libre') {
             const ped = pedidosDeMesa(db, m);
@@ -829,9 +879,12 @@ function esAdminSesion(ctx) { return !!ctx.sesion && ['admin', 'superadmin'].inc
 function urlSegura(v) { v = limpiarTexto(v, 400, true); return /^https:\/\//i.test(v) ? v : ''; }
 ruta('GET', '/api/sitio', (ctx, db) => {
     const todas = ctx.query.todas === '1' && esAdminSesion(ctx);
-    const sucursales = (db.sucursales || []).filter(s => todas || s.activa !== false);
+    const habilitadas = new Set(sucursalesActivas(db).map(s => s.id));
+    const sucursales = todas
+        ? (db.sucursales || []).map(s => Object.assign({}, s, { fuera_de_plan: s.activa !== false && !habilitadas.has(s.id) }))
+        : (db.sucursales || []).filter(s => habilitadas.has(s.id));
     const resenas = (db.resenas || []).filter(r => todas || r.activa !== false);
-    return { sitio: Object.assign({}, SITIO_VACIO, db.sitio || {}), sucursales, galeria: db.galeria || [], resenas };
+    return { sitio: Object.assign({}, SITIO_VACIO, db.sitio || {}), sucursales, limite_sucursales: LIMITE_SUCURSALES, galeria: db.galeria || [], resenas };
 });
 ruta('POST', '/api/sitio/guardar', (ctx, db) => {
     requiereAdmin(ctx); const d = ctx.body || {}; const s = d.sitio || {};
@@ -843,10 +896,17 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
         imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo), tituloSobrePortada: s.tituloSobrePortada === true
     };
     const lista = Array.isArray(d.sucursales) ? d.sucursales.slice(0, 12) : [];
+    // El plan limita cuántas sucursales activas puede tener el negocio (solo se bloquea si se intenta AUMENTAR)
+    const activasNuevas = lista.filter(x => x.activa !== false).length;
+    const activasPrevias = (db.sucursales || []).filter(s => s.activa !== false).length;
+    if (activasNuevas > LIMITE_SUCURSALES && activasNuevas > activasPrevias) {
+        return { success: false, error: LIMITE_SUCURSALES === 1 ? 'Tu plan es para un solo local, sin sucursales adicionales.' : `Tu plan permite hasta ${LIMITE_SUCURSALES} locales (principal + sucursales).` };
+    }
     db.sucursales = lista.map(x => ({
         id: Number(x.id) > 0 ? Number(x.id) : siguienteId(db, 'sucursales'),
         nombre: limpiarTexto(x.nombre, 80, true) || 'Sucursal', direccion: limpiarTexto(x.direccion, 240, true), telefono: limpiarTexto(x.telefono, 30, true),
         horario: limpiarTexto(x.horario, 120, true), mapa: urlSegura(x.mapa), activa: x.activa !== false,
+        whatsapp: String(x.whatsapp || '').replace(/\D/g, '').slice(0, 18),
         coords: /^-?\d{1,3}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(String(x.coords || '').trim()) ? String(x.coords).replace(/\s+/g, '') : ''
     }));
     if (Array.isArray(d.galeria)) {
