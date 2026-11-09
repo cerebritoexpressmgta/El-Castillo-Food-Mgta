@@ -748,6 +748,8 @@ function renderListaCategorias(lista = adminCategorias) {
             <div class="list-item">
                 <div class="item-info"><p class="item-title">${cat.nombre}</p></div>
                 <div class="item-actions">
+                    <button class="action-btn btn-edit" onclick="moverItem(${cat.id}, 'categoria', -1)" title="Subir">▲</button>
+                    <button class="action-btn btn-edit" onclick="moverItem(${cat.id}, 'categoria', 1)" title="Bajar">▼</button>
                     <button class="action-btn btn-edit" onclick="editarCategoria(${cat.id})" title="Editar">✏️</button>
                     <button class="action-btn btn-delete" onclick="eliminarItem(${cat.id}, 'categoria')" title="Eliminar">🗑️</button>
                 </div>
@@ -1396,8 +1398,8 @@ async function guardarOrden(tipo, ids) {
     } catch (e) { alert('Error al guardar el orden.'); }
 }
 function moverItem(id, tipo, dir) {
-    const lista = tipo === 'combo' ? adminCombos : adminProductos;
-    const buscador = document.getElementById(tipo === 'combo' ? 'buscador-combos-admin' : 'buscador-productos-admin');
+    const lista = tipo === 'combo' ? adminCombos : (tipo === 'categoria' ? adminCategorias : adminProductos);
+    const buscador = document.getElementById({ combo: 'buscador-combos-admin', categoria: 'buscador-categorias-admin', producto: 'buscador-productos-admin' }[tipo]);
     const txt = buscador ? buscador.value.toLowerCase() : '';
     const visibles = txt ? lista.filter(x => x.nombre.toLowerCase().includes(txt)) : lista; // con búsqueda, se mueve entre los que se ven
     const k = visibles.findIndex(x => x.id === id), vecino = visibles[k + dir];

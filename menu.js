@@ -658,6 +658,16 @@ async function cargarMenuDesdeDB() {
 
         productosBase.forEach(p => procesarItem(p, false));
         combos.forEach(c => procesarItem(c, true));
+
+        // Las categorías se muestran en el orden definido en Administración (las que no estén ahí van al final)
+        const ordenCats = categoriasDeBaseDatos.map(c => String(c.nombre).trim().toLowerCase().replace(/\s+/g, '_'));
+        const clavesOrdenadas = Object.keys(menuData).sort((a, b) => {
+            const ia = ordenCats.indexOf(a), ib = ordenCats.indexOf(b);
+            return (ia < 0 ? 1e9 : ia) - (ib < 0 ? 1e9 : ib);
+        });
+        const menuOrdenado = {};
+        clavesOrdenadas.forEach(k => { menuOrdenado[k] = menuData[k]; });
+        menuData = menuOrdenado;
         
         renderizarCategorias(); 
     } catch (error) {
