@@ -40,7 +40,11 @@
             if (!r.ok) return;
             const v = await r.json();
             if (ultima !== null && v.version !== ultima) {
-                const data = { mensaje: (v.evento && v.evento.mensaje) || 'actualizacion' };
+                const data = { mensaje: (v.evento && v.evento.mensaje) || 'actualizacion', sucursal_id: (v.evento && v.evento.sucursal_id) || null };
+                let miSucursal = null;
+                try { miSucursal = (JSON.parse(localStorage.getItem('usuarioActivo') || 'null') || {}).sucursal_id || null; } catch (e) {}
+                // quien trabaja en una sucursal no recibe avisos (ni sonido) de pedidos de otra
+                if (miSucursal && data.sucursal_id && Number(miSucursal) !== Number(data.sucursal_id)) { ultima = v.version; return; }
                 oyentes.forEach(fn => { try { fn(data); } catch (e) { console.error(e); } });
             }
             ultima = v.version;

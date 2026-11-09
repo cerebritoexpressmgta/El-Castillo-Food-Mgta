@@ -111,7 +111,8 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     <div class="row" style="margin-top:12px"><button class="sec" id="tema-reset" type="button">Volver a los colores originales</button><small>No olvides pulsar "Guardar todos los cambios de la web".</small></div>
   </div>
 
-  <h2>Sucursales</h2>
+  <h2 id="suc-titulo">Sucursales</h2>
+  <small id="suc-plan" style="display:block;margin:-4px 0 10px"></small>
   <div id="suc-lista"></div>
   <div class="row" style="margin-top:10px"><button id="suc-add" class="sec">+ Agregar sucursal</button><button id="guardar-web">Guardar web y sucursales</button><span id="msg-web" class="err"></span></div>
 
@@ -268,14 +269,22 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
 
   // ---- Datos de la web y sucursales ----
   let sucursales = [];
+  let limiteSuc = 1;
   function pintarSuc() {
+    const activas = sucursales.filter(s => s.activa !== false).length;
+    $('suc-titulo').textContent = limiteSuc === 1 ? 'Datos del local' : 'Sucursales';
+    $('suc-plan').textContent = limiteSuc === 1 ? 'Tu plan es para un solo local.' : 'Tu plan: hasta ' + limiteSuc + ' locales (principal + sucursales). En uso: ' + activas + '.';
+    $('suc-add').style.display = (limiteSuc === 1 && sucursales.length >= 1) ? 'none' : '';
+    $('suc-add').disabled = activas >= limiteSuc; $('suc-add').title = activas >= limiteSuc ? 'Llegaste al límite de tu plan' : '';
+    $('suc-add').textContent = limiteSuc === 1 ? '+ Agregar local' : '+ Agregar sucursal';
     const cont = $('suc-lista'); cont.innerHTML = '';
     sucursales.forEach((s, i) => {
       const d = document.createElement('div'); d.className = 'suc-it';
-      d.innerHTML = '<div class="row2">' +
+      d.innerHTML = (s.fuera_de_plan ? '<div class="err" style="margin-bottom:8px">⚠ Fuera de tu plan: no se muestra en la web ni recibe pedidos.</div>' : '') + '<div class="row2">' +
         '<div><label>Nombre</label><input data-k="nombre" maxlength="80"></div>' +
         '<div><label>Dirección</label><input data-k="direccion" maxlength="240"></div>' +
         '<div><label>Teléfono</label><input data-k="telefono" maxlength="30"></div>' +
+        '<div><label>WhatsApp de esta sucursal (con código de país)</label><input data-k="whatsapp" maxlength="24" inputmode="tel" placeholder="584121234567"></div>' +
         '<div><label>Horario (texto)</label><input data-k="horario" maxlength="120" placeholder="Lun a Dom 11:00 am - 10:00 pm"></div>' +
         '<div><label>Enlace de Google Maps (opcional, https://)</label><input data-k="mapa" maxlength="400"></div>' +
         '<div><label>Coordenadas para el mapa (opcional)</label><input data-k="coords" maxlength="40" placeholder="10.9577,-63.8697"></div></div>' +
@@ -296,10 +305,11 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     const s = r.d.sitio || {};
     ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'email'].forEach(k => { $('s-' + k).value = s[k] || ''; });
     tema = Object.assign({}, TEMA_VACIO, { colorPrincipal: s.colorPrincipal || '', colorSecundario: s.colorSecundario || '', colorPortada: s.colorPortada || '', imagenPortada: s.imagenPortada || '', logo: s.logo || '', tituloSobrePortada: s.tituloSobrePortada === true }); pintarTema();
+    limiteSuc = r.d.limite_sucursales || 1;
     sucursales = r.d.sucursales || []; pintarSuc();
     galeria = r.d.galeria || []; pintarGal(); resenas = r.d.resenas || []; pintarRes();
   }
-  $('suc-add').onclick = () => { sucursales.push({ nombre: '', direccion: '', telefono: '', horario: '', mapa: '', activa: true }); pintarSuc(); };
+  $('suc-add').onclick = () => { if (sucursales.filter(s => s.activa !== false).length >= limiteSuc) { alert('Llegaste al límite de tu plan (' + limiteSuc + ' local' + (limiteSuc === 1 ? '' : 'es') + ').'); return; } sucursales.push({ nombre: '', direccion: '', telefono: '', whatsapp: '', horario: '', mapa: '', activa: true }); pintarSuc(); };
   async function guardarWeb() {
     const ms = [$('msg-web'), $('msg-web2')]; ms.forEach(m => { m.className = 'err'; m.textContent = ''; });
     const sitio = {}; ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });

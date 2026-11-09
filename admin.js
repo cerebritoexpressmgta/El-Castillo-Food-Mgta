@@ -178,6 +178,34 @@ function lanzarErrorBloqueo(errorMsg, boton, mensaje) {
 // ==========================================
 // 2. CARGA DE DATOS MAESTRA
 // ==========================================
+
+// ---- Sucursales (configuración) ----
+let SUCURSALES_ADMIN = [];
+function nombreSucursalAdmin(id) { const s = SUCURSALES_ADMIN.find(x => Number(x.id) === Number(id)); return s ? s.nombre : ''; }
+async function cargarSucursalesAdmin() {
+    try {
+        const r = await fetch(API_BASE + '/api/sitio?todas=1', { headers: { 'Authorization': `Bearer ${adminToken}` } });
+        SUCURSALES_ADMIN = ((await r.json()).sucursales || []).filter(s => s.activa !== false && !s.fuera_de_plan);
+    } catch (e) { SUCURSALES_ADMIN = []; }
+    pintarCamposSucursal();
+}
+function pintarCamposSucursal() {
+    const multi = SUCURSALES_ADMIN.length > 1;
+    const opts = SUCURSALES_ADMIN.map(s => `<option value="${s.id}">${escapeHtml(s.nombre)}</option>`).join('');
+    const us = document.getElementById('usr-sucursal');
+    if (us) { us.innerHTML = '<option value="">Todas las sucursales</option>' + opts; document.getElementById('wrap-usr-sucursal').style.display = multi ? '' : 'none'; }
+    const ms = document.getElementById('mesa-sucursal');
+    if (ms) { ms.innerHTML = '<option value="">Sin asignar (aparece en todas)</option>' + opts; document.getElementById('wrap-mesa-sucursal').style.display = multi ? '' : 'none'; }
+    ['prod', 'combo'].forEach(pref => {
+        const c = document.getElementById(pref + '-sucursales'); if (!c) return;
+        c.style.display = multi ? '' : 'none';
+        c.innerHTML = '<p style="margin-top:14px;font-weight:700">No disponible en:</p><p style="font-size:0.75rem;color:var(--text-muted)">Marca las sucursales donde NO se vende este plato. Ahí no aparecerá en el menú.</p>' +
+            SUCURSALES_ADMIN.map(s => `<label style="display:flex;align-items:center;margin-top:6px;cursor:pointer"><input type="checkbox" data-suc="${s.id}"> ${escapeHtml(s.nombre)}</label>`).join('');
+    });
+}
+function leerNoDisponible(pref) { return Array.from(document.querySelectorAll('#' + pref + '-sucursales input[data-suc]:checked')).map(i => parseInt(i.dataset.suc, 10)); }
+function marcarNoDisponible(pref, arr) { const set = new Set((arr || []).map(Number)); document.querySelectorAll('#' + pref + '-sucursales input[data-suc]').forEach(i => { i.checked = set.has(parseInt(i.dataset.suc, 10)); }); }
+
 async function cargarDatosAdmin() {
     try {
         const res = await fetch(ADMIN_URL_MENU);
@@ -188,6 +216,7 @@ async function cargarDatosAdmin() {
         adminProductos = data.menu ? (data.menu.productos || []) : [];
         adminCombos = data.menu ? (data.menu.combos || []) : [];
 
+        await cargarSucursalesAdmin();
         renderListaCategorias();
         renderListaProductos();
         renderListaCombos();
@@ -298,7 +327,7 @@ function renderListaUsuarios() {
             <div class="list-item">
                 <div class="item-info">
                     <p class="item-title">👤 ${u.nombre}</p>
-                    <p class="item-meta">User: <span style="color:#38bdf8; font-weight:bold;">${u.username}</span> | Rol: ${u.rol}</p>
+                    <p class="item-meta">User: <span style="color:#38bdf8; font-weight:bold;">${u.username}</span> | Rol: ${u.rol}${u.sucursal_id ? ' | 📍 ' + escapeHtml(nombreSucursalAdmin(u.sucursal_id)) : ''}</p>
                 </div>
                 <div class="item-actions">${botones}</div>
             </div>`;
@@ -321,7 +350,8 @@ if (document.getElementById('form-usuario')) {
             nombre: document.getElementById('usr-nombre').value.trim(),
             username: document.getElementById('usr-username').value.trim(),
             pin: pinIngresado || null,
-            rol: document.getElementById('usr-rol').value
+            rol: document.getElementById('usr-rol').value,
+            sucursal_id: parseInt((document.getElementById('usr-sucursal') || {}).value, 10) || null
         };
         try {
             const res = await fetch(ADMIN_URL_GUARDAR_USUARIO, { 
@@ -358,6 +388,7 @@ function editarUsuario(id) {
     inputPin.value = '';
     inputPin.placeholder = 'Dejar en blanco para no cambiar la contraseña';
     document.getElementById('usr-rol').value = u.rol;
+    if (document.getElementById('usr-sucursal')) document.getElementById('usr-sucursal').value = u.sucursal_id || '';
     document.getElementById('titulo-form-usr').innerText = "Editar Usuario";
     document.getElementById('btn-save-usr').innerText = "💾 Actualizar Usuario";
     document.getElementById('btn-cancel-usr').style.display = "block";
@@ -855,6 +886,7 @@ if (document.getElementById('form-producto')) {
             id: id ? parseInt(id) : null, nombre: document.getElementById('prod-nombre').value.trim(), categoria: document.getElementById('prod-categoria').value,
             precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked,
             agotado: document.getElementById('prod-agotado').checked,
+            no_disponible_en: leerNoDisponible('prod'),
             disponible_desde: document.getElementById('prod-disponible-desde').value || null,
             disponible_hasta: document.getElementById('prod-disponible-hasta').value || null,
             dias_disponibles: leerDiasSeleccionados('prod') || null,
@@ -878,6 +910,7 @@ function editarProducto(id) {
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
     document.getElementById('prod-agotado').checked = !!p.agotado;
     document.getElementById('prod-disponible-desde').value = p.disponible_desde || '';
+    marcarNoDisponible('prod', p.no_disponible_en);
     document.getElementById('prod-disponible-hasta').value = p.disponible_hasta || '';
     construirChipsDias('prod', parsearDiasDisponibles(p.dias_disponibles));
     document.getElementById('prod-bandejas').value = (p.bandejas === null || p.bandejas === undefined) ? 1 : p.bandejas;
@@ -1287,6 +1320,7 @@ if (formCombo) {
             id: id ? parseInt(id) : null, nombre: document.getElementById('combo-nombre').value.trim(), categoria: document.getElementById('combo-categoria').value || null, precio: parseFloat(document.getElementById('combo-precio').value),
             imagen: imgFinalCombo, descripcion: document.getElementById('combo-descripcion').value.trim(), items: itemsSeleccionados, disponible: document.getElementById('combo-disponible').checked,
             promo_cantidad_minima: promoCantidadMinima, promo_producto_id: promoProductoId, promo_producto_cantidad: promoProductoCantidad,
+            no_disponible_en: leerNoDisponible('combo'),
             disponible_desde: document.getElementById('combo-disponible-desde').value || null,
             disponible_hasta: document.getElementById('combo-disponible-hasta').value || null,
             dias_disponibles: leerDiasSeleccionados('combo') || null,
@@ -1316,6 +1350,7 @@ function editarCombo(id) {
     document.getElementById('combo-promo-producto').value = c.promo_producto_id || '';
     document.getElementById('combo-promo-producto-visible').value = prodPromo ? `${prodPromo.nombre} ($${prodPromo.precio.toFixed(2)})` : '';
     document.getElementById('combo-disponible-desde').value = c.disponible_desde || '';
+    marcarNoDisponible('combo', c.no_disponible_en);
     document.getElementById('combo-disponible-hasta').value = c.disponible_hasta || '';
     construirChipsDias('combo', parsearDiasDisponibles(c.dias_disponibles));
     document.getElementById('combo-bandejas').value = (c.bandejas === null || c.bandejas === undefined) ? 1 : c.bandejas;

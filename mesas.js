@@ -33,9 +33,33 @@ async function pedir(url, opciones) {
     return res;
 }
 
+
+// ---- Sucursales: el dueño elige cuál ver; el empleado ve solo la suya ----
+let sucursalesLista = [];
+async function prepararFiltroSucursalMesas() {
+    let u = null; try { u = JSON.parse(localStorage.getItem('usuarioActivo') || 'null'); } catch (e) {}
+    try { const r = await fetch(API_BASE + '/api/sitio'); sucursalesLista = ((await r.json()).sucursales || []).filter(s => s.activa !== false); } catch (e) {}
+    if (sucursalesLista.length < 2 || !u) return;
+    const zonas = document.getElementById('filtro-zonas'); if (!zonas) return;
+    if (u.sucursal_id) {
+        const s = sucursalesLista.find(x => Number(x.id) === Number(u.sucursal_id));
+        const e = document.createElement('div'); e.className = 'max-w-[98%] mx-auto mt-3 text-sm font-bold text-amber-300';
+        e.textContent = '📍 ' + (s ? s.nombre : 'Mi sucursal'); zonas.parentElement.insertBefore(e, zonas); return;
+    }
+    const sel = document.createElement('select'); sel.id = 'filtroSucursalMesas';
+    sel.className = 'max-w-[98%] mx-auto mt-3 block bg-slate-700 text-slate-100 text-sm font-semibold border border-slate-600 rounded-lg px-3 h-10 cursor-pointer';
+    sel.innerHTML = '<option value="">📍 Todas las sucursales</option>' + sucursalesLista.map(s => '<option value="' + s.id + '">' + escapeHtml(s.nombre) + '</option>').join('');
+    sel.value = localStorage.getItem('filtro_sucursal') || '';
+    sel.onchange = () => { localStorage.setItem('filtro_sucursal', sel.value); cargarMesas(); };
+    zonas.parentElement.insertBefore(sel, zonas);
+    cargarMesas();
+}
+function nombreSucursal(id) { const s = sucursalesLista.find(x => Number(x.id) === Number(id)); return s ? s.nombre : ''; }
+
 async function cargarMesas() {
     try {
-        const res = await pedir(URL_MESAS + '?t=' + Date.now());
+        const filtroSuc = document.getElementById('filtroSucursalMesas') ? document.getElementById('filtroSucursalMesas').value : '';
+        const res = await pedir(URL_MESAS + '?t=' + Date.now() + (filtroSuc ? '&sucursal=' + filtroSuc : ''));
         const datos = await res.json();
         mesas = Array.isArray(datos) ? datos : [];
     } catch (e) { if (e.message !== 'sesión') console.error(e); return; }
@@ -71,7 +95,7 @@ function pintarMesas() {
                 <h3 class="font-black text-lg text-white leading-tight">${escapeHtml(m.nombre)}</h3>
                 <span class="w-3 h-3 rounded-full ${e.punto} mt-1.5 flex-shrink-0"></span>
             </div>
-            <p class="text-[11px] text-slate-400"><i class="fa-solid fa-users"></i> ${m.capacidad} · ${escapeHtml(m.zona)}</p>
+            <p class="text-[11px] text-slate-400"><i class="fa-solid fa-users"></i> ${m.capacidad} · ${escapeHtml(m.zona)}${(sucursalesLista.length > 1 && m.sucursal_id) ? ' · 📍 ' + escapeHtml(nombreSucursal(m.sucursal_id)) : ''}</p>
             <div class="mt-auto">
                 <p class="text-xs font-bold ${e.color}">${e.texto}</p>
                 ${enUso ? `<p class="text-sm font-black text-white">$${fmt(m.consumo)} <span class="text-[11px] font-medium text-slate-400">· ${m.pedidos || 0} pedido${m.pedidos === 1 ? '' : 's'} · ${textoTiempo(minutosDesde(m.ocupada_desde))}</span></p>` : '<p class="text-[11px] text-slate-500">Toca para abrirla</p>'}
@@ -157,6 +181,7 @@ async function cobrarYLiberar(id, total) {
 // ---- Arranque y tiempo real ----
 window.addEventListener('load', () => {
     cargarMesas();
+    prepararFiltroSucursalMesas();
     if (typeof Pusher !== 'undefined') {
         const canal = new Pusher('demo', { cluster: 'demo' }).subscribe('canal-cocina');
         canal.bind('actualizar-tablero', () => cargarMesas());

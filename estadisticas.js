@@ -203,8 +203,27 @@ function calcularRangoFecha(tipo) {
     return {};
 }
 
+
+// ---- Sucursales: el dueño filtra las estadísticas por sucursal ----
+async function prepararFiltroSucursalStats() {
+    let u = null; try { u = JSON.parse(localStorage.getItem('usuarioActivo') || 'null'); } catch (e) {}
+    if (!u || u.sucursal_id) return; // el empleado de una sucursal ya recibe solo lo suyo
+    let lista = [];
+    try { const r = await fetch(API_BASE + '/api/sitio'); lista = ((await r.json()).sucursales || []).filter(s => s.activa !== false); } catch (e) {}
+    const ref = document.getElementById('fechaCustom');
+    if (lista.length < 2 || !ref || document.getElementById('filtroSucursalStats')) return;
+    const sel = document.createElement('select'); sel.id = 'filtroSucursalStats';
+    sel.className = 'bg-slate-800 border border-slate-700 text-slate-200 text-sm font-semibold rounded-lg px-3 h-10 cursor-pointer';
+    sel.innerHTML = '<option value="">📍 Todas las sucursales</option>' + lista.map(s => '<option value="' + s.id + '">' + escapeHtml(s.nombre) + '</option>').join('');
+    sel.onchange = () => aplicarFiltroEstadisticas(typeof filtroActivo !== 'undefined' && filtroActivo ? filtroActivo : 'hoy');
+    ref.parentElement.insertBefore(sel, ref);
+}
+window.addEventListener('load', prepararFiltroSucursalStats);
+
 function construirUrlPedidos(params) {
     const usp = new URLSearchParams(params);
+    const selSuc = document.getElementById('filtroSucursalStats');
+    if (selSuc && selSuc.value) usp.set('sucursal', selSuc.value);
     usp.set('_t', new Date().getTime());
     return API_ESTADISTICAS_PEDIDOS + '?' + usp.toString();
 }

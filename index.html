@@ -188,11 +188,21 @@ footer a{color:#fff}footer .links{display:flex;gap:18px;justify-content:center;f
     $('h-esl').textContent = s.eslogan || CFG.eslogan || '';
     if (s.historia) { $('historia').textContent = s.historia; $('nosotros').style.display = ''; $('nav-nos').style.display = ''; }
 
+    // Un solo local: "Dónde estamos"; si no tiene datos de ubicación, la sección desaparece
+    const unica = suc.length <= 1;
+    const sinDatos = x => !x.direccion && !x.telefono && !x.mapa && !x.coords;
+    const navSuc = document.querySelector('nav a[href="#sucursales"]');
+    $('sucursales').querySelector('h2').textContent = unica ? 'Dónde estamos' : 'Sucursales';
+    $('sucursales').querySelector('.sub').textContent = unica ? 'Visítanos' : 'Encuéntranos';
+    if (navSuc) navSuc.textContent = unica ? 'Ubicación' : 'Sucursales';
+    if (suc.length && suc.every(sinDatos)) { $('sucursales').style.display = 'none'; if (navSuc) navSuc.style.display = 'none'; suc = []; }
     $('lista-suc').innerHTML = suc.length ? suc.map(x => {
       const mapa = x.mapa || (x.direccion ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.direccion) : '');
       return '<div class="suc"><h3>📍 ' + esc(x.nombre) + '</h3>' + (x.direccion ? '<div>' + esc(x.direccion) + '</div>' : '') +
         (x.horario ? '<small>🕒 ' + esc(x.horario) + '</small>' : '') +
-        '<div class="acc">' + (mapa ? '<a class="btn sm out" target="_blank" rel="noopener" href="' + esc(mapa) + '">Cómo llegar</a>' : '') +
+        '<div class="acc">' + (suc.length > 1 ? '<a class="btn sm" href="menu.html?sucursal=' + encodeURIComponent(x.id) + '">🛒 Pedir aquí</a>' : '') +
+        (x.whatsapp ? '<a class="btn sm out" target="_blank" rel="noopener" href="https://wa.me/' + esc(String(x.whatsapp).replace(/\D/g, '')) + '?text=' + encodeURIComponent('Hola, quiero hacer un pedido en ' + nombre + ' (' + x.nombre + ')') + '">💬 WhatsApp</a>' : '') +
+        (mapa ? '<a class="btn sm out" target="_blank" rel="noopener" href="' + esc(mapa) + '">Cómo llegar</a>' : '') +
         (x.telefono ? '<a class="btn sm out" href="tel:' + esc(x.telefono.replace(/[^\d+]/g, '')) + '">📞 ' + esc(x.telefono) + '</a>' : '') + '</div></div>';
     }).join('') : '<div class="vacio">Pronto publicaremos nuestras sucursales.</div>';
 
@@ -213,6 +223,7 @@ footer a{color:#fff}footer .links{display:flex;gap:18px;justify-content:center;f
         document.querySelectorAll('#mapa-tabs .tab').forEach((b, j) => b.classList.toggle('on', j === i));
       };
       $('mapa-tabs').innerHTML = conMapa.map(x => '<button class="tab">' + esc(x.nombre) + '</button>').join('');
+      if (conMapa.length === 1) { $('mapa-tabs').style.display = 'none'; $('mapa').querySelector('.sub').textContent = 'Nuestra ubicación'; }
       $('mapa-tabs').onclick = e => { const b = e.target.closest('.tab'); if (b) ver([...$('mapa-tabs').children].indexOf(b)); };
       ver(0);
     }

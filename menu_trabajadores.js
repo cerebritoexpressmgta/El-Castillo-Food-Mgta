@@ -87,6 +87,33 @@ function pintarBadgeUsuario() {
 // así que lo anulamos aquí en vez de tocar menu.js.
 async function cargarYMostrarAnuncios() { /* intencionalmente vacío */ }
 
+
+// ---- Sucursales: el empleado pide para la suya; el dueño elige ----
+async function resolverSucursalPersonal() {
+    let lista = [];
+    try { const r = await fetch(API_BASE + '/api/sitio'); lista = ((await r.json()).sucursales || []).filter(s => s.activa !== false); } catch (e) {}
+    SUCURSALES = lista;
+    if (lista.length === 0) return;
+    if (lista.length === 1) { SUCURSAL_ACTUAL = lista[0]; return; }
+    const cab = document.querySelector('header');
+    const barra = document.createElement('div');
+    barra.style.cssText = 'background:#1e293b;border-bottom:1px solid #334155;color:#fde68a;text-align:center;font-size:14px;font-weight:700;padding:8px 12px';
+    const miId = usuarioActivoTrabajador && usuarioActivoTrabajador.sucursal_id;
+    if (miId) {
+        SUCURSAL_ACTUAL = lista.find(s => Number(s.id) === Number(miId)) || null;
+        barra.textContent = '📍 Pedido para: ' + (SUCURSAL_ACTUAL ? SUCURSAL_ACTUAL.nombre : 'tu sucursal');
+    } else {
+        SUCURSAL_ACTUAL = lista.find(s => String(s.id) === localStorage.getItem('filtro_sucursal')) || lista[0];
+        barra.innerHTML = '📍 Pedido para: <select style="background:#0f172a;color:#fff;border:1px solid #475569;border-radius:8px;padding:4px 8px;font:inherit;margin-left:6px">' +
+            lista.map(s => '<option value="' + s.id + '"' + (s.id === SUCURSAL_ACTUAL.id ? ' selected' : '') + '>' + escapeHtml(s.nombre) + '</option>').join('') + '</select>';
+        barra.querySelector('select').onchange = e => {
+            if (Object.keys(cart).length && !confirm('Al cambiar de sucursal se vacía el pedido en curso. ¿Continuar?')) { e.target.value = SUCURSAL_ACTUAL.id; return; }
+            localStorage.setItem('filtro_sucursal', e.target.value); location.reload();
+        };
+    }
+    if (cab) cab.insertAdjacentElement('afterend', barra);
+}
+
 window.onload = async function() {
     const sesion = localStorage.getItem('usuarioActivo');
     const token = localStorage.getItem('tokioAuthToken');
@@ -113,6 +140,7 @@ window.onload = async function() {
     }
 
     history.replaceState({ step: 1 }, "Categorías");
+    await resolverSucursalPersonal(); // antes del menú: de ella dependen platos y mesas
     await cargarMenuDesdeDB();
 
     // ?editar=<id> significa que venimos del lápiz del tablero: en vez de un
@@ -501,6 +529,7 @@ async function enviarPedidoTrabajador(event) {
         direccion: direccion || 'Retiro por local',
         metodo_pago: document.getElementById('trab-pago').value,
         articulos: articulos,
+        sucursal_id: SUCURSAL_ACTUAL ? SUCURSAL_ACTUAL.id : undefined,
         estado_inicial: tipoEntrega === 'Delivery' ? 'Calculando Delivery' : 'Pago Pendiente',
         pedido_detallado: "Generado por Backend", // el backend arma el texto real
         metadata_titular: `Pedido registrado en caja por ${operador}`
@@ -919,7 +948,7 @@ function pintarMesasCaja() {
 
 async function cargarMesasCaja() {
     try {
-        const res = await fetch(API_BASE + '/api/mesas/?t=' + Date.now(), { headers: authHeaders() });
+        const res = await fetch(API_BASE + '/api/mesas/?t=' + Date.now() + (SUCURSAL_ACTUAL ? '&sucursal=' + SUCURSAL_ACTUAL.id : ''), { headers: authHeaders() });
         const datos = await res.json();
         MESAS_CAJA = Array.isArray(datos) ? datos : [];
     } catch (e) { MESAS_CAJA = []; }

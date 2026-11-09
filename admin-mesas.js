@@ -26,7 +26,7 @@ function renderListaMesas() {
         <div class="list-item">
             <div class="item-info">
                 <p class="item-title">${colores[m.estado] || '⚪'} ${escapeHtml(m.nombre)}</p>
-                <p style="font-size:12px;opacity:.7">${escapeHtml(m.zona)} · ${m.capacidad} personas · ${m.estado}</p>
+                <p style="font-size:12px;opacity:.7">${escapeHtml(m.zona)} · ${m.capacidad} personas · ${m.estado}${m.sucursal_id && typeof nombreSucursalAdmin === 'function' && nombreSucursalAdmin(m.sucursal_id) ? ' · 📍 ' + escapeHtml(nombreSucursalAdmin(m.sucursal_id)) : ''}</p>
             </div>
             <div class="item-actions">
                 <button class="action-btn" title="Copiar enlace del QR" onclick="copiarEnlaceMesa(${m.id})">🔗</button>
@@ -38,7 +38,7 @@ function renderListaMesas() {
 
 function copiarEnlaceMesa(id) {
     const m = MESAS_ADMIN.find(x => x.id === id); if (!m) return;
-    const base = location.href.replace(/[^/]*$/, '') + 'menu.html?mesa=' + encodeURIComponent(m.nombre);
+    const base = location.href.replace(/[^/]*$/, '') + 'menu.html?mesa=' + encodeURIComponent(m.nombre) + (m.sucursal_id ? '&sucursal=' + m.sucursal_id : '');
     (navigator.clipboard ? navigator.clipboard.writeText(base) : Promise.reject()).then(() => alert('Enlace copiado:\n' + base)).catch(() => prompt('Copia este enlace para el QR de la mesa:', base));
 }
 
@@ -48,6 +48,7 @@ function editarMesa(id) {
     document.getElementById('mesa-nombre').value = m.nombre;
     document.getElementById('mesa-zona').value = m.zona;
     document.getElementById('mesa-capacidad').value = m.capacidad;
+    if (document.getElementById('mesa-sucursal')) document.getElementById('mesa-sucursal').value = m.sucursal_id || '';
     document.getElementById('titulo-form-mesa').innerText = 'Editar Mesa';
     document.getElementById('btn-cancel-mesa').style.display = 'block';
 }
@@ -77,7 +78,8 @@ if (document.getElementById('form-mesa')) {
             id: id ? parseInt(id, 10) : null,
             nombre: document.getElementById('mesa-nombre').value.trim(),
             zona: document.getElementById('mesa-zona').value.trim(),
-            capacidad: parseInt(document.getElementById('mesa-capacidad').value, 10) || 4
+            capacidad: parseInt(document.getElementById('mesa-capacidad').value, 10) || 4,
+            sucursal_id: parseInt((document.getElementById('mesa-sucursal') || {}).value, 10) || null
         };
         try {
             const res = await fetch(API_BASE + '/api/mesas/guardar', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) });

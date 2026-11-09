@@ -28,7 +28,88 @@ function mostrarIconosHeaderSesion(mostrar) {
     });
 }
 
+
+// =====================================================================
+// SUCURSALES: el cliente elige dónde pide; el menú, las mesas y el
+// WhatsApp son los de esa sucursal.
+// =====================================================================
+let SUCURSALES = [];
+let SUCURSAL_ACTUAL = null;
+let WHATSAPP_GENERAL = '';
+function numeroWhatsAppPedido() { const n = v => String(v || '').replace(/\D/g, ''); return n(SUCURSAL_ACTUAL && SUCURSAL_ACTUAL.whatsapp) || n(WHATSAPP_GENERAL); }
+const CLAVE_SUCURSAL = 'sucursal_elegida';
+
+function sucursalParam() { return SUCURSAL_ACTUAL ? 'sucursal=' + SUCURSAL_ACTUAL.id : ''; }
+function buscarSucursal(id) { return SUCURSALES.find(s => String(s.id) === String(id)) || null; }
+
+function pedirSucursal() {
+    return new Promise(resolve => {
+        const fondo = document.createElement('div');
+        fondo.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px';
+        const caja = document.createElement('div');
+        caja.style.cssText = 'background:#fff;color:#111;border-radius:20px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow:auto;font-family:system-ui,sans-serif';
+        caja.innerHTML = '<div style="font-size:20px;font-weight:800;margin-bottom:4px">¿Dónde quieres pedir?</div><div style="color:#6b7280;font-size:14px;margin-bottom:14px">Elige la sucursal. El menú y la entrega serán de esa sucursal.</div>';
+        SUCURSALES.forEach(s => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.style.cssText = 'display:block;width:100%;text-align:left;background:#f9fafb;border:2px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;font:inherit';
+            b.innerHTML = '<div style="font-weight:800;font-size:16px">📍 ' + escapeHtml(s.nombre) + '</div>' +
+                (s.direccion ? '<div style="color:#6b7280;font-size:13px;margin-top:2px">' + escapeHtml(s.direccion) + '</div>' : '') +
+                (s.horario ? '<div style="color:#6b7280;font-size:12px;margin-top:2px">🕒 ' + escapeHtml(s.horario) + '</div>' : '');
+            b.onclick = () => { fondo.remove(); resolve(s); };
+            caja.appendChild(b);
+        });
+        fondo.appendChild(caja); document.body.appendChild(fondo);
+    });
+}
+
+function pintarChipSucursal() {
+    const previo = document.getElementById('chip-sucursal'); if (previo) previo.remove();
+    if (!SUCURSAL_ACTUAL || SUCURSALES.length < 2) return;
+    const chip = document.createElement('div');
+    chip.id = 'chip-sucursal';
+    chip.style.cssText = 'background:#fef3c7;color:#78350f;border-bottom:1px solid #fde68a;text-align:center;font-size:14px;font-weight:600;padding:8px 12px';
+    chip.innerHTML = '📍 Pides en <b>' + escapeHtml(SUCURSAL_ACTUAL.nombre) + '</b> · <button type="button" style="background:none;border:0;color:#b45309;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer">Cambiar</button>';
+    chip.querySelector('button').onclick = async () => {
+        const nueva = await pedirSucursal();
+        if (String(nueva.id) === String(SUCURSAL_ACTUAL.id)) return;
+        if (Object.keys(cart).length && !confirm('Al cambiar de sucursal se vacía tu carrito porque el menú puede ser distinto. ¿Continuar?')) return;
+        localStorage.setItem(CLAVE_SUCURSAL, nueva.id);
+        const u = new URL(location.href); u.searchParams.delete('sucursal'); u.searchParams.delete('mesa'); location.href = u.toString();
+    };
+    const cab = document.querySelector('header');
+    if (cab) cab.insertAdjacentElement('afterend', chip);
+}
+
+async function resolverSucursal() {
+    try { const r = await fetch(API_BASE + '/api/sitio'); const d = await r.json(); SUCURSALES = (d.sucursales || []).filter(s => s.activa !== false); WHATSAPP_GENERAL = (d.sitio && d.sitio.whatsapp) || ''; } catch (e) { SUCURSALES = []; }
+    if (SUCURSALES.length === 0) { SUCURSAL_ACTUAL = null; return; }
+    if (SUCURSALES.length === 1) { SUCURSAL_ACTUAL = SUCURSALES[0]; return; }
+    const deUrl = buscarSucursal(new URLSearchParams(location.search).get('sucursal'));
+    SUCURSAL_ACTUAL = deUrl || buscarSucursal(localStorage.getItem(CLAVE_SUCURSAL)) || await pedirSucursal();
+    localStorage.setItem(CLAVE_SUCURSAL, SUCURSAL_ACTUAL.id);
+    pintarChipSucursal();
+}
+
+function armarMensajeWhatsApp(datos, items, tipo, direccion, nombre, metodoPago) {
+    const negocio = (window.MARCA && window.MARCA.nombre) || 'el restaurante';
+    const lineas = items.map(i => '• ' + i.qty + 'x ' + i.name).join('\n');
+    const num = datos && datos.pedido ? ' #' + datos.pedido.id_visual : '';
+    const total = datos && datos.pedido ? '\nTotal: $' + Number(datos.pedido.total).toFixed(2) : '';
+    return 'Hola, soy ' + nombre + '. Hice el pedido' + num + ' en ' + negocio + (SUCURSAL_ACTUAL && SUCURSALES.length > 1 ? ' (' + SUCURSAL_ACTUAL.nombre + ')' : '') + '.\n' +
+        'Tipo: ' + tipo + (direccion ? ' · ' + direccion : '') + '\nPago: ' + metodoPago + '\n' + lineas + total;
+}
+function mostrarBotonWhatsApp(texto) {
+    const cont = document.getElementById('wa-sucursal'); if (!cont) return;
+    const num = numeroWhatsAppPedido();
+    if (!num) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
+    cont.classList.remove('hidden');
+    cont.innerHTML = '<a href="https://wa.me/' + num + '?text=' + encodeURIComponent(texto) + '" target="_blank" rel="noopener" style="display:inline-block;background:#16a34a;color:#fff;font-weight:800;padding:14px 22px;border-radius:14px;text-decoration:none;font-size:16px">💬 Enviar mi pedido por WhatsApp' + (SUCURSALES.length > 1 && SUCURSAL_ACTUAL ? ' a ' + escapeHtml(SUCURSAL_ACTUAL.nombre) : '') + '</a>' +
+        '<div style="color:#6b7280;font-size:12px;margin-top:8px">Así coordinas el pago y la entrega directamente.</div>';
+}
+
 window.onload = async function() {
+    await resolverSucursal(); // primero se sabe la sucursal: de ella dependen el menú y las mesas
     cargarMesasCliente().then(aplicarMesaDeUrl); // lista de mesas y, si viene de un QR de mesa, la deja elegida
     precargarAnuncios(); // arranca la descarga de las imágenes de anuncios de una vez, sin esperar al login
     history.replaceState({ step: 'auth' }, "Autenticación");
@@ -525,7 +606,7 @@ async function cargarMenuDesdeDB() {
     cargarHorariosAtencion(); // en paralelo, no bloquea el render del catálogo
     cargarYMostrarAnuncios(); // popup de promociones, en paralelo
     try {
-        const urlFresca = URL_OBTENER_MENU + "?t=" + new Date().getTime();
+        const urlFresca = URL_OBTENER_MENU + "?t=" + new Date().getTime() + (SUCURSAL_ACTUAL ? "&" + sucursalParam() : "");
         const response = await fetch(urlFresca);
         
         if (!response.ok) throw new Error('Error al conectar con el servidor');
@@ -1435,7 +1516,7 @@ async function cargarMesasCliente() {
     const sel = document.getElementById('sel-mesa');
     if (!sel) return;
     try {
-        const res = await fetch(API_BASE + "/api/mesas/?t=" + Date.now());
+        const res = await fetch(API_BASE + "/api/mesas/?t=" + Date.now() + (SUCURSAL_ACTUAL ? "&" + sucursalParam() : ""));
         const mesas = await res.json();
         const porZona = {};
         (Array.isArray(mesas) ? mesas : []).forEach(m => { (porZona[m.zona || 'Salón'] = porZona[m.zona || 'Salón'] || []).push(m); });
@@ -1530,6 +1611,7 @@ async function sendOrder(event) {
         direccion: direccionFinal,
         metodo_pago: document.getElementById('payment-method').value,
         articulos: itemsInCart,
+        sucursal_id: SUCURSAL_ACTUAL ? SUCURSAL_ACTUAL.id : undefined,
         metadata_titular: datosClienteLogueado ? `Pedido por: ${datosClienteLogueado.nombre} ` : "No registrado",
         estado_inicial: tipoEntrega === 'Delivery' ? 'Calculando Delivery' : 'Pago Pendiente',
         pedido_detallado: "Generado por Backend" // Validacion Pydantic FastAPI
@@ -1547,10 +1629,13 @@ async function sendOrder(event) {
         });
         
         if (response.ok) {
+            const datosOk = await response.json().catch(() => ({}));
             const msgOk = document.getElementById('msg-pedido-recibido');
+            const hayWa = !!numeroWhatsAppPedido();
             if (msgOk) msgOk.textContent = tipoEntrega === 'Mesa'
                 ? `Tu pedido ya está en cocina. Te lo llevamos a la ${direccionFinal} en cuanto esté listo.`
-                : 'Hemos enviado tu orden al sistema. En unos instantes recibirás la confirmación automatizada en tu WhatsApp.';
+                : (hayWa ? 'Recibimos tu pedido. Toca el botón verde para enviarlo por WhatsApp y coordinar el pago y la entrega.' : 'Recibimos tu pedido. La sucursal se comunicará contigo para coordinar el pago y la entrega.');
+            mostrarBotonWhatsApp(armarMensajeWhatsApp(datosOk, itemsInCart, tipoEntrega, direccionFinal, nombreFinal, orderPayload.metodo_pago));
             goToStep(4);
         } else {
             alert(await motivoDelRechazo(response, "Hubo un error al procesar tu pedido. Por favor intenta de nuevo."));

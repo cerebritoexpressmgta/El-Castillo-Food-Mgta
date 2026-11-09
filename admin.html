@@ -239,6 +239,11 @@
                             <option value="admin">Administrador</option>
                             <option value="superadmin">Superadministrador (dueño)</option>
                         </select>
+                        <div id="wrap-usr-sucursal" style="display:none">
+                            <label>Sucursal donde trabaja</label>
+                            <select id="usr-sucursal"></select>
+                            <p style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Un empleado con sucursal solo ve los pedidos y mesas de la suya. Los administradores ven todas.</p>
+                        </div>
 
                         <button type="submit" class="btn-submit" id="btn-save-usr">💾 Guardar Usuario</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-usr" onclick="resetFormUsr()">❌ Cancelar Edición</button>
@@ -306,6 +311,7 @@
                             <input type="checkbox" id="prod-agotado"> Agotado / sin stock por el momento
                         </label>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca esto cuando no puedas preparar el producto hoy (ej. se acabó un ingrediente). A diferencia de "no disponible", esto también lo bloquea dentro de los combos que lo incluyen.</p>
+                        <div id="prod-sucursales" style="display:none"></div>
 
                         <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">🏷️ Precio por paquete (opcional)</label>
@@ -451,6 +457,7 @@
                         <label style="display: flex; align-items: center; margin-top: 15px; cursor: pointer;">
                             <input type="checkbox" id="combo-disponible" checked> Combo Disponible en Menú
                         </label>
+                        <div id="combo-sucursales" style="display:none"></div>
 
                         <button type="submit" class="btn-submit" id="btn-save-combo">🍱 Guardar Combo</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-combo" onclick="resetFormCombo()">❌ Cancelar Edición</button>
@@ -477,6 +484,10 @@
                         <datalist id="lista-zonas-mesa"></datalist>
                         <label>Capacidad (personas)</label>
                         <input type="number" id="mesa-capacidad" min="1" max="30" value="4" required>
+                        <div id="wrap-mesa-sucursal" style="display:none">
+                            <label>Sucursal</label>
+                            <select id="mesa-sucursal"></select>
+                        </div>
                         <button type="submit" class="btn-submit" id="btn-save-mesa">💾 Guardar Mesa</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-mesa" onclick="resetFormMesa()">❌ Cancelar Edición</button>
                     </form>

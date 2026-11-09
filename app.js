@@ -163,6 +163,7 @@ function verificarSesion() {
     if (sesionGuardada) {
         usuarioActivo = JSON.parse(sesionGuardada);
         aplicarRestriccionesRol();
+        prepararFiltroSucursal();
         vistaLogin.classList.add('hidden');
         vistaDashboard.classList.remove('hidden');
         vistaDashboard.classList.add('flex');
@@ -223,6 +224,36 @@ function cerrarSesion() {
     localStorage.removeItem('usuarioActivo');
     localStorage.removeItem('tokioAuthToken');
     verificarSesion();
+}
+
+
+// ---- Sucursales: el dueño filtra por sucursal; el empleado ve solo la suya ----
+window.__verSucursal = false;
+async function prepararFiltroSucursal() {
+    if (!usuarioActivo || document.getElementById('filtroSucursal') || document.getElementById('etiquetaSucursalFija')) return;
+    let lista = [];
+    try { const r = await fetch(API_BASE + '/api/sitio'); lista = ((await r.json()).sucursales || []).filter(s => s.activa !== false); } catch (e) {}
+    if (lista.length < 2) return;
+    const contenedor = document.getElementById('calendarioFiltro') && document.getElementById('calendarioFiltro').parentElement;
+    if (!contenedor) return;
+    if (usuarioActivo.sucursal_id) {
+        const s = lista.find(x => Number(x.id) === Number(usuarioActivo.sucursal_id));
+        const e = document.createElement('div');
+        e.id = 'etiquetaSucursalFija';
+        e.className = 'flex items-center bg-amber-500/10 text-amber-300 border border-amber-500/30 px-3 h-10 rounded-lg text-sm font-bold';
+        e.textContent = '📍 ' + (s ? s.nombre : 'Mi sucursal');
+        contenedor.parentElement.insertBefore(e, contenedor);
+        return;
+    }
+    window.__verSucursal = true;
+    const sel = document.createElement('select');
+    sel.id = 'filtroSucursal';
+    sel.className = 'bg-slate-700 text-slate-100 text-sm font-semibold border border-slate-600 rounded-lg px-3 h-10 focus:outline-none cursor-pointer';
+    sel.innerHTML = '<option value="">📍 Todas las sucursales</option>' + lista.map(s => '<option value="' + s.id + '">' + escapeHtml(s.nombre) + '</option>').join('');
+    sel.value = localStorage.getItem('filtro_sucursal') || '';
+    sel.onchange = () => { localStorage.setItem('filtro_sucursal', sel.value); cargarPedidos(); };
+    contenedor.parentElement.insertBefore(sel, contenedor);
+    cargarPedidos();
 }
 
 function aplicarRestriccionesRol() {
@@ -565,6 +596,8 @@ async function cargarPedidos() {
         const fechaCalendario = document.getElementById('calendarioFiltro') ? document.getElementById('calendarioFiltro').value : '';
         let urlFetch = API_OBTENER_PEDIDOS + '?_t=' + new Date().getTime();
         if (fechaCalendario) urlFetch += '&fecha=' + fechaCalendario;
+        const filtroSuc = document.getElementById('filtroSucursal') ? document.getElementById('filtroSucursal').value : '';
+        if (filtroSuc) urlFetch += '&sucursal=' + filtroSuc;
         
         const response = await fetch(urlFetch, { headers: authHeaders() });
         // Sin esto, un token vencido dejaba el tablero en blanco y parecia que
@@ -654,11 +687,12 @@ function renderizarTablero() {
         const detalleStr = String(pedido.pedido_detallado || '').toLowerCase();
         const esMesa = tipoEntregaStr.includes('mesa');
         const esPickup = !esMesa && (tipoEntregaStr.includes('pickup') || tipoEntregaStr.includes('retiro'));
-        const etiquetaEntrega = esMesa
+        const etiquetaSucursal = (window.__verSucursal && pedido.sucursal_nombre) ? ` <span class="text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5">📍 ${escapeHtml(pedido.sucursal_nombre)}</span>` : '';
+        const etiquetaEntrega = (esMesa
             ? `<span class="text-[11px] font-semibold text-fuchsia-300">(🍽️ ${escapeHtml(pedido.direccion || 'Mesa')})</span>`
             : (esPickup
                 ? '<span class="text-[11px] font-semibold text-amber-300">(Pickup)</span>'
-                : '<span class="text-[11px] font-semibold text-sky-300">(Delivery)</span>');
+                : '<span class="text-[11px] font-semibold text-sky-300">(Delivery)</span>')) + etiquetaSucursal;
         const metodoPago = String(pedido.metodo_pago || '').replace(/'/g, "\\'");
         const esPagoMovil = metodoPago.toLowerCase().includes('pago') || metodoPago.toLowerCase().includes('movil');
         const monto = parseFloat(String(pedido.total_orden || pedido.monto || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;

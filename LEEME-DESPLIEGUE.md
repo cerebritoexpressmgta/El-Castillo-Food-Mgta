@@ -49,3 +49,27 @@ En `/panel.html` → **Apariencia**: elige una combinación lista o tus propios 
 - Sin internet solo abren las páginas ya visitadas; los pedidos y el menú siempre se leen en vivo (nunca se guardan en el teléfono).
 - Si cambias archivos de la web y quieres forzar que todos los teléfonos renueven su copia, cambia `VERSION` al inicio de `sw.js` (por ejemplo a `v2`).
 - Para usar el escudo como logo en la web: panel → Apariencia → Logo → sube `icons/icon-512.png`.
+
+## Varias sucursales
+1. Panel → **Sucursales**: agrega cada una con su dirección, teléfono, horario y **su propio WhatsApp** (con código de país).
+2. Panel → **Configurar menú y negocio**:
+   - **Mesas**: elige a qué sucursal pertenece cada mesa (el mismo nombre, "Mesa 1", puede repetirse en sucursales distintas). El enlace 🔗 del QR ya incluye la sucursal.
+   - **Usuarios**: en cada cajero elige su sucursal. Ese empleado solo ve los pedidos y mesas de la suya. Los administradores ven todas y filtran desde un selector.
+   - **Productos y combos**: marca **No disponible en** las sucursales donde no se vende. Ahí no aparece en el menú y el servidor no acepta pedirlo.
+3. El cliente elige la sucursal al pedir (o entra por el enlace/QR `menu.html?sucursal=ID`). Al terminar, un botón verde le abre WhatsApp con su pedido ya escrito hacia el número de esa sucursal.
+4. Cocina, Mesas y Estadísticas: el dueño ve todo y filtra por sucursal; cada empleado ve la suya.
+- Los horarios de atención y el WhatsApp general de la web siguen siendo únicos para todo el negocio.
+
+## Plan: cuántas sucursales tiene el negocio (lo controlas tú)
+Cada negocio **empieza sin sucursales**. Cuando contrate más, tú subes el número con la variable **`MAX_SUCURSALES`** del Worker, que solo ve quien administra la cuenta de Cloudflare (el cliente no la ve ni la cambia desde el panel). Es el total de locales, contando el principal:
+
+| Valor | Qué pasa |
+|---|---|
+| sin configurar o `1` | **Sin sucursales** (valor por defecto): desaparece todo lo de sucursales (selector al pedir, filtros, campos por sucursal). La web muestra una sección "Dónde estamos" con el local (y se oculta sola si no tiene dirección ni teléfono). |
+| `2` | **Principal + 1 sucursal.** |
+| `3`, `4`, `5`... | Hasta ese número de locales. El panel muestra "En uso: X" y bloquea "Agregar sucursal" al llegar al límite. |
+
+Cómo cambiarlo: Cloudflare → Worker → Settings → Variables and Secrets → Agregar variable `MAX_SUCURSALES` con el número (ej. `3`) → desplegar. Con `keep_vars` activo no se borra en los despliegues.
+- El límite se valida en el servidor, no solo en pantalla.
+- Si bajas el plan (ej. de 5 a 2), las sucursales de más no se borran: quedan "fuera de plan" (visibles solo para el dueño, sin pedidos ni web) y se reactivan si subes el límite otra vez.
+- Esto protege tu plan mientras el cliente no tenga acceso a tu Cloudflare ni a tu GitHub. Quien controle esos dos puede cambiar el valor.
