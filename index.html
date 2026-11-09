@@ -57,6 +57,15 @@ footer a{color:#fff}footer .links{display:flex;gap:18px;justify-content:center;f
 .tiene-portada:not(.portada-titulo) .hero h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .tiene-portada.portada-titulo .hero h1{font-size:clamp(28px,4.5vw,46px);margin:0 0 6px;text-shadow:0 3px 14px rgba(0,0,0,.8)}
 
+
+/* Fondos con tema de comida rápida: cada sección con el suyo */
+#destacados{background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22 opacity=%220.28%22%3E%3Ctext x=%2230%22 y=%2245%22 font-size=%2234%22 transform=%22rotate%28-15 30 45%29%22%3E%F0%9F%8D%94%3C/text%3E%3Ctext x=%22110%22 y=%2228%22 font-size=%2234%22 transform=%22rotate%2812 110 28%29%22%3E%F0%9F%8D%9F%3C/text%3E%3Ctext x=%22185%22 y=%2270%22 font-size=%2234%22 transform=%22rotate%28-8 185 70%29%22%3E%F0%9F%8D%95%3C/text%3E%3Ctext x=%2260%22 y=%22120%22 font-size=%2234%22 transform=%22rotate%2820 60 120%29%22%3E%F0%9F%8C%AD%3C/text%3E%3Ctext x=%22140%22 y=%22150%22 font-size=%2234%22 transform=%22rotate%28-18 140 150%29%22%3E%F0%9F%A5%A4%3C/text%3E%3Ctext x=%22205%22 y=%22185%22 font-size=%2234%22 transform=%22rotate%2810 205 185%29%22%3E%F0%9F%8D%97%3C/text%3E%3Ctext x=%2225%22 y=%22195%22 font-size=%2234%22 transform=%22rotate%286 25 195%29%22%3E%F0%9F%8D%A6%3C/text%3E%3Ctext x=%22100%22 y=%22205%22 font-size=%2234%22 transform=%22rotate%28-12 100 205%29%22%3E%F0%9F%8D%A9%3C/text%3E%3C/svg%3E"),radial-gradient(circle at 15% 10%,#ffd23f 0,transparent 45%),linear-gradient(135deg,#ff9f1c,#f0541e 60%,#d62828);background-size:240px 240px,auto,auto;border-bottom:4px solid #ffd23f}
+#menu.alt{background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22 opacity=%220.14%22%3E%3Ctext x=%2230%22 y=%2245%22 font-size=%2234%22 transform=%22rotate%28-15 30 45%29%22%3E%F0%9F%8C%AE%3C/text%3E%3Ctext x=%22110%22 y=%2228%22 font-size=%2234%22 transform=%22rotate%2812 110 28%29%22%3E%F0%9F%8D%BF%3C/text%3E%3Ctext x=%22185%22 y=%2270%22 font-size=%2234%22 transform=%22rotate%28-8 185 70%29%22%3E%F0%9F%A5%93%3C/text%3E%3Ctext x=%2260%22 y=%22120%22 font-size=%2234%22 transform=%22rotate%2820 60 120%29%22%3E%F0%9F%A7%80%3C/text%3E%3Ctext x=%22140%22 y=%22150%22 font-size=%2234%22 transform=%22rotate%28-18 140 150%29%22%3E%F0%9F%A5%AA%3C/text%3E%3Ctext x=%22205%22 y=%22185%22 font-size=%2234%22 transform=%22rotate%2810 205 185%29%22%3E%F0%9F%8D%9F%3C/text%3E%3Ctext x=%2225%22 y=%22195%22 font-size=%2234%22 transform=%22rotate%286 25 195%29%22%3E%F0%9F%A7%83%3C/text%3E%3Ctext x=%22100%22 y=%22205%22 font-size=%2234%22 transform=%22rotate%28-12 100 205%29%22%3E%F0%9F%8D%94%3C/text%3E%3C/svg%3E"),radial-gradient(circle at 85% 0,#6a1b9a 0,transparent 50%),linear-gradient(160deg,#1b1230,#2a1646 55%,#13091f);background-size:240px 240px,auto,auto;border-top:0;border-bottom:4px solid #ff9f1c}
+#destacados h2,#menu h2{color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35)}
+#destacados .sub,#menu .sub,#destacados .vacio,#menu .vacio{color:rgba(255,255,255,.9)}
+#destacados .plato,#menu .plato{box-shadow:0 8px 22px rgba(0,0,0,.28);border-color:transparent}
+#menu .tab{border-color:transparent}
+.btn.c-pedir{background:linear-gradient(135deg,#ffb703,#f0541e);box-shadow:0 4px 14px rgba(240,84,30,.4)}
 /* Botones de contacto con el color de cada red */
 .btn.red{color:#fff!important;border:0;display:inline-flex;align-items:center;gap:8px}
 .btn.red:hover{filter:brightness(1.08);transform:translateY(-1px)}
@@ -346,7 +355,7 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
       bot.push('<a class="btn red ' + r[1] + '"' + ext + ' href="' + esc(r[0]) + '">' + r[2] + r[3] + '</a>');
       if (r[1] !== 'c-mail') links.push('<a' + ext + ' href="' + esc(r[0]) + '">' + r[3] + '</a>');
     });
-    bot.push('<a class="btn out" href="menu.html">🛒 Pedir en línea</a>');
+    bot.push('<a class="btn red c-pedir" href="menu.html">🛒 Pedir en línea</a>');
     $('contacto-btn').innerHTML = bot.join('');
     links.push('<a href="menu.html">Hacer un pedido</a>');
     $('foot-links').innerHTML = links.join('');
