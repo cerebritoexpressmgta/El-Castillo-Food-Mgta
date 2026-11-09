@@ -350,8 +350,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     ruta('GET', '/api/menu', (ctx, db) => { const sid = parseInt(ctx.query.sucursal, 10) || 0; return ({
         menu: {
             categorias: db.categorias.map(c => ({ id: c.id, nombre: c.nombre, imagen: c.imagen })),
-            productos: db.productos.filter(p => itemDisponibleEn(p, sid)).map(p => ({ no_disponible_en: p.no_disponible_en || [], id: p.id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
-            combos: db.combos.filter(c => comboDisponibleEn(db, c, sid)).map(c => ({ no_disponible_en: c.no_disponible_en || [], id: c.id, nombre: c.nombre, categoria: c.categoria, precio: c.precio, imagen: c.imagen, descripcion: c.descripcion, disponible: c.disponible, items_json: c.items_json, promo_cantidad_minima: c.promo_cantidad_minima, promo_producto_id: c.promo_producto_id, promo_producto_cantidad: c.promo_producto_cantidad, disponible_desde: c.disponible_desde, disponible_hasta: c.disponible_hasta, dias_disponibles: c.dias_disponibles, bandejas: c.bandejas, cajas_pizza: c.cajas_pizza }))
+            productos: db.productos.filter(p => itemDisponibleEn(p, sid)).map(p => ({ no_disponible_en: p.no_disponible_en || [], id: p.id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, favorito: !!p.favorito, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
+            combos: db.combos.filter(c => comboDisponibleEn(db, c, sid)).map(c => ({ no_disponible_en: c.no_disponible_en || [], id: c.id, nombre: c.nombre, categoria: c.categoria, precio: c.precio, imagen: c.imagen, descripcion: c.descripcion, disponible: c.disponible, favorito: !!c.favorito, items_json: c.items_json, promo_cantidad_minima: c.promo_cantidad_minima, promo_producto_id: c.promo_producto_id, promo_producto_cantidad: c.promo_producto_cantidad, disponible_desde: c.disponible_desde, disponible_hasta: c.disponible_hasta, dias_disponibles: c.dias_disponibles, bandejas: c.bandejas, cajas_pizza: c.cajas_pizza }))
         }
     }); });
 
@@ -369,24 +369,24 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         guardarEn(db.categorias, db, d, ['nombre', 'imagen'], () => db.categorias.push({ id: siguienteId(db, 'categorias'), nombre: d.nombre, imagen: d.imagen || '' }));
         return ok();
     });
-    const CAMPOS_PROD = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'agotado', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'precio_paquete', 'cantidad_paquete', 'bandejas', 'cajas_pizza'];
+    const CAMPOS_PROD = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'agotado', 'favorito', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'precio_paquete', 'cantidad_paquete', 'bandejas', 'cajas_pizza'];
     ruta('POST', '/api/menu/guardar-producto', (ctx, db) => {
         requiereAdmin(ctx); const d = ctx.body;
         if (!d.nombre || !d.categoria || typeof d.precio !== 'number') throw new HttpError(422, 'Datos incompletos');
         const previo = d.id ? db.productos.find(x => x.id === d.id) : null;
         d.no_disponible_en = d.no_disponible_en === undefined ? ((previo && previo.no_disponible_en) || []) : limpiarListaSucursales(db, d.no_disponible_en);
-        const defaults = { disponible: true, agotado: false, bandejas: 1, cajas_pizza: 0, cantidad_paquete: 0, precio_paquete: null, imagen: '', descripcion: '' };
+        const defaults = { disponible: true, agotado: false, favorito: false, bandejas: 1, cajas_pizza: 0, cantidad_paquete: 0, precio_paquete: null, imagen: '', descripcion: '' };
         const datos = Object.assign({}, defaults, d);
         guardarEn(db.productos, db, datos, CAMPOS_PROD, () => { const f = { id: siguienteId(db, 'productos') }; CAMPOS_PROD.forEach(c => { f[c] = datos[c] === undefined ? null : datos[c]; }); db.productos.push(f); });
         return ok();
     });
-    const CAMPOS_COMBO = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'promo_cantidad_minima', 'promo_producto_id', 'promo_producto_cantidad', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'bandejas', 'cajas_pizza'];
+    const CAMPOS_COMBO = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'favorito', 'promo_cantidad_minima', 'promo_producto_id', 'promo_producto_cantidad', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'bandejas', 'cajas_pizza'];
     ruta('POST', '/api/menu/guardar-combo', (ctx, db) => {
         requiereAdmin(ctx); const d = ctx.body;
         if (!d.nombre || typeof d.precio !== 'number') throw new HttpError(422, 'Datos incompletos');
         const previoC = d.id ? db.combos.find(x => x.id === d.id) : null;
         d.no_disponible_en = d.no_disponible_en === undefined ? ((previoC && previoC.no_disponible_en) || []) : limpiarListaSucursales(db, d.no_disponible_en);
-        const defaults = { disponible: true, bandejas: 1, cajas_pizza: 0, imagen: '', descripcion: '', items: [] };
+        const defaults = { disponible: true, favorito: false, bandejas: 1, cajas_pizza: 0, imagen: '', descripcion: '', items: [] };
         const datos = Object.assign({}, defaults, d);
         const itemsJson = JSON.stringify(datos.items || []);
         if (datos.id) {
