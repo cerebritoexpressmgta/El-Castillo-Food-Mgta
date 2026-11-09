@@ -71,7 +71,9 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
 .car-it{flex:0 0 calc(100% / var(--n,4));padding:0 8px;display:flex}
 .car-it .plato{width:100%;cursor:pointer;transition:box-shadow .15s,transform .15s}
 .car-it .plato:hover,.car-it .plato:focus-visible{box-shadow:0 8px 22px rgba(0,0,0,.18);transform:translateY(-2px);outline:none}
-.car{--n:4}@media(max-width:900px){.car{--n:3}}@media(max-width:680px){.car{--n:2}}@media(max-width:460px){.car{--n:1}}
+.car{--n:2}@media(max-width:560px){.car{--n:1}}
+.car-it .foto{height:clamp(190px,24vw,280px);font-size:96px}
+.car-it .info{padding:18px 22px 22px;gap:8px}.car-it .info b{font-size:21px}.car-it .info p{font-size:15px}.car-it .precio{font-size:23px}
 @media(prefers-reduced-motion:reduce){.car-track{transition:none!important}}
 /* Ventana ampliada */
 #dest-modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:18px}
