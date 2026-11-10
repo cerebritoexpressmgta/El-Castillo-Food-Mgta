@@ -108,8 +108,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="pwa.js" defer></script>
+    <link rel="stylesheet" href="fondos.css">
 </head>
-<body>
+<body data-fondo="admin-categorias">
     <div id="pantalla-bloqueo-admin" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="bg-slate-900 border border-slate-700/50 p-10 rounded-2xl shadow-[0_0_50px_-12px_rgba(225,29,72,0.3)] w-full max-w-sm text-center transform transition-transform duration-500 hover:scale-105">
             <div class="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/30 shadow-[0_0_20px_rgba(225,29,72,0.2)]">
@@ -639,6 +640,7 @@
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + tabName).classList.add('active');
             event.currentTarget.classList.add('active');
+            document.body.dataset.fondo = 'admin-' + tabName; // cada pestaña tiene su propio fondo
         }
     </script>
     <div id="modal-inventario" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.7); align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) cerrarInventario()">
