@@ -48,3 +48,19 @@ body[data-fondo="dueno"] .tile[href="index.html"]{background-image:url("data:ima
 body[data-fondo="dueno"] .tile[href="index.html"]:hover{border-color:#0ea5e9}
 body[data-fondo="dueno"] .tile[href="menu.html"]{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' opacity='0.18'%3E%3Ctext x='60' y='88' font-size='84' text-anchor='middle'%3E%F0%9F%93%B1%3C/text%3E%3C/svg%3E"),linear-gradient(150deg,#3b1a66,#1f1040);border-color:#a855f766}
 body[data-fondo="dueno"] .tile[href="menu.html"]:hover{border-color:#a855f7}
+
+/* Cocina: cada columna con su color y marca de agua (sin negro) */
+body[data-fondo="cocina"] main .grid>div{background-repeat:no-repeat;box-shadow:0 8px 22px rgba(0,0,0,.4)}
+body[data-fondo="cocina"] main .grid>div:nth-child(1){background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20opacity='0.16'%3E%3Ctext%20x='60'%20y='88'%20font-size='84'%20text-anchor='middle'%3E%F0%9F%9B%B5%3C/text%3E%3C/svg%3E"),linear-gradient(160deg,#4a2380,#26114a);background-position:right -8px bottom -10px,0 0;background-size:120px 120px,auto;border-color:#a855f766}
+body[data-fondo="cocina"] main .grid>div:nth-child(2){background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20opacity='0.16'%3E%3Ctext%20x='60'%20y='88'%20font-size='84'%20text-anchor='middle'%3E%F0%9F%92%B5%3C/text%3E%3C/svg%3E"),linear-gradient(160deg,#6b4a0c,#38260a);background-position:right -8px bottom -10px,0 0;background-size:120px 120px,auto;border-color:#eab30866}
+body[data-fondo="cocina"] main .grid>div:nth-child(3){background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20opacity='0.16'%3E%3Ctext%20x='60'%20y='88'%20font-size='84'%20text-anchor='middle'%3E%F0%9F%8D%B3%3C/text%3E%3C/svg%3E"),linear-gradient(160deg,#0b4f78,#0a2b48);background-position:right -8px bottom -10px,0 0;background-size:120px 120px,auto;border-color:#0ea5e966}
+body[data-fondo="cocina"] main .grid>div:nth-child(4){background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20opacity='0.16'%3E%3Ctext%20x='60'%20y='88'%20font-size='84'%20text-anchor='middle'%3E%E2%9C%85%3C/text%3E%3C/svg%3E"),linear-gradient(160deg,#076248,#07372f);background-position:right -8px bottom -10px,0 0;background-size:120px 120px,auto;border-color:#10b98166}
+body[data-fondo="cocina"] main .grid>div:nth-child(1)>div:first-child{background:rgba(0,0,0,.22)}
+body[data-fondo="cocina"] main .grid>div>div.border-b,body[data-fondo="cocina"] main .grid>div>div:first-child.border-b{border-color:rgba(255,255,255,.18)}
+body[data-fondo="cocina"] main .grid>div:nth-child(4)>div.border-t{background:rgba(0,0,0,.28)}
+
+/* Mesas: tarjetas más oscuras y textos más claros para leerse bien */
+body[data-fondo="mesas"] #grid-mesas>button{background:linear-gradient(rgba(3,14,17,.9),rgba(3,14,17,.9));-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);box-shadow:0 6px 16px rgba(0,0,0,.4)}
+body[data-fondo="mesas"] #grid-mesas>button[class*="amber"]{background:linear-gradient(rgba(60,35,4,.92),rgba(30,16,4,.94))}
+body[data-fondo="mesas"] #grid-mesas>button[class*="fuchsia"]{background:linear-gradient(rgba(58,10,56,.92),rgba(28,6,32,.94))}
+body[data-fondo="mesas"] #grid-mesas .text-slate-400,body[data-fondo="mesas"] #grid-mesas .text-slate-500{color:#cbd5e1}
