@@ -345,6 +345,34 @@
         const p = String(id || '').split('_');
         return { tipo: p[0] || '', dbId: p.length > 1 && /^\d+$/.test(p[1]) ? parseInt(p[1], 10) : 0, partes: p };
     }
+    // ---- Inventario (opcional por producto: inventario = null significa "sin control") ----
+    function inventarioNecesario(db, articulos) {
+        const need = new Map(); const add = (id, n) => need.set(id, (need.get(id) || 0) + n);
+        (articulos || []).forEach(a => {
+            const q = parseInt(a && a.qty, 10); if (!(q > 0)) return;
+            const { tipo, dbId } = parteId(a.id); if (!dbId) return;
+            if (tipo === 'p') add(dbId, q);
+            else if (tipo === 'c') {
+                const c = db.combos.find(x => x.id === dbId); if (!c) return;
+                let items = []; try { items = JSON.parse(c.items_json || '[]'); } catch (e) {}
+                items.forEach(it => { if (it && it.tipo === 'producto') add(Number(it.valor), (parseInt(it.cantidad, 10) || 1) * q); });
+            }
+        });
+        return need;
+    }
+    function revisarInventario(db, articulos, esPersonal) {
+        if (esPersonal) return;
+        inventarioNecesario(db, articulos).forEach((n, id) => {
+            const p = db.productos.find(x => x.id === id);
+            if (p && p.inventario != null && n > p.inventario) throw new HttpError(400, p.inventario > 0 ? `Solo quedan ${p.inventario} de ${p.nombre}. Ajusta la cantidad para continuar.` : `${p.nombre} se agotó. Quítalo del carrito para continuar.`);
+        });
+    }
+    function descontarInventario(db, articulos) {
+        inventarioNecesario(db, articulos).forEach((n, id) => {
+            const p = db.productos.find(x => x.id === id);
+            if (p && p.inventario != null) { p.inventario = Math.max(0, p.inventario - n); if (p.inventario <= 0) p.agotado = true; }
+        });
+    }
     function esRefresco(categoria) { const t = String(categoria || '').toLowerCase(); return t.includes('bebida') || t.includes('refresco'); }
 
     function contarNumeroDiario(db, pedido) {
@@ -506,7 +534,7 @@
     ruta('GET', '/api/menu', (ctx, db) => ({
         menu: {
             categorias: db.categorias.map(c => ({ id: c.id, nombre: c.nombre, imagen: c.imagen })),
-            productos: db.productos.map(p => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, favorito: !!p.favorito, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
+            productos: db.productos.map(p => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, inventario: p.inventario == null ? null : p.inventario, favorito: !!p.favorito, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
             combos: db.combos.map(c => ({ id: c.id, nombre: c.nombre, categoria: c.categoria, precio: c.precio, imagen: c.imagen, descripcion: c.descripcion, disponible: c.disponible, favorito: !!c.favorito, items_json: c.items_json, promo_cantidad_minima: c.promo_cantidad_minima, promo_producto_id: c.promo_producto_id, promo_producto_cantidad: c.promo_producto_cantidad, disponible_desde: c.disponible_desde, disponible_hasta: c.disponible_hasta, dias_disponibles: c.dias_disponibles, bandejas: c.bandejas, cajas_pizza: c.cajas_pizza }))
         }
     }));
@@ -549,6 +577,16 @@
             CAMPOS_COMBO.forEach(c => { f[c] = datos[c] === undefined ? null : datos[c]; });
             db.combos.push(f);
         }
+        return ok();
+    });
+    ruta('POST', '/api/menu/inventario', (ctx, db) => {
+        requiereAdmin(ctx); const { id, cantidad } = ctx.body || {};
+        const p = db.productos.find(x => x.id === Number(id));
+        if (!p) throw new HttpError(404, 'Producto no encontrado');
+        if (cantidad === null) { p.inventario = null; return ok(); } // quitar el control de inventario
+        const n = Math.floor(Number(cantidad));
+        if (!Number.isFinite(n) || n < 0 || n > 100000) throw new HttpError(422, 'Cantidad no válida');
+        p.inventario = n; p.agotado = n <= 0; // con 0 queda sin stock; si se repone, vuelve a estar disponible
         return ok();
     });
     ruta('POST', '/api/menu/ordenar', (ctx, db) => {
@@ -770,6 +808,7 @@
         const tasa = tasaVigente(db);
         const cli = db.clientes.find(c => c.telefono === telefono);
         const { texto, total } = construirResumenPedido(db, p.articulos, esPersonal);
+        revisarInventario(db, p.articulos, esPersonal);
         const emp = calcularEmpaque(db, p.articulos);
         const esPickup = esEntregaPickup(tipo);
 
@@ -783,6 +822,7 @@
             total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos
         };
         db.pedidos.push(nuevo);
+        descontarInventario(db, p.articulos);
         const idVisual = contarNumeroDiario(db, nuevo);
 
         if (mesa && mesa.estado === 'libre') { mesa.estado = 'ocupada'; mesa.ocupada_desde = nuevo.timestamp; }

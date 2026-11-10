@@ -11,6 +11,7 @@ const ADMIN_URL_GUARDAR_PROD = API_BASE + "/api/menu/guardar-producto";
 const ADMIN_URL_GUARDAR_COMBO = API_BASE + "/api/menu/guardar-combo";
 const ADMIN_URL_ELIMINAR = API_BASE + "/api/menu/eliminar-item";
 const ADMIN_URL_ORDENAR = API_BASE + "/api/menu/ordenar";
+const ADMIN_URL_INVENTARIO = API_BASE + "/api/menu/inventario";
 
 const URL_OBTENER_USUARIOS_ADMIN = API_BASE + "/api/usuarios/";
 const ADMIN_URL_GUARDAR_USUARIO = API_BASE + "/api/usuarios/guardar";
@@ -813,12 +814,13 @@ function renderListaProductos(lista = adminProductos) {
             <div class="list-item ${opacityClass}" data-id="${p.id}">
                 <div class="item-info">
                     <p class="item-title">${p.favorito ? '⭐ ' : ''}${p.nombre} <span style="color:#10b981">$${p.precio}</span>${badgeAgotado}</p>
-                    <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}</p>
+                    <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}${p.inventario != null ? ` | <span style="color:${p.inventario <= 0 ? '#f87171' : (p.inventario <= 5 ? '#fbbf24' : '#34d399')}; font-weight:bold;">Inventario: ${p.inventario}</span>` : ''}</p>
                 </div>
                 <div class="item-actions">
                     <button class="action-btn btn-edit drag-handle" title="Mantén presionado y arrastra para mover esta tarjeta a donde quieras">↕ Mover</button>
                     <button class="action-btn btn-edit" onclick="editarProducto(${p.id})" title="Editar">✏️</button>
                     <button class="action-btn btn-delete" onclick="eliminarItem(${p.id}, 'producto')" title="Eliminar">🗑️</button>
+                    <button class="action-btn btn-edit" onclick="abrirInventario(${p.id})" title="Inventario: cantidad disponible">📦 Inventario</button>
                 </div>
             </div>`;
     });
@@ -1476,6 +1478,35 @@ function activarArrastre(contId, tipo) {
 }
 activarArrastre('lista-productos-container', 'producto');
 activarArrastre('lista-combos-container', 'combo');
+
+// Inventario: cantidad disponible por producto; se descuenta con cada pedido y al llegar a 0 queda sin stock
+let inventarioProductoId = null;
+function abrirInventario(id) {
+    const p = adminProductos.find(x => x.id === id); if (!p) return;
+    inventarioProductoId = id;
+    document.getElementById('inv-nombre').textContent = p.nombre;
+    document.getElementById('inv-cantidad').value = p.inventario != null ? p.inventario : '';
+    document.getElementById('inv-estado').textContent = p.inventario != null ? `Actualmente quedan ${p.inventario}.` : 'Este producto no tiene control de inventario (siempre disponible).';
+    document.getElementById('inv-quitar').style.display = p.inventario != null ? '' : 'none';
+    document.getElementById('modal-inventario').style.display = 'flex';
+    setTimeout(() => document.getElementById('inv-cantidad').focus(), 50);
+}
+function cerrarInventario() { document.getElementById('modal-inventario').style.display = 'none'; inventarioProductoId = null; }
+async function guardarInventario(quitar) {
+    if (inventarioProductoId === null) return;
+    let cantidad = null;
+    if (!quitar) {
+        const v = document.getElementById('inv-cantidad').value.trim();
+        if (v === '' || !/^\d+$/.test(v)) { alert('Escribe la cantidad disponible (un número entero, 0 o más).'); return; }
+        cantidad = parseInt(v, 10);
+    }
+    try {
+        const r = await fetch(ADMIN_URL_INVENTARIO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id: inventarioProductoId, cantidad }) });
+        if (!r.ok) throw new Error();
+        cerrarInventario();
+        await cargarDatosAdmin();
+    } catch (e) { alert('No se pudo guardar el inventario.'); }
+}
 
 function ordenarPorPrecio(tipo) {
     const lista = tipo === 'combo' ? adminCombos : adminProductos;
