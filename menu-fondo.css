@@ -1,0 +1,30 @@
+@charset "UTF-8";
+/* Menú para pedir: fondo temático (comida) que toma el color principal del negocio + categorías con color propio.
+   Se activa con <body data-fondo="menu">. */
+body[data-fondo="menu"]{background-color:#fdf1e3}
+body[data-fondo="menu"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='300'%20height='300'%20opacity='0.16'%3E%3Ctext%20x='34'%20y='58'%20font-size='34'%20transform='rotate%28-14%2034%2058%29'%3E%F0%9F%8D%94%3C/text%3E%3Ctext%20x='150'%20y='40'%20font-size='34'%20transform='rotate%2810%20150%2040%29'%3E%F0%9F%8D%9F%3C/text%3E%3Ctext%20x='262'%20y='84'%20font-size='34'%20transform='rotate%28-8%20262%2084%29'%3E%F0%9F%8D%95%3C/text%3E%3Ctext%20x='76'%20y='168'%20font-size='34'%20transform='rotate%2812%2076%20168%29'%3E%F0%9F%8C%AD%3C/text%3E%3Ctext%20x='196'%20y='196'%20font-size='34'%20transform='rotate%28-12%20196%20196%29'%3E%F0%9F%8D%97%3C/text%3E%3Ctext%20x='278'%20y='270'%20font-size='34'%20transform='rotate%288%20278%20270%29'%3E%F0%9F%A5%A4%3C/text%3E%3Ctext%20x='26'%20y='278'%20font-size='34'%20transform='rotate%28-6%2026%20278%29'%3E%F0%9F%8D%A6%3C/text%3E%3Ctext%20x='140'%20y='286'%20font-size='34'%20transform='rotate%2814%20140%20286%29'%3E%F0%9F%8D%A9%3C/text%3E%3C/svg%3E") 0 0/300px 300px,
+    radial-gradient(ellipse at 50% -8%,color-mix(in srgb,var(--ac,#b4231a) 26%,transparent),transparent 58%),
+    linear-gradient(180deg,#fff4e4 0%,#fde8cf 100%);}
+/* La columna del menú deja ver el patrón, sin perder legibilidad */
+body[data-fondo="menu"] main{background:rgba(255,251,245,.88);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+
+/* Categorías: cada una con su tono suave y un borde de color a la izquierda */
+#contenedor-categorias>button{--c:#f59e0b;--t:#fff3d6;position:relative;border:1px solid rgba(0,0,0,.05);border-left:5px solid var(--c);
+  background:linear-gradient(100deg,#fff 0%,#fff 38%,var(--t) 100%);
+  transition:transform .22s cubic-bezier(.2,.8,.3,1),box-shadow .22s,border-color .22s}
+#contenedor-categorias>button>div:first-child{background:var(--t);transition:transform .22s}
+#contenedor-categorias>button:nth-child(8n+1){--c:#f59e0b;--t:#fff3d6}
+#contenedor-categorias>button:nth-child(8n+2){--c:#ef4444;--t:#ffe6e3}
+#contenedor-categorias>button:nth-child(8n+3){--c:#65a30d;--t:#ecf5d9}
+#contenedor-categorias>button:nth-child(8n+4){--c:#ea580c;--t:#ffe9d8}
+#contenedor-categorias>button:nth-child(8n+5){--c:#db2777;--t:#fde4f0}
+#contenedor-categorias>button:nth-child(8n+6){--c:#8b5cf6;--t:#ece6fe}
+#contenedor-categorias>button:nth-child(8n+7){--c:#0d9488;--t:#d9f4ef}
+#contenedor-categorias>button:nth-child(8n+8){--c:#0284c7;--t:#ddf0fb}
+@media (hover:hover){
+  #contenedor-categorias>button:hover{transform:translateX(10px);box-shadow:0 8px 20px -6px var(--c);border-color:var(--c)}
+  #contenedor-categorias>button:hover>div:first-child{transform:scale(1.08) rotate(-4deg)}
+}
+#contenedor-categorias>button:active{transform:translateX(8px)}
+@media (prefers-reduced-motion:reduce){#contenedor-categorias>button,#contenedor-categorias>button>div:first-child{transition:none}#contenedor-categorias>button:hover,#contenedor-categorias>button:active{transform:none}}
