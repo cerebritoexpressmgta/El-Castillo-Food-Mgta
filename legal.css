@@ -1,0 +1,20 @@
+/* Páginas legales (privacidad y términos) */
+:root{--bg:#f8f7f4;--card:#fff;--txt:#1c1917;--mut:#6b665e;--ac:#b4231a;--line:#e4e0d8}
+@media (prefers-color-scheme:dark){:root{--bg:#161412;--card:#201d1a;--txt:#f5f3ef;--mut:#a8a29e;--line:#3a3530}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header.l{background:var(--ac);color:#fff;padding:18px 16px}
+header.l .in{max-width:780px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+header.l a{color:#fff;text-decoration:none;font-weight:700}
+header.l nav a{opacity:.9;margin-left:14px;font-weight:600;font-size:14px}
+main{max-width:780px;margin:0 auto;padding:22px 16px 60px}
+.doc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 22px}
+h1{font-size:28px;line-height:1.2;margin:0 0 4px}
+h2{font-size:19px;margin:28px 0 6px}
+.fecha{color:var(--mut);font-size:14px;margin:0 0 16px}
+p,li{color:var(--txt)}li{margin:4px 0}
+.resumen{background:rgba(180,35,26,.08);border:1px solid rgba(180,35,26,.25);border-radius:12px;padding:12px 14px;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:rgba(127,127,127,.08)}
+a{color:var(--ac)}
+footer.l{text-align:center;color:var(--mut);font-size:13px;padding:0 16px 40px}

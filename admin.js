@@ -325,11 +325,18 @@ function renderListaUsuarios() {
             : `<button type="button" class="action-btn btn-edit" onclick="editarUsuario(${u.id})" title="Editar">✏️</button>
                <button type="button" class="action-btn btn-delete" onclick="eliminarUsuario(${u.id})" title="Eliminar">🗑️</button>`;
 
+        // Ayuda para quien olvidó su clave o perdió su teléfono (no aparece en tu propia fila)
+        let yoUser = ''; try { yoUser = String((JSON.parse(localStorage.getItem('usuarioActivo') || '{}')).username || '').toLowerCase(); } catch (e) {}
+        if (String(u.username).toLowerCase() !== yoUser) {
+            botones = `<button type="button" class="action-btn" onclick="restablecerClaveUsuario(${u.id})" title="Restablecer clave (olvidó su contraseña)">🔑</button>`
+                + (u.tiene_2fa ? `<button type="button" class="action-btn" onclick="quitar2faUsuario(${u.id})" title="Quitar 2FA / huella (perdió su teléfono)">🔓</button>` : '') + botones;
+        }
+        const etiquetas = (u.tiene_2fa ? ' | 🔐 2FA activo' : '') + (u.debe_cambiar ? ' | ⏳ debe cambiar su clave' : '');
         cont.innerHTML += `
             <div class="list-item">
                 <div class="item-info">
                     <p class="item-title">👤 ${u.nombre}</p>
-                    <p class="item-meta">User: <span style="color:#38bdf8; font-weight:bold;">${u.username}</span> | Rol: ${u.rol}${u.sucursal_id ? ' | 📍 ' + escapeHtml(nombreSucursalAdmin(u.sucursal_id)) : ''}</p>
+                    <p class="item-meta">User: <span style="color:#38bdf8; font-weight:bold;">${u.username}</span> | Rol: ${u.rol}${u.sucursal_id ? ' | 📍 ' + escapeHtml(nombreSucursalAdmin(u.sucursal_id)) : ''}${etiquetas}</p>
                 </div>
                 <div class="item-actions">${botones}</div>
             </div>`;
@@ -404,6 +411,29 @@ function resetFormUsr() {
     document.getElementById('titulo-form-usr').innerText = "Crear Usuario";
     document.getElementById('btn-save-usr').innerText = "💾 Guardar Usuario";
     document.getElementById('btn-cancel-usr').style.display = "none";
+}
+
+async function restablecerClaveUsuario(id) {
+    const u = USUARIOS_SISTEMA.find(x => x.id === id); if (!u) return;
+    if (!confirm(`¿Restablecer la clave de ${u.nombre}?\n\nSe creará una clave temporal y la actual dejará de servir. Al entrar con la temporal, ${u.nombre} deberá crear una contraseña nueva.`)) return;
+    try {
+        const r = await fetch(API_BASE + '/api/usuarios/restablecer-clave', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id }) });
+        const d = await r.json();
+        if (!d.success) { alert(d.error || d.detail || 'No se pudo restablecer.'); return; }
+        if (window.SEG) await window.SEG.mostrarClaveTemporal(u.nombre, d.clave_temporal); else prompt(`Clave temporal para ${u.nombre} (cópiala ahora):`, d.clave_temporal);
+        await cargarUsuariosDesdeDB();
+    } catch (e) { alert('Error de conexión.'); }
+}
+
+async function quitar2faUsuario(id) {
+    const u = USUARIOS_SISTEMA.find(x => x.id === id); if (!u) return;
+    if (!confirm(`¿Quitar la verificación en dos pasos y los dispositivos (huella/rostro) de ${u.nombre}?\n\nSolo hazlo si perdió su teléfono. Después puede volver a activarlo desde 🔐 Mi seguridad.`)) return;
+    try {
+        const r = await fetch(API_BASE + '/api/usuarios/quitar-2fa', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id }) });
+        const d = await r.json();
+        alert(d.success ? (d.msg || 'Listo.') : (d.error || d.detail || 'No se pudo quitar.'));
+        await cargarUsuariosDesdeDB();
+    } catch (e) { alert('Error de conexión.'); }
 }
 
 async function eliminarUsuario(id) {

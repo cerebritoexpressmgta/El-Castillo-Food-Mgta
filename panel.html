@@ -35,6 +35,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="pwa.js" defer></script>
     <link rel="stylesheet" href="fondos.css?v=3">
+    <script src="seguridad.js?v=1" defer></script>
 </head>
 <body data-fondo="dueno">
 <div class="wrap">
@@ -138,6 +139,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     <label>Repetir contraseña</label>
     <input id="np2" type="password" autocomplete="new-password">
     <div class="row"><button id="cambiar">Cambiar contraseña</button><span id="msg" class="err"></span></div>
+    <div class="row" style="margin-top:14px"><button class="sec" type="button" onclick="window.SEG && window.SEG.abrir()">🔐 Mi seguridad: 2FA con app, huella o rostro</button></div>
   </div>
 </div>
 

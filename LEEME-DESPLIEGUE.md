@@ -73,3 +73,19 @@ Cómo cambiarlo: Cloudflare → Worker → Settings → Variables and Secrets �
 - El límite se valida en el servidor, no solo en pantalla.
 - Si bajas el plan (ej. de 5 a 2), las sucursales de más no se borran: quedan "fuera de plan" (visibles solo para el dueño, sin pedidos ni web) y se reactivan si subes el límite otra vez.
 - Esto protege tu plan mientras el cliente no tenga acceso a tu Cloudflare ni a tu GitHub. Quien controle esos dos puede cambiar el valor.
+
+## Seguridad de cuentas y recuperación (opcional)
+**Recuperar la contraseña del dueño/administrador:** en Cloudflare → Worker → Settings → Variables and Secrets agrega el secreto **`CLAVE_RECUPERACION`** (una frase larga, mínimo 12 caracteres; guárdala en un lugar seguro, p. ej. impresa) y vuelve a desplegar. Si algún día olvidas tu contraseña: en la pantalla de entrada toca **¿Olvidaste tu contraseña?**, escribe tu usuario, esa clave y la contraseña nueva. Esto también quita el 2FA y los dispositivos de esa cuenta (útil si perdiste el teléfono). Sin ese secreto, la opción responde que no está configurada.
+
+**Cajeros y trabajadores que olvidaron su clave:** un administrador entra a **Administración → Usuarios** y toca 🔑 junto al nombre. El sistema genera una clave temporal (se muestra una sola vez); al entrar con ella, la persona debe crear su contraseña nueva.
+
+**Perdió el teléfono (2FA/huella):** en **Administración → Usuarios** aparece 🔓 junto a quien tenga 2FA activo; quita el 2FA y los dispositivos para que pueda entrar con su contraseña y volver a activarlo.
+
+**2FA con app (Google Authenticator, Authy, Microsoft Authenticator…):** cada persona lo activa si quiere desde el botón 🔐 (abajo a la izquierda de cada pantalla, o en Panel → Mi cuenta → Mi seguridad). Escanea el QR, escribe el código de 6 dígitos y guarda los 8 códigos de respaldo (sirven una vez cada uno).
+
+**Huella / rostro:** también desde 🔐 → "Huella o rostro" → Agregar este dispositivo. Se registra por dispositivo y funciona solo con https y en el mismo dominio con el que se registró (si cambias de dominio, hay que registrarla de nuevo). Es una verificación extra después de la contraseña: la huella o el rostro nunca salen del teléfono/computador.
+
+Si una persona activa 2FA con app y huella, al entrar puede usar cualquiera de las dos.
+
+## Páginas legales
+`privacidad.html` (Política de privacidad) y `terminos.html` (Términos de uso) se enlazan en el pie de la web y del menú, y quien se registra para pedir debe marcar que las acepta. El nombre del negocio, el correo y el WhatsApp se toman solos de **Panel → Datos de la web**. Son textos base: revísalos (idealmente con un abogado) y ajusta políticas como cancelaciones, tiempos de entrega o devoluciones a cómo trabaja tu negocio.

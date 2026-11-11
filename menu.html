@@ -118,6 +118,10 @@
                     <input type="password" id="reg-clave-2" required minlength="4" autocomplete="new-password" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500 mt-2" placeholder="Repite la clave">
                     <p class="text-[10px] text-gray-400 mt-1">Para pedir solo necesitas tu número. La clave te la pediremos únicamente si quieres cambiar tu número o tus direcciones.</p>
                 </div>
+                <label class="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
+                    <input type="checkbox" id="reg-acepto" required class="mt-0.5 w-4 h-4 flex-shrink-0 accent-emerald-600">
+                    <span>Acepto los <a href="terminos.html" target="_blank" rel="noopener" class="underline text-emerald-700 font-semibold">Términos de uso</a> y la <a href="privacidad.html" target="_blank" rel="noopener" class="underline text-emerald-700 font-semibold">Política de privacidad</a>. <span class="text-red-500">*</span></span>
+                </label>
                 <p class="text-[10px] text-gray-400"><span class="text-red-500">*</span> Campos obligatorios</p>
                 <button type="submit" id="btn-reg-submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-3 rounded-2xl shadow-md transition cursor-pointer mt-2">
                     Crear Cuenta y Ver Menú 🎉
@@ -265,6 +269,7 @@
 
         <footer class="w-full flex flex-col items-center justify-center gap-1.5 py-8 opacity-70">
             <span class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Prototipo de demostración · datos inventados</span>
+            <span class="text-xs text-gray-500"><a href="terminos.html" class="underline">Términos de uso</a> · <a href="privacidad.html" class="underline">Política de privacidad</a></span>
         </footer>
 
     </main>

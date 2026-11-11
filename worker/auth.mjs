@@ -26,7 +26,7 @@ export async function verificarToken(authorization) {
         const valido = await crypto.subtle.verify('HMAC', await claveHmac(), deB64u(firma), enc.encode(payload));
         if (!valido) return null;
         const p = JSON.parse(new TextDecoder().decode(deB64u(payload)));
-        if (!p || !p.exp || Date.now() > p.exp) return null;
+        if (!p || !p.exp || !p.rol || Date.now() > p.exp) return null;
         return p;
     } catch (e) { return null; }
 }
@@ -50,4 +50,21 @@ export async function verificarClave(clave, guardado) {
         let dif = 0; for (let i = 0; i < calc.length; i++) dif |= calc[i] ^ esperado[i];
         return dif === 0;
     } catch (e) { return false; }
+}
+
+// Tokens temporales (pasos intermedios del login: 2FA, cambio de clave, registro de huella).
+// Se firman con un prefijo distinto, así NUNCA sirven como sesión aunque alguien los presente en Authorization.
+export async function firmarObjeto(obj, ttlMs) {
+    const payload = b64u(enc.encode(JSON.stringify(Object.assign({}, obj, { exp: Date.now() + (ttlMs || 300e3) }))));
+    const firma = await crypto.subtle.sign('HMAC', await claveHmac(), enc.encode('tmp.' + payload));
+    return payload + '.' + b64u(firma);
+}
+export async function leerObjeto(token) {
+    try {
+        const [payload, firma] = String(token || '').split('.');
+        if (!payload || !firma) return null;
+        if (!(await crypto.subtle.verify('HMAC', await claveHmac(), deB64u(firma), enc.encode('tmp.' + payload)))) return null;
+        const p = JSON.parse(new TextDecoder().decode(deB64u(payload)));
+        return p && p.exp && Date.now() <= p.exp ? p : null;
+    } catch (e) { return null; }
 }

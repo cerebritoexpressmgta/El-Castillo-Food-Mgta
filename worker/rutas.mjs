@@ -1,7 +1,8 @@
 // Rutas del API (portadas de mock-api.js). Se ejecutan en el Worker de Cloudflare.
 // Cada ruta recibe (ctx, db): db es el estado completo guardado en Supabase.
 import { DEMO_CONFIG as CFG } from './demo-config.mjs';
-import { crearToken, hashClave, verificarClave } from './auth.mjs';
+import { crearToken, hashClave, verificarClave, firmarObjeto, leerObjeto } from './auth.mjs';
+import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
 
 const VERSION_DATOS = 3;
 function marca() { return { nombre: CFG.nombreNegocio || 'Mi Restaurante', emoji: CFG.emoji || '🍔', eslogan: CFG.eslogan || '' }; }
@@ -526,9 +527,60 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!u || !(await verificarClave(String(d.pin).trim(), u.pin))) { anotarFallo(claveFallos); return { success: false, msg: 'Credenciales incorrectas' }; }
         olvidarFallos(claveFallos);
         if (d.tipo === 'login_admin' && !['admin', 'superadmin'].includes(String(u.rol).toLowerCase())) return { success: false, msg: 'No tienes privilegios de administrador' };
-        return { success: true, token: await crearToken(u.username, u.rol), usuario: { nombre: u.nombre, rol: u.rol, username: u.username, sucursal_id: u.sucursal_id || null } };
+        return await siguientePasoLogin(u, ctx, !!u.debe_cambiar);
     });
-    ruta('GET', '/api/usuarios', (ctx, db) => { requiereAdmin(ctx); return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null })); });
+    // Después de la contraseña: 2FA (si lo activó), cambio de clave temporal (si se la restablecieron) o sesión
+    async function respuestaSesion(u) {
+        return { success: true, token: await crearToken(u.username, u.rol), usuario: { nombre: u.nombre, rol: u.rol, username: u.username, sucursal_id: u.sucursal_id || null } };
+    }
+    const minClave = (u) => ['admin', 'superadmin'].includes(String(u.rol).toLowerCase()) ? 8 : 4;
+    async function pasoCambiarClave(u) {
+        return { success: false, debe_cambiar: true, minimo: minClave(u), msg: 'Debes crear una contraseña nueva.', temp: await firmarObjeto({ sub: u.username, fase: 'cambiar' }, 10 * 60e3) };
+    }
+    async function siguientePasoLogin(u, ctx, cambiar) {
+        if (tiene2fa(u)) {
+            const ch = nuevoReto();
+            const bio = (u.webauthn || []).length > 0;
+            const r = { success: false, requiere_2fa: true, msg: 'Falta la verificación en dos pasos.', metodos: { app: !!(u.totp && u.totp.secreto), biometria: bio }, temp: await firmarObjeto({ sub: u.username, fase: '2fa', cambiar, ch }, 5 * 60e3) };
+            if (bio) r.webauthn = { reto: ch, rpId: ctx.host, ids: u.webauthn.map(c => c.id) };
+            return r;
+        }
+        if (cambiar) return await pasoCambiarClave(u);
+        return await respuestaSesion(u);
+    }
+    ruta('POST', '/api/usuarios/verificar-2fa', async (ctx, db) => {
+        const d = ctx.body || {};
+        const t = await leerObjeto(d.temp);
+        if (!t || t.fase !== '2fa') throw new HttpError(401, 'La verificación venció. Vuelve a escribir tu usuario y contraseña.');
+        const u = db.usuarios.find(x => String(x.username).toLowerCase() === String(t.sub).toLowerCase());
+        if (!u) throw new HttpError(401, 'Usuario no encontrado');
+        let bien = false;
+        if (d.webauthn) {
+            const k = '2fa-fallido:' + String(u.username).toLowerCase();
+            if (cupoAgotado(k, 6, 15 * 60)) throw new HttpError(429, 'Demasiados intentos. Espera 15 minutos.');
+            const cred = (u.webauthn || []).find(c => c.id === d.webauthn.id);
+            bien = !!cred && await verificarAfirmacion(cred, d.webauthn, t.ch, ctx.origen, ctx.host);
+            if (bien) olvidarFallos(k); else anotarFallo(k);
+        } else {
+            bien = await seg.aceptarCodigo2fa(u, d.codigo);
+        }
+        if (!bien) return { success: false, msg: 'Verificación incorrecta' };
+        if (t.cambiar || u.debe_cambiar) return await pasoCambiarClave(u);
+        return await respuestaSesion(u);
+    });
+    ruta('POST', '/api/usuarios/cambiar-clave-temporal', async (ctx, db) => {
+        const d = ctx.body || {};
+        const t = await leerObjeto(d.temp);
+        if (!t || t.fase !== 'cambiar') throw new HttpError(401, 'La solicitud venció. Vuelve a entrar con tu clave temporal.');
+        const u = db.usuarios.find(x => String(x.username).toLowerCase() === String(t.sub).toLowerCase());
+        if (!u) throw new HttpError(401, 'Usuario no encontrado');
+        const nueva = String(d.nueva || '');
+        if (nueva.trim().length < minClave(u)) return { success: false, msg: `La contraseña debe tener al menos ${minClave(u)} caracteres.` };
+        if (nueva.length > 72) return { success: false, msg: 'Contraseña demasiado larga.' };
+        u.pin = await hashClave(nueva); u.debe_cambiar = false;
+        return await respuestaSesion(u);
+    });
+    ruta('GET', '/api/usuarios', (ctx, db) => { requiereAdmin(ctx); return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null, tiene_2fa: tiene2fa(u), debe_cambiar: !!u.debe_cambiar })); });
     ruta('POST', '/api/usuarios/guardar', async (ctx, db) => {
         const admin = requiereAdmin(ctx); const d = ctx.body;
         d.username = String(d.username || '').trim(); d.nombre = String(d.nombre || '').trim();
@@ -971,5 +1023,9 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
     return ok();
 });
 ruta('GET', '/api/salud', () => ({ status: 'ok', base_de_datos: 'supabase' }));
+
+// Seguridad de cuentas: 2FA con app, huella/rostro, recuperación y claves temporales (worker/seguridad.mjs)
+const seg = { ruta, ok, HttpError, sesionDe, requiereAdmin, cupoAgotado, anotarFallo, olvidarFallos };
+registrarSeguridad(seg);
 
 export { rutas, HttpError, ahoraCaracas };

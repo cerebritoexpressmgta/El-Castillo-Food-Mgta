@@ -65,7 +65,7 @@ async function manejarApi(request, env) {
         usarFallos(db.fallos);
         const nMax = parseInt(env.MAX_SUCURSALES, 10);
         usarLimiteSucursales(Number.isFinite(nMax) ? Math.max(1, nMax) : 1); // sin configurar: negocio sin sucursales
-        const ctx = { query, body, authorization, sesion, tras: [] };
+        const ctx = { query, body, authorization, sesion, tras: [], env, origen: url.origin, host: url.hostname };
         try {
             const resultado = await r.fn(ctx, db);
             if (metodo === 'GET') return json(200, resultado);
