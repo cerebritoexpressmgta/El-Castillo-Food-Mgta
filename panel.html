@@ -6,21 +6,21 @@
 <meta name="robots" content="noindex">
 <title>El Castillo Food Mgta · Panel del dueño</title>
 <style>
-:root{--bg:#0b1220;--card:#162033;--bd:#2a3752;--tx:#e5eaf3;--mu:#8b97ad;--ac:#6366f1}
+:root{--bg:#0b1220;--card:#2a3d66;--bd:#4a6094;--tx:#e5eaf3;--mu:#b9c5de;--ac:#6366f1}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
 .wrap{max-width:980px;margin:0 auto;padding:24px 16px 60px}
 h1{font-size:22px;margin:0}h2{font-size:15px;margin:28px 0 10px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em}
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
 .login{max-width:380px;margin:12vh auto 0}
-input{width:100%;padding:12px 14px;margin:6px 0 12px;border-radius:10px;border:1px solid var(--bd);background:#0f1829;color:var(--tx);font-size:15px}
+input{width:100%;padding:12px 14px;margin:6px 0 12px;border-radius:10px;border:1px solid var(--bd);background:#1e3158;color:var(--tx);font-size:15px}
 button,.btn{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
-button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}.ok{color:#34d399;font-size:13px}
+button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}.ok{color:#34d399;font-size:13px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
 .tile{display:block;text-decoration:none;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;transition:.15s}
 .tile:hover{border-color:var(--ac);transform:translateY(-2px)}.tile b{display:block;font-size:16px;margin:8px 0 4px}.tile span{font-size:12px;color:var(--mu)}.tile i{font-style:normal;font-size:26px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row input{margin:0;flex:1;min-width:200px}
-.hidden{display:none}input[type=checkbox]{width:auto!important;margin:0 8px 0 0!important}.row label{display:flex;align-items:center}.galp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}.gi{background:#0f1829;border:1px solid var(--bd);border-radius:12px;overflow:hidden}.gi img{width:100%;height:110px;object-fit:cover;display:block}.gi input{margin:0;border:0;border-top:1px solid var(--bd);border-radius:0;padding:8px;font-size:12px}.gi button{width:100%;border-radius:0;padding:6px;font-size:12px}select{padding:8px;border-radius:8px;background:#0f1829;color:var(--tx);border:1px solid var(--bd)}.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.suc-it{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px}.suc-it label{font-size:12px;color:var(--mu)}.suc-it .row2 input{margin-bottom:6px}label{font-size:13px;color:var(--mu)}small{color:var(--mu)}
+.hidden{display:none}input[type=checkbox]{width:auto!important;margin:0 8px 0 0!important}.row label{display:flex;align-items:center}.galp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}.gi{background:#1e3158;border:1px solid var(--bd);border-radius:12px;overflow:hidden}.gi img{width:100%;height:110px;object-fit:cover;display:block}.gi input{margin:0;border:0;border-top:1px solid var(--bd);border-radius:0;padding:8px;font-size:12px}.gi button{width:100%;border-radius:0;padding:6px;font-size:12px}select{padding:8px;border-radius:8px;background:#1e3158;color:var(--tx);border:1px solid var(--bd)}.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.suc-it{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px}.suc-it label{font-size:12px;color:var(--mu)}.suc-it .row2 input{margin-bottom:6px}label{font-size:13px;color:var(--mu)}small{color:var(--mu)}
 </style>
     <!-- PWA: app del personal -->
     <link rel="manifest" href="/manifest-personal.webmanifest">
@@ -76,7 +76,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
   <div class="card">
     <label>Nombre del negocio (título de la web)</label><input id="s-titulo" maxlength="80">
     <label>Frase corta (debajo del título)</label><input id="s-eslogan" maxlength="160">
-    <label>Quiénes somos (opcional)</label><textarea id="s-historia" maxlength="800" rows="3" style="width:100%;padding:12px 14px;margin:6px 0 12px;border-radius:10px;border:1px solid var(--bd);background:#0f1829;color:var(--tx);font:inherit"></textarea>
+    <label>Quiénes somos (opcional)</label><textarea id="s-historia" maxlength="800" rows="3" style="width:100%;padding:12px 14px;margin:6px 0 12px;border-radius:10px;border:1px solid var(--bd);background:#1e3158;color:var(--tx);font:inherit"></textarea>
     <div class="row2">
       <div><label>WhatsApp (con código de país, solo números)</label><input id="s-whatsapp" placeholder="584121234567" inputmode="numeric"></div>
       <div><label>Instagram (sin @)</label><input id="s-instagram"></div>

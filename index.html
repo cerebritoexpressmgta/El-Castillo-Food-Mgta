@@ -164,6 +164,63 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
 #lista-suc .suc .btn.out:hover{background:rgba(255,255,255,.2)}
 #lista-res .res p{color:#fff}#lista-res .res b{color:#ddd3f5}
 #lista-res .res .est{color:#ffd23f}
+
+/* ===== Tarjetas de sucursales: fachada de tienda con toldo a rayas y letrero ===== */
+#lista-suc{padding-top:40px;gap:34px}
+#lista-suc>.suc{position:relative;padding-top:56px;margin-top:6px;overflow:visible}
+#lista-suc>.suc::before{content:"";position:absolute;left:-6px;right:-6px;top:-16px;height:46px;z-index:2;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='46' viewBox='0 0 56 46'%3E%3Cpath d='M0 0h28v32a14 14 0 0 1-28 0z' fill='%23e8262b'/%3E%3Cpath d='M28 0h28v32a14 14 0 0 1-28 0z' fill='%23ffffff'/%3E%3Cpath d='M0 32a14 14 0 0 0 28 0z' fill='%23b81a1f' opacity='.0'/%3E%3Cpath d='M0 0h56v8H0z' fill='%23000' opacity='.14'/%3E%3C/svg%3E") center top/56px 46px repeat-x;filter:drop-shadow(0 5px 3px rgba(0,0,0,.4));
+  transform-origin:50% 0;animation:toldo 4.5s ease-in-out infinite alternate}
+#lista-suc>.suc::after{content:"SUCURSAL";position:absolute;top:-44px;left:50%;transform:translateX(-50%);z-index:1;pointer-events:none;
+  background:linear-gradient(#cf7a42,#b8652f);color:#fff;font:800 12px/1 system-ui,sans-serif;letter-spacing:.22em;padding:9px 26px 22px;
+  border-radius:50% 50% 0 0/100% 100% 0 0;box-shadow:0 -2px 6px rgba(0,0,0,.25);white-space:nowrap}
+#lista-suc>.suc:nth-child(2n)::before{animation-delay:-1.6s}
+#lista-suc>.suc:nth-child(3n)::before{animation-delay:-3s}
+@keyframes toldo{from{transform:skewX(-1.6deg)}to{transform:skewX(1.6deg)}}
+
+/* ===== Movimiento suave en las secciones ===== */
+@keyframes fondoMueve{from{background-position:0 0,0 0,0 0}to{background-position:240px 240px,0 0,0 0}}
+@keyframes flota{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes titila{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.12)}}
+@keyframes latido{0%,100%{box-shadow:0 4px 14px rgba(240,84,30,.4);transform:scale(1)}50%{box-shadow:0 6px 24px rgba(240,84,30,.75);transform:scale(1.06)}}
+@keyframes brilla{0%,100%{box-shadow:0 10px 28px rgba(0,0,0,.4)}50%{box-shadow:0 10px 36px rgba(34,211,238,.45)}}
+#galeria,#sucursales.alt,#mapa,#resenas.alt,#nosotros,#contacto.alt{animation:fondoMueve 60s linear infinite}
+#galeria .cab-in,#sucursales .cab-in,#mapa .cab-in,#resenas .cab-in,#nosotros .cab-in,#contacto .cab-in{animation:flota 6s ease-in-out infinite}
+#lista-suc>.suc,#lista-res>.res{animation:flota 6.5s ease-in-out infinite}
+#lista-suc>.suc:nth-child(2n),#lista-res>.res:nth-child(2n){animation-delay:-2.2s}
+#lista-suc>.suc:nth-child(3n),#lista-res>.res:nth-child(3n){animation-delay:-4.4s}
+#lista-suc>.suc:hover,#lista-res>.res:hover{animation-play-state:paused}
+#galeria .gal figure{animation:flota 7s ease-in-out infinite}
+#galeria .gal figure:nth-child(2n){animation-delay:-2.5s}#galeria .gal figure:nth-child(3n){animation-delay:-5s}
+#lista-res .res .est{display:inline-block;animation:titila 2.4s ease-in-out infinite}
+#mapa-frame{animation:brilla 4s ease-in-out infinite}
+#nosotros .nos p{animation:flota 8s ease-in-out infinite}
+#contacto-btn>.btn.c-pedir{animation:latido 2.2s ease-in-out infinite}
+
+/* Aparecer al hacer scroll (solo si el navegador lo permite; el script pone html.anim) */
+html.anim section.rv .cab-in,html.anim section.rv .gal figure,html.anim section.rv #lista-suc>.suc,html.anim section.rv #lista-res>.res,
+html.anim section.rv .tabs,html.anim section.rv #mapa-frame,html.anim section.rv .nos p,html.anim section.rv #contacto-btn>*{
+  opacity:0;translate:0 34px;transition:opacity .7s ease,translate .8s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0)*110ms)}
+html.anim section.rv.in .cab-in,html.anim section.rv.in .gal figure,html.anim section.rv.in #lista-suc>.suc,html.anim section.rv.in #lista-res>.res,
+html.anim section.rv.in .tabs,html.anim section.rv.in #mapa-frame,html.anim section.rv.in .nos p,html.anim section.rv.in #contacto-btn>*{opacity:1;translate:0 0}
+section.rv .gal figure:nth-child(1),section.rv #lista-suc>.suc:nth-child(1),section.rv #lista-res>.res:nth-child(1),section.rv #contacto-btn>*:nth-child(1){--i:1}
+section.rv .gal figure:nth-child(2),section.rv #lista-suc>.suc:nth-child(2),section.rv #lista-res>.res:nth-child(2),section.rv #contacto-btn>*:nth-child(2){--i:2}
+section.rv .gal figure:nth-child(3),section.rv #lista-suc>.suc:nth-child(3),section.rv #lista-res>.res:nth-child(3),section.rv #contacto-btn>*:nth-child(3){--i:3}
+section.rv .gal figure:nth-child(4),section.rv #lista-suc>.suc:nth-child(4),section.rv #lista-res>.res:nth-child(4),section.rv #contacto-btn>*:nth-child(4){--i:4}
+section.rv .gal figure:nth-child(5),section.rv #lista-suc>.suc:nth-child(5),section.rv #lista-res>.res:nth-child(5),section.rv #contacto-btn>*:nth-child(5){--i:5}
+section.rv .gal figure:nth-child(6),section.rv #lista-suc>.suc:nth-child(6),section.rv #lista-res>.res:nth-child(6),section.rv #contacto-btn>*:nth-child(6){--i:6}
+section.rv .gal figure:nth-child(7),section.rv #lista-suc>.suc:nth-child(7),section.rv #lista-res>.res:nth-child(7),section.rv #contacto-btn>*:nth-child(7){--i:7}
+section.rv .gal figure:nth-child(8),section.rv #lista-suc>.suc:nth-child(8),section.rv #lista-res>.res:nth-child(8),section.rv #contacto-btn>*:nth-child(8){--i:8}
+section.rv .gal figure:nth-child(9),section.rv #lista-suc>.suc:nth-child(9),section.rv #lista-res>.res:nth-child(9),section.rv #contacto-btn>*:nth-child(9){--i:9}
+section.rv .gal figure:nth-child(10),section.rv #lista-suc>.suc:nth-child(10),section.rv #lista-res>.res:nth-child(10),section.rv #contacto-btn>*:nth-child(10){--i:10}
+section.rv .gal figure:nth-child(11),section.rv #lista-suc>.suc:nth-child(11),section.rv #lista-res>.res:nth-child(11),section.rv #contacto-btn>*:nth-child(11){--i:11}
+section.rv .gal figure:nth-child(12),section.rv #lista-suc>.suc:nth-child(12),section.rv #lista-res>.res:nth-child(12),section.rv #contacto-btn>*:nth-child(12){--i:12}
+section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
+
+@media(prefers-reduced-motion:reduce){
+  #galeria,#sucursales.alt,#mapa,#resenas.alt,#nosotros,#contacto.alt,.cab-in,.suc,.res,.res .est,.gal figure,#mapa-frame,.nos p,#contacto-btn>.btn,#lista-suc>.suc::before{animation:none!important}
+  html.anim section.rv *{opacity:1!important;translate:none!important;transition:none!important}
+}
 </style>
     <!-- PWA: app de clientes -->
     <link rel="manifest" href="/manifest.webmanifest">
@@ -466,6 +523,17 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
     $('foot-links').innerHTML = links.join('');
   }
   cargarSitio(); cargarMenu();
+})();
+</script>
+<script>
+// Animación de aparición al hacer scroll (se omite si el usuario prefiere menos movimiento)
+(function(){
+  try{
+    if(!('IntersectionObserver' in window)||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))return;
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.1});
+    ['galeria','sucursales','mapa','resenas','nosotros','contacto'].forEach(function(id){var s=document.getElementById(id);if(s){s.classList.add('rv');io.observe(s);}});
+    document.documentElement.classList.add('anim');
+  }catch(e){}
 })();
 </script>
 </body>
