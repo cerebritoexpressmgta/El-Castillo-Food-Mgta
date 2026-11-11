@@ -704,7 +704,7 @@ function renderizarCategorias() {
                 </div>
                 <div>
                     <h3 class="font-bold text-gray-800 text-lg">${catInfo.titulo}</h3>
-                    <p class="text-xs text-gray-400">${itemsVisibles.length} platos disponibles</p>
+                    <p class="text-xs text-gray-400">${itemsVisibles.length} ${itemsVisibles.length === 1 ? 'opción disponible' : 'opciones disponibles'}</p>
                 </div>
             </button>
         `;
