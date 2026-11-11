@@ -126,6 +126,13 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     <div id="gal-lista" class="galp"></div>
   </div>
 
+  <div id="res-pend-box" class="card" style="display:none;border:2px solid #f59e0b;margin-top:22px">
+    <h2 style="margin-top:0">⏳ Reseñas por aprobar <span id="res-pend-n" style="background:#f59e0b;color:#fff;border-radius:99px;padding:1px 10px;font-size:14px"></span></h2>
+    <small>Las escribieron clientes que ya recibieron su pedido. Solo se publican cuando tú las apruebas. Puedes corregir la ortografía antes de aprobar.</small>
+    <div id="res-pend-lista" style="margin-top:10px"></div>
+    <div id="res-pend-msg" class="err"></div>
+  </div>
+
   <h2>Reseñas de clientes</h2>
   <div id="res-lista"></div>
   <div class="row" style="margin-top:10px"><button id="res-add" class="sec">+ Agregar reseña</button><small>Escribe solo opiniones reales de tus clientes.</small></div>
@@ -159,7 +166,7 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
     $('quien').textContent = 'Sesión: ' + (ses.nombre || ses.username || '');
     $('enlace').value = location.origin + '/';
     $('vista-login').classList.add('hidden'); $('vista-panel').classList.remove('hidden');
-    cargarWeb();
+    cargarWeb(); cargarPend();
   }
 
 
@@ -224,6 +231,40 @@ button.sec{background:#243152}.err{color:#f87171;font-size:13px;min-height:18px}
       c.appendChild(d);
     });
     if (!resenas.length) c.innerHTML = '<small>Aún no hay reseñas. La sección no aparece en la web hasta que agregues una.</small>';
+  }
+
+  // ---- Reseñas enviadas por clientes (por aprobar) ----
+  async function cargarPend() {
+    const r = await api('GET', '/api/resenas/por-aprobar');
+    if (r.s !== 200) return;
+    const lista = r.d.resenas || [], cont = $('res-pend-lista'); cont.innerHTML = '';
+    $('res-pend-box').style.display = lista.length ? '' : 'none';
+    $('res-pend-n').textContent = lista.length;
+    lista.forEach(x => {
+      const d = document.createElement('div'); d.className = 'suc-it';
+      const cab = document.createElement('div'); cab.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px';
+      const est = document.createElement('b'); est.style.color = '#f59e0b'; est.textContent = '★'.repeat(x.estrellas) + '☆'.repeat(5 - x.estrellas);
+      const nom = document.createElement('b'); nom.textContent = x.nombre;
+      const meta = document.createElement('small'); meta.textContent = 'Pedido #' + (x.id_visual != null ? x.id_visual : '?') + ' · ' + x.fecha;
+      cab.append(est, nom, meta);
+      const txt = document.createElement('input'); txt.maxLength = 300; txt.value = x.texto;
+      const fila = document.createElement('div'); fila.className = 'row'; fila.style.marginTop = '8px';
+      const ap = document.createElement('button'); ap.textContent = '✓ Aprobar y publicar';
+      const re = document.createElement('button'); re.className = 'sec'; re.textContent = 'Rechazar';
+      fila.append(ap, re); d.append(cab, txt, fila); cont.appendChild(d);
+      const moderar = async (accion) => {
+        $('res-pend-msg').className = 'err'; $('res-pend-msg').textContent = '';
+        ap.disabled = re.disabled = true;
+        const m = await api('POST', '/api/resenas/moderar', { id: x.id, accion, texto: txt.value });
+        if (m.d && m.d.success) {
+          if (m.d.resena && !resenas.some(q => q.id === m.d.resena.id)) { resenas.push(m.d.resena); pintarRes(); }
+          $('res-pend-msg').className = 'ok'; $('res-pend-msg').textContent = m.d.msg || 'Listo';
+          cargarPend();
+        } else { $('res-pend-msg').textContent = (m.d && (m.d.detail || m.d.error)) || 'No se pudo completar'; ap.disabled = re.disabled = false; }
+      };
+      ap.onclick = () => moderar('aprobar');
+      re.onclick = () => { if (confirm('¿Rechazar esta reseña? No se publicará.')) moderar('rechazar'); };
+    });
   }
   $('res-add').onclick = () => { resenas.push({ nombre: '', texto: '', estrellas: 5, activa: true }); pintarRes(); };
 

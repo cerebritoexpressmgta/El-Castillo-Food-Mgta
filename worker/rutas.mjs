@@ -2,6 +2,7 @@
 // Cada ruta recibe (ctx, db): db es el estado completo guardado en Supabase.
 import { DEMO_CONFIG as CFG } from './demo-config.mjs';
 import { crearToken, hashClave, verificarClave, firmarObjeto, leerObjeto } from './auth.mjs';
+import { registrarResenas } from './resenas.mjs';
 import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
 
 const VERSION_DATOS = 3;
@@ -696,7 +697,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     });
 
     // ---- Pedidos ----
-    ruta('POST', '/api/pedidos', (ctx, db) => {
+    ruta('POST', '/api/pedidos', async (ctx, db) => {
         const staff = staffOpcional(ctx); const esPersonal = !!staff; const p = ctx.body || {};
         if (!Array.isArray(p.articulos) || !p.cliente || !p.telefono || !p.tipo_entrega || !p.metodo_pago) throw new HttpError(422, 'Pedido incompleto');
         const cliente = limpiarTexto(p.cliente, 80) || 'Cliente';
@@ -764,7 +765,9 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         enviarWhatsappSimulado(db, telefono, mensaje, 'nuevo pedido');
         ctx.tras.push(() => emitirTablero(esPickup ? 'actualizacion' : 'nuevo_pedido', sid));
         if (esMesa) ctx.tras.push(() => emitirTablero('mesas', sid));
-        return { success: true, pedido: { id: nuevo.id, id_visual: idVisual, total }, sucursal: suc ? { id: suc.id, nombre: suc.nombre, whatsapp: suc.whatsapp || '', telefono: suc.telefono || '' } : null };
+        // Pase para reseñar ESTE pedido cuando sea entregado (solo para clientes, no para pedidos tomados por el personal)
+        const resenaToken = esPersonal ? null : await firmarObjeto({ fase: 'resena', pid: nuevo.id, tel: telefono }, 45 * 24 * 3600e3);
+        return { success: true, resena_token: resenaToken, pedido: { id: nuevo.id, id_visual: idVisual, total }, sucursal: suc ? { id: suc.id, nombre: suc.nombre, whatsapp: suc.whatsapp || '', telefono: suc.telefono || '' } : null };
     });
 
     function filtrarFecha(db, q, filtro) {
@@ -1027,5 +1030,6 @@ ruta('GET', '/api/salud', () => ({ status: 'ok', base_de_datos: 'supabase' }));
 // Seguridad de cuentas: 2FA con app, huella/rostro, recuperación y claves temporales (worker/seguridad.mjs)
 const seg = { ruta, ok, HttpError, sesionDe, requiereAdmin, cupoAgotado, anotarFallo, olvidarFallos };
 registrarSeguridad(seg);
+registrarResenas({ ruta, ok, HttpError, requiereAdmin, limpiarTexto, siguienteId, contarNumeroDiario });
 
 export { rutas, HttpError, ahoraCaracas };

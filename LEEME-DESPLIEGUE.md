@@ -89,3 +89,11 @@ Si una persona activa 2FA con app y huella, al entrar puede usar cualquiera de l
 
 ## Páginas legales
 `privacidad.html` (Política de privacidad) y `terminos.html` (Términos de uso) se enlazan en el pie de la web y del menú, y quien se registra para pedir debe marcar que las acepta. El nombre del negocio, el correo y el WhatsApp se toman solos de **Panel → Datos de la web**. Son textos base: revísalos (idealmente con un abogado) y ajusta políticas como cancelaciones, tiempos de entrega o devoluciones a cómo trabaja tu negocio.
+
+## Reseñas de clientes (con aprobación)
+- Al hacer un pedido, el cliente recibe en su teléfono un "pase" ligado a ESE pedido. Cuando el pedido pasa a **Finalizado** (entregado o cobrado), al volver al menú aparece la ventana "¿Cómo estuvo tu pedido?" (estrellas + comentario). También puede abrirla con el botón **⭐ Calificar mi pedido** de la pantalla "¡Pedido Recibido!".
+- Solo se puede reseñar un pedido entregado y **una sola vez por pedido**. Los pedidos tomados por el personal en caja no generan pase.
+- La reseña queda **pendiente**: no se ve en la web hasta que un administrador la apruebe en **Panel → ⏳ Reseñas por aprobar** (puede corregir ortografía antes de publicar, o rechazarla). Las rechazadas se borran.
+- En la web se muestra solo el primer nombre y la inicial del apellido (ej. "María P."); nunca el teléfono ni la dirección.
+- La web muestra hasta 12 reseñas. Si ya hay 12 publicadas, el panel pide eliminar una antes de aprobar otra.
+- Se guardan hasta 100 pendientes a la vez para no llenar la base.

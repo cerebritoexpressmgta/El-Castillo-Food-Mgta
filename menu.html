@@ -36,6 +36,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="pwa.js" defer></script>
     <link rel="stylesheet" href="menu-fondo.css?v=1">
+    <script src="resenas-cliente.js?v=1" defer></script>
 </head>
 <body class="bg-gray-200 font-sans text-gray-900 min-h-screen flex flex-col pb-24" data-fondo="menu">
 
@@ -264,6 +265,7 @@
             <h2 class="text-3xl font-bold text-gray-800">¡Pedido Recibido!</h2>
             <p id="msg-pedido-recibido" class="text-base text-gray-600 px-4">Recibimos tu pedido.</p>
             <div id="wa-sucursal" class="hidden px-4"></div>
+            <div class="px-4"><button type="button" onclick="window.RESENAS && window.RESENAS.revisar(true)" class="bg-amber-100 text-amber-900 font-bold px-5 py-2.5 rounded-xl hover:bg-amber-200 transition cursor-pointer text-sm">⭐ Calificar mi pedido (cuando lo recibas)</button></div>
             <button onclick="resetForm()" class="bg-gray-200 text-gray-700 font-bold px-6 py-3 rounded-xl hover:bg-gray-300 transition cursor-pointer">Hacer otro pedido</button>
         </div>
 
