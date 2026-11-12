@@ -257,7 +257,7 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
 <body>
 <header><div class="wrap bar">
   <a class="logo" href="#inicio"><span id="logo-em">🏰</span> <span id="logo-nom">El Castillo Food Mgta</span></a>
-  <nav><a class="h" href="#menu">Menú</a><a class="h" href="#galeria" id="nav-gal" style="display:none">Galería</a><a class="h" href="#sucursales">Sucursales</a><a class="h" href="#resenas" id="nav-res" style="display:none">Reseñas</a><a class="h" href="#nosotros" id="nav-nos" style="display:none">Nosotros</a><a class="h" href="#contacto">Contacto</a><a class="btn sm" href="menu.html">Pedir ahora</a></nav>
+  <nav><a class="h" href="#menu">Menú</a><a class="h" href="#galeria" id="nav-gal" style="display:none">Galería</a><a class="h" href="#sucursales">Sucursales</a><a class="h" href="#mapa" id="nav-mapa" style="display:none">Cómo llegar</a><a class="h" href="#resenas" id="nav-res" style="display:none">Reseñas</a><a class="h" href="#nosotros" id="nav-nos" style="display:none">Nosotros</a><a class="h" href="#contacto">Contacto</a><a class="btn sm" href="menu.html">Pedir ahora</a></nav>
 </div></header>
 
 <div class="hero" id="inicio"><div class="wrap">
@@ -554,7 +554,7 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     // Mapa
     const conMapa = suc.filter(x => x.coords || x.direccion);
     if (conMapa.length) {
-      $('mapa').style.display = '';
+      $('mapa').style.display = ''; $('nav-mapa').style.display = '';
       const ver = i => {
         const x = conMapa[i];
         $('mapa-frame').src = 'https://www.google.com/maps?q=' + encodeURIComponent(x.coords || (x.direccion + ' ' + x.nombre)) + '&output=embed';
