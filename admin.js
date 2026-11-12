@@ -159,6 +159,7 @@ async function desbloquearAdmin() {
             cargarDatosAdmin();
             cargarMensajesWP();
             cargarHorarios();
+            cargarMetodosPago();
             cargarAnuncios();
         } else {
             lanzarErrorBloqueo(errorMsg, boton, "Usuario/PIN incorrecto o sin privilegios.");
@@ -558,10 +559,11 @@ async function eliminarMotorizado(id) {
 }
 
 // ==========================================
-// HORARIOS DE TRABAJO DEL PERSONAL
+// HORARIOS DE TRABAJO + FICHA DEL TRABAJADOR
 // ==========================================
 const DIAS_TRABAJO = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 let HORARIOS_TRABAJO = [];
+let FOTO_TRABAJADOR = '';
 
 async function cargarHorarios() {
     try {
@@ -570,66 +572,204 @@ async function cargarHorarios() {
         HORARIOS_TRABAJO = Array.isArray(data) ? data : (data.data || []);
         const sel = document.getElementById('hor-trabajador');
         const previo = sel.value;
-        sel.innerHTML = HORARIOS_TRABAJO.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)} (${escapeHtml(u.rol)})</option>`).join('');
+        sel.innerHTML = HORARIOS_TRABAJO.map(u => `<option value="${u.id}">${escapeHtml(((u.nombre || '') + ' ' + (u.apellido || '')).trim())} (${escapeHtml(u.rol)})</option>`).join('');
         if (previo && HORARIOS_TRABAJO.some(u => String(u.id) === previo)) sel.value = previo;
         mostrarHorarioTrabajador();
-    } catch (error) { console.error("Error obteniendo horarios de trabajo:", error); }
+    } catch (error) { console.error("Error obteniendo fichas de trabajadores:", error); }
+}
+
+function campoFicha(id, etiqueta, valor, opciones) {
+    opciones = opciones || {};
+    return `<div class="${opciones.full ? 'full' : ''}"><label for="${id}">${etiqueta}</label>` +
+        `<input type="${opciones.tipo || 'text'}" id="${id}" value="${escapeHtml(valor)}" maxlength="${opciones.max || 80}" placeholder="${escapeHtml(opciones.ph || '')}"></div>`;
 }
 
 function mostrarHorarioTrabajador() {
-    const cont = document.getElementById('lista-horarios-container');
+    const cont = document.getElementById('ficha-trabajador');
     const u = HORARIOS_TRABAJO.find(x => String(x.id) === document.getElementById('hor-trabajador').value);
-    if (!u) { cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Aún no hay usuarios. Créalos en la pestaña Usuarios.</p>'; return; }
-    cont.innerHTML = u.horario.map(h => `
-        <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-            <span style="width:100px; font-weight:bold;">${DIAS_TRABAJO[h.dia_semana]}</span>
-            <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-${h.dia_semana}" onchange="toggleHorarioDia(${h.dia_semana})" ${h.activo ? 'checked' : ''}> Trabaja</label>
-            <input type="time" id="hor-inicio-${h.dia_semana}" value="${h.hora_entrada}" ${h.activo ? '' : 'disabled'}><span>a</span><input type="time" id="hor-fin-${h.dia_semana}" value="${h.hora_salida}" ${h.activo ? '' : 'disabled'}>
-        </div>`).join('');
+    if (!u) { cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; margin-top:1rem;">Aún no hay usuarios. Créalos en la pestaña Usuarios.</p>'; return; }
+    FOTO_TRABAJADOR = u.foto || '';
+
+    const filas = u.horario.map(h => {
+        const d = h.dia_semana;
+        return `<div class="hor-dia">
+            <div><div class="dia-nombre">${DIAS_TRABAJO[d]}</div>
+                <label style="display:flex; align-items:center; margin:4px 0 0; font-size:0.78rem;"><input type="checkbox" id="hor-activo-${d}" onchange="toggleHorarioDia(${d})" ${h.activo ? 'checked' : ''}> Trabaja</label></div>
+            <div>
+                <div class="horas"><small>Entrada</small><input type="time" id="hor-inicio-${d}" value="${h.hora_entrada}" ${h.activo ? '' : 'disabled'}>
+                    <small>Salida</small><input type="time" id="hor-fin-${d}" value="${h.hora_salida}" ${h.activo ? '' : 'disabled'}></div>
+                <div class="horas" style="margin-top:0.4rem;"><small>Descanso</small><input type="time" id="hor-desc-ini-${d}" value="${h.descanso_desde || ''}" ${h.activo ? '' : 'disabled'}>
+                    <small>a</small><input type="time" id="hor-desc-fin-${d}" value="${h.descanso_hasta || ''}" ${h.activo ? '' : 'disabled'}></div>
+            </div></div>`;
+    }).join('');
+
+    cont.innerHTML = `<div class="ficha-card">
+        <div class="ficha-head">
+            <div id="ficha-foto-box" class="ficha-foto"></div>
+            <div>
+                <div style="font-size:1.15rem; font-weight:bold;">${escapeHtml(((u.nombre || '') + ' ' + (u.apellido || '')).trim())}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Usuario: ${escapeHtml(u.username)} · Rol: ${escapeHtml(u.rol)}</div>
+                <label for="ficha-foto-input" class="action-btn btn-edit" style="display:inline-block; margin:0; cursor:pointer; text-transform:none; font-size:0.8rem;">📷 Subir foto</label>
+                <input type="file" id="ficha-foto-input" accept="image/*" style="display:none" onchange="elegirFotoTrabajador(this)">
+                <button type="button" class="action-btn btn-delete" onclick="quitarFotoTrabajador()">Quitar</button>
+            </div>
+        </div>
+
+        <h3 class="ficha-sub">Datos personales</h3>
+        <div class="ficha-grid">
+            ${campoFicha('fic-nombre', 'Nombre', u.nombre)}
+            ${campoFicha('fic-apellido', 'Apellido', u.apellido)}
+            ${campoFicha('fic-cedula', 'Cédula', u.cedula, { max: 20, ph: 'V-12345678' })}
+            ${campoFicha('fic-telefono', 'Teléfono', u.telefono, { max: 30, tipo: 'tel' })}
+            ${campoFicha('fic-direccion', 'Dirección', u.direccion, { full: true, max: 300 })}
+            ${campoFicha('fic-tel-familiar', 'Teléfono de un familiar', u.telefono_familiar, { max: 30, tipo: 'tel', full: true })}
+        </div>
+
+        <h3 class="ficha-sub">Salud</h3>
+        <div class="ficha-grid">
+            ${campoFicha('fic-alergias', 'Alérgico a', u.alergias, { full: true, max: 200, ph: 'Ninguna' })}
+            ${campoFicha('fic-condicion', 'Condición médica', u.condicion_medica, { full: true, max: 300, ph: 'Ninguna' })}
+            ${campoFicha('fic-medicamentos', 'Medicamentos que toma', u.medicamentos, { full: true, max: 300, ph: 'Ninguno' })}
+        </div>
+
+        <h3 class="ficha-sub">Horario de trabajo</h3>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:0 0 0.6rem;">Marca los días que trabaja y configura la hora de entrada, de salida y el descanso (el descanso es opcional).</p>
+        ${filas}
+
+        <button type="button" class="btn-submit" id="btn-save-horarios" onclick="guardarHorarios()" style="margin-top:1rem; max-width:300px;">💾 Guardar ficha y horario</button>
+    </div>`;
+    pintarFotoTrabajador();
+}
+
+function pintarFotoTrabajador() {
+    const box = document.getElementById('ficha-foto-box');
+    if (!box) return;
+    box.innerHTML = FOTO_TRABAJADOR ? `<img src="${FOTO_TRABAJADOR}" alt="Foto" style="width:100%; height:100%; object-fit:cover;">` : '👤';
+}
+
+function quitarFotoTrabajador() { FOTO_TRABAJADOR = ''; pintarFotoTrabajador(); }
+
+// La foto se recorta cuadrada y se comprime en el navegador (240 px) para que pese poco
+function elegirFotoTrabajador(input) {
+    const archivo = input.files && input.files[0];
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+            const lado = Math.min(img.width, img.height), T = 240;
+            const c = document.createElement('canvas'); c.width = T; c.height = T;
+            c.getContext('2d').drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, T, T);
+            FOTO_TRABAJADOR = c.toDataURL('image/jpeg', 0.72);
+            pintarFotoTrabajador();
+        };
+        img.onerror = () => alert('No se pudo leer esa imagen.');
+        img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+    input.value = '';
 }
 
 function toggleHorarioDia(dia) {
     const activo = document.getElementById(`hor-activo-${dia}`).checked;
-    document.getElementById(`hor-inicio-${dia}`).disabled = !activo;
-    document.getElementById(`hor-fin-${dia}`).disabled = !activo;
+    ['hor-inicio-', 'hor-fin-', 'hor-desc-ini-', 'hor-desc-fin-'].forEach(p => { document.getElementById(p + dia).disabled = !activo; });
 }
 
 async function guardarHorarios() {
     const btn = document.getElementById('btn-save-horarios');
     const usuarioId = Number(document.getElementById('hor-trabajador').value);
     if (!usuarioId) { alert('Elige un trabajador.'); return; }
+    const val = id => document.getElementById(id).value.trim();
     const horarios = [];
     for (let dia = 0; dia <= 6; dia++) {
         const activo = document.getElementById(`hor-activo-${dia}`).checked;
         const inicio = document.getElementById(`hor-inicio-${dia}`).value;
         const fin = document.getElementById(`hor-fin-${dia}`).value;
-        if (activo && (!inicio || !fin)) {
-            alert(`Falta la hora de entrada o salida el ${DIAS_TRABAJO[dia]}.`);
-            return;
-        }
-        horarios.push({ dia_semana: dia, activo, hora_entrada: inicio || '09:00', hora_salida: fin || '17:00' });
+        const di = document.getElementById(`hor-desc-ini-${dia}`).value;
+        const df = document.getElementById(`hor-desc-fin-${dia}`).value;
+        if (activo && (!inicio || !fin)) { alert(`Falta la hora de entrada o salida el ${DIAS_TRABAJO[dia]}.`); return; }
+        if (activo && (!!di !== !!df)) { alert(`El descanso del ${DIAS_TRABAJO[dia]} necesita hora de inicio y de fin (o déjalo vacío).`); return; }
+        horarios.push({ dia_semana: dia, activo, hora_entrada: inicio || '09:00', hora_salida: fin || '17:00', descanso_desde: activo ? di : '', descanso_hasta: activo ? df : '' });
     }
+    const ficha = {
+        nombre: val('fic-nombre'), apellido: val('fic-apellido'), cedula: val('fic-cedula'), telefono: val('fic-telefono'),
+        direccion: val('fic-direccion'), telefono_familiar: val('fic-tel-familiar'), alergias: val('fic-alergias'),
+        condicion_medica: val('fic-condicion'), medicamentos: val('fic-medicamentos'), foto: FOTO_TRABAJADOR
+    };
+    if (!ficha.nombre) { alert('El nombre es obligatorio.'); return; }
 
     btn.disabled = true; btn.innerText = "Guardando...";
     try {
         const res = await fetch(URL_GUARDAR_HORARIOS_TRABAJO, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-            body: JSON.stringify({ usuario_id: usuarioId, horarios })
+            body: JSON.stringify(Object.assign({ usuario_id: usuarioId, horarios }, ficha))
         });
         const data = await res.json();
         if (data.success) {
             const u = HORARIOS_TRABAJO.find(x => x.id === usuarioId);
-            if (u) u.horario = horarios;
-            alert("✅ Horario de trabajo actualizado.");
+            if (u) Object.assign(u, ficha, { horario: horarios });
+            await cargarHorarios();
+            alert("✅ Ficha y horario guardados.");
         } else {
             alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
         }
     } catch (error) {
-        alert('Error de red al guardar el horario.');
+        alert('Error de red al guardar.');
     } finally {
-        btn.disabled = false; btn.innerText = "💾 Guardar Horario";
+        const b2 = document.getElementById('btn-save-horarios');
+        if (b2) { b2.disabled = false; b2.innerText = "💾 Guardar ficha y horario"; }
     }
+}
+
+// ==========================================
+// MÉTODOS DE PAGO (los ve el cliente en el menú, la caja y las estadísticas)
+// ==========================================
+let METODOS_PAGO = [];
+
+async function cargarMetodosPago() {
+    try {
+        const res = await fetch(API_BASE + "/api/metodos-pago", { headers: authHeaders() });
+        const data = await res.json();
+        METODOS_PAGO = Array.isArray(data) ? data.map(String) : [];
+        renderMetodosPago();
+    } catch (error) { console.error("Error obteniendo métodos de pago:", error); }
+}
+
+function renderMetodosPago() {
+    const cont = document.getElementById('lista-metodos-pago');
+    cont.innerHTML = METODOS_PAGO.map((n, i) => `<div style="display:flex; gap:0.5rem; align-items:center;">
+        <input type="text" maxlength="30" value="${escapeHtml(n)}" oninput="METODOS_PAGO[${i}] = this.value" style="margin-top:0; flex:1;">
+        <button type="button" class="action-btn btn-delete" onclick="quitarMetodoPago(${i})" title="Quitar">🗑️</button></div>`).join('')
+        || '<p style="color:var(--text-muted); font-size:0.85rem;">No hay métodos de pago. Agrega al menos uno.</p>';
+}
+
+function agregarMetodoPago() {
+    const inp = document.getElementById('nuevo-metodo-pago');
+    const n = inp.value.trim();
+    if (!n) return;
+    if (METODOS_PAGO.some(x => x.trim().toLowerCase() === n.toLowerCase())) { alert('Ese método ya está en la lista.'); return; }
+    if (METODOS_PAGO.length >= 12) { alert('Máximo 12 métodos de pago.'); return; }
+    METODOS_PAGO.push(n); inp.value = ''; renderMetodosPago();
+}
+
+function quitarMetodoPago(i) {
+    if (METODOS_PAGO.length <= 1) { alert('Debe quedar al menos un método de pago.'); return; }
+    METODOS_PAGO.splice(i, 1); renderMetodosPago();
+}
+
+async function guardarMetodosPago() {
+    const btn = document.getElementById('btn-save-pagos');
+    const lista = METODOS_PAGO.map(x => x.trim()).filter(Boolean);
+    if (!lista.length) { alert('Debe quedar al menos un método de pago.'); return; }
+    btn.disabled = true; btn.innerText = "Guardando...";
+    try {
+        const res = await fetch(API_BASE + "/api/metodos-pago/guardar", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ metodos: lista }) });
+        const data = await res.json();
+        if (data.success) { alert("✅ Métodos de pago actualizados. El menú ya los muestra."); await cargarMetodosPago(); }
+        else alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
+    } catch (e) { alert('Error de red al guardar.'); }
+    finally { btn.disabled = false; btn.innerText = "💾 Guardar métodos de pago"; }
 }
 
 // ==========================================
@@ -678,17 +818,17 @@ function buscarItemAnuncio(inputElement) {
     const comboFiltrados = adminCombos.filter(c => c.nombre.toLowerCase().includes(texto));
     const prodFiltrados = adminProductos.filter(p => p.nombre.toLowerCase().includes(texto));
 
-    let html = `<div data-ref="" data-nombre="" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">Ninguno (anuncio solo informativo)</div>`;
+    let html = `<div data-ref="" data-nombre="" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">Ninguno (anuncio solo informativo)</div>`;
     if (comboFiltrados.length > 0) {
         comboFiltrados.forEach(c => {
             const nombreLegible = `🍱 ${c.nombre} ($${c.precio.toFixed(2)})`;
-            html += `<div data-ref="c_${c.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
+            html += `<div data-ref="c_${c.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
         });
     }
     if (prodFiltrados.length > 0) {
         prodFiltrados.forEach(p => {
             const nombreLegible = `🍔 ${p.nombre} ($${p.precio.toFixed(2)})`;
-            html += `<div data-ref="p_${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
+            html += `<div data-ref="p_${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
         });
     }
 
@@ -893,11 +1033,11 @@ function buscarCategoriaCombo(inputElement) {
 
     let html = '';
     if (texto === '' || 'combos'.includes(texto)) {
-        html += `<div data-valor="" data-nombre="" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">Combos (por defecto)</div>`;
+        html += `<div data-valor="" data-nombre="" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">Combos (por defecto)</div>`;
     }
     if (filtradas.length > 0) {
         filtradas.forEach(c => {
-            html += `<div data-valor="${escapeHtml(c.nombre)}" data-nombre="${escapeHtml(c.nombre)}" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">${escapeHtml(c.nombre)}</div>`;
+            html += `<div data-valor="${escapeHtml(c.nombre)}" data-nombre="${escapeHtml(c.nombre)}" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">${escapeHtml(c.nombre)}</div>`;
         });
     }
     if (html === '') html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
@@ -1034,7 +1174,7 @@ function buscarProductoPromo(inputElement) {
     if (filtrados.length > 0) {
         filtrados.forEach(p => {
             const nombreLegible = `${p.nombre} ($${p.precio.toFixed(2)})`;
-            html += `<div class="opcion-promo-producto" data-id="${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarProductoPromo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">${escapeHtml(p.nombre)}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`;
+            html += `<div class="opcion-promo-producto" data-id="${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarProductoPromo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">${escapeHtml(p.nombre)}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`;
         });
     } else {
         html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
@@ -1067,11 +1207,11 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     const idCaja = 'sug-combo-' + Math.random().toString(36).substr(2, 9);
     fila.innerHTML = `
         <div style="flex: 2; position: relative;">
-            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none;">
+            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none;">
             <input type="hidden" class="item-referencia" value="${valorSeleccionado}">
-            <div id="${idCaja}" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
+            <div id="${idCaja}" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
         </div>
-        <input type="number" class="item-cantidad" min="1" value="${qty}" required style="flex: 1; padding: 0.75rem; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px;" placeholder="Cant.">
+        <input type="number" class="item-cantidad" min="1" value="${qty}" required style="flex: 1; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px;" placeholder="Cant.">
         <button type="button" onclick="this.parentElement.remove()" style="background: #e11d48; color: white; border: none; border-radius: 4px; padding: 0 15px; cursor: pointer; font-weight: bold;">X</button>
     `;
     contenedor.appendChild(fila);
@@ -1081,7 +1221,7 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
     const contenedor = document.getElementById('lista-items-combo');
     const grupo = document.createElement('div');
     grupo.className = 'fila-piezas-alternativas';
-    grupo.style.cssText = 'border: 1px solid #92400e; background: linear-gradient(#1c1509, #171310); border-radius: 10px; padding: 14px; margin-bottom: 12px;';
+    grupo.style.cssText = 'border: 1px solid #92400e; background: linear-gradient(#4a3414, #3f2c12); border-radius: 10px; padding: 14px; margin-bottom: 12px;';
     grupo.innerHTML = `
         <div style="display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; margin-bottom: 12px;">
             <div>
@@ -1092,14 +1232,14 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
         </div>
         <label style="display:block; margin-bottom:12px; font-size:11px; color:#fbbf24; font-weight:normal; text-transform:none;">
             Con 2+ filas, ¿cómo se comportan las pestañas?
-            <select class="grupo-modo-piezas" onchange="sincronizarModoPiezas(this.closest('.fila-piezas-alternativas'))" style="width:100%; margin-top:4px; padding:8px; background:#0f172a; border:1px solid #334155; color:white; border-radius:6px; font-size:12px;">
+            <select class="grupo-modo-piezas" onchange="sincronizarModoPiezas(this.closest('.fila-piezas-alternativas'))" style="width:100%; margin-top:4px; padding:8px; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:12px;">
                 <option value="excluyente" ${modoExistente === 'excluyente' ? 'selected' : ''}>Excluyentes: el cliente elige SOLO una pestaña (ej. Tempura 12pz o Frío 10pz)</option>
                 ${modoExistente === 'compartido' ? `<option value="compartido" selected>Piezas compartidas (opción retirada — al guardar se convertirá a excluyente)</option>` : ''}
                 <option value="todas" ${modoExistente === 'todas' ? 'selected' : ''}>Todas obligatorias: el cliente debe completar cada pestaña por separado (ej. 1 roll clásico + 1 tempura + 1 individual + 1 guarnición)</option>
             </select>
         </label>
         <div class="lista-alternativas-piezas" style="display:flex; flex-direction:column; gap:10px;"></div>
-        <button type="button" class="btn-add-alternativa" style="margin-top:10px; background:#334155; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">+ Agregar fila</button>
+        <button type="button" class="btn-add-alternativa" style="margin-top:10px; background:#4a5b94; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">+ Agregar fila</button>
     `;
     contenedor.appendChild(grupo);
 
@@ -1212,7 +1352,7 @@ construirChipsDias('combo', []);
 function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
     const fila = document.createElement('div');
     fila.className = 'fila-alternativa-piezas';
-    fila.style.cssText = 'background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;';
+    fila.style.cssText = 'background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:10px;';
 
     const categoriasSeleccionadas = datos.categorias || (datos.categoria ? [datos.categoria] : []);
     const chipsCategorias = adminCategorias.map(c => {
@@ -1228,14 +1368,14 @@ function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
 
     fila.innerHTML = `
         <div style="display:flex; gap:8px; align-items:center;">
-            <input type="text" class="alt-nombre" placeholder="Nombre (ej. Opción 1, o 'Variado')" value="${escapeHtml(datos.nombre || '')}" style="flex:1; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0;">
+            <input type="text" class="alt-nombre" placeholder="Nombre (ej. Opción 1, o 'Variado')" value="${escapeHtml(datos.nombre || '')}" style="flex:1; padding:8px; background:#1d2650; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:13px; margin:0;">
             <button type="button" onclick="this.closest('.fila-alternativa-piezas').remove()" title="Quitar esta fila" style="flex-shrink:0; background:transparent; color:#f87171; border:1px solid #7f1d1d; border-radius:6px; width:34px; height:34px; cursor:pointer; font-size:14px;"><i class="fa-solid fa-trash-can"></i></button>
         </div>
         <div class="alt-cantidades" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;">
             <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">El cliente elige</label>
-            <input type="number" class="alt-selecciones" min="1" value="${selecciones}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:64px; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
+            <input type="number" class="alt-selecciones" min="1" value="${selecciones}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:64px; padding:8px; background:#1d2650; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
             <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">opción(es), y cada una vale</label>
-            <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${porSeleccion}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:70px; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
+            <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${porSeleccion}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:70px; padding:8px; background:#1d2650; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
             <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">piezas</label>
             <span class="alt-total-piezas" style="font-size:12px; font-weight:bold; color:#fbbf24; margin-left:auto;"></span>
         </div>
@@ -1272,7 +1412,7 @@ function buscarItemCombo(inputElement, idCaja) {
 
     let html = '';
     if (prodFiltrados.length > 0) {
-        prodFiltrados.forEach(p => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'PROD_${p.id}', '🍔 Producto: ${p.nombre}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">🍔 ${p.nombre}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`; });
+        prodFiltrados.forEach(p => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'PROD_${p.id}', '🍔 Producto: ${p.nombre}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">🍔 ${p.nombre}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`; });
     }
     if (html === '') html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
 

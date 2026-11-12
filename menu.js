@@ -604,6 +604,7 @@ function cerrarSesionCliente() {
 // --- 1. CARGA DINÁMICA DE LA BASE DE DATOS ---
 async function cargarMenuDesdeDB() {
     cargarHorariosAtencion(); // en paralelo, no bloquea el render del catálogo
+    cargarMetodosPago('payment-method'); // métodos de pago configurables, en paralelo
     cargarYMostrarAnuncios(); // popup de promociones, en paralelo
     try {
         const urlFresca = URL_OBTENER_MENU + "?t=" + new Date().getTime() + (SUCURSAL_ACTUAL ? "&" + sucursalParam() : "");

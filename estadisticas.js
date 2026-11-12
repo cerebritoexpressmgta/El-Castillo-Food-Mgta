@@ -12,6 +12,25 @@ let pedidosFiltradosActuales = [];
 
 let filtroActivo = 'hoy';
 
+// ---- Métodos de pago: los configurados en Administración (+ los que aparezcan en pedidos viejos) ----
+let METODOS_CONFIGURADOS = [];
+const COLORES_PAGO = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#06b6d4', '#a855f7', '#ef4444', '#84cc16', '#f97316', '#14b8a6', '#eab308', '#8b5cf6'];
+function normMetodoPago(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+// "Efectivo" (pedidos viejos) cae en "Efectivo / Divisas" (configurado); si no hay coincidencia, queda con su propio nombre
+function claveMetodoPago(t) {
+    const k = normMetodoPago(t);
+    const c = METODOS_CONFIGURADOS.map(normMetodoPago).find(kc => kc === k || kc.startsWith(k) || k.startsWith(kc));
+    return c || k;
+}
+function nombreMetodoPago(t) { const k = claveMetodoPago(t); return METODOS_CONFIGURADOS.find(n => normMetodoPago(n) === k) || String(t || 'Efectivo').trim(); }
+(async function cargarMetodosConfigurados() {
+    try {
+        const r = await fetch(API_BASE + "/api/metodos-pago");
+        const l = await r.json();
+        if (Array.isArray(l)) { METODOS_CONFIGURADOS = l.map(String); if (typeof pedidosFiltradosActuales !== 'undefined' && pedidosFiltradosActuales.length) procesarCalculosEstadisticos(pedidosFiltradosActuales); else if (typeof graficoTorta !== 'undefined' && graficoTorta) procesarCalculosEstadisticos([]); }
+    } catch (e) {}
+})();
+
 // --- ACCESO: reutiliza la sesión de cocina.html si ya existe en este navegador ---
 function verificarSesionEstadisticas() {
     const token = localStorage.getItem('tokioAuthToken');
@@ -74,7 +93,7 @@ async function buscarClientes(event) {
     const contenedor = document.getElementById('resultado-busqueda-cliente');
     if (!termino) { contenedor.innerHTML = ''; return; }
 
-    contenedor.innerHTML = '<p class="text-xs text-slate-500 italic">Buscando...</p>';
+    contenedor.innerHTML = '<p class="text-xs text-slate-300 italic">Buscando...</p>';
 
     try {
         const res = await fetch(`${API_BUSCAR_CLIENTES}?q=${encodeURIComponent(termino)}`, { headers: authHeaders() });
@@ -82,7 +101,7 @@ async function buscarClientes(event) {
         const lista = Array.isArray(data) ? data : [];
 
         if (lista.length === 0) {
-            contenedor.innerHTML = '<p class="text-xs text-slate-500 italic">No se encontraron clientes con ese dato.</p>';
+            contenedor.innerHTML = '<p class="text-xs text-slate-300 italic">No se encontraron clientes con ese dato.</p>';
             return;
         }
 
@@ -98,22 +117,22 @@ async function buscarClientes(event) {
                     <div class="flex flex-wrap justify-between items-start gap-3">
                         <div>
                             <p class="text-white font-bold text-base">${escapeHtml(c.nombre || 'Sin nombre')}</p>
-                            <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-phone"></i> ${escapeHtml(c.telefono || '')}</p>
-                            ${c.cedula ? `<p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-id-card"></i> ${escapeHtml(c.cedula)}</p>` : ''}
-                            <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(c.direccion_principal || 'No especificada')}</p>
+                            <p class="text-xs text-slate-200 mt-1"><i class="fa-solid fa-phone"></i> ${escapeHtml(c.telefono || '')}</p>
+                            ${c.cedula ? `<p class="text-xs text-slate-200 mt-0.5"><i class="fa-solid fa-id-card"></i> ${escapeHtml(c.cedula)}</p>` : ''}
+                            <p class="text-xs text-slate-200 mt-0.5"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(c.direccion_principal || 'No especificada')}</p>
                         </div>
                         <div class="text-right">
                             <p class="text-emerald-400 font-bold text-xl">$${(c.total_gastado_usd || 0).toFixed(2)}</p>
-                            <p class="text-[10px] text-slate-500 uppercase font-bold">gastado (finalizados)</p>
+                            <p class="text-[10px] text-slate-300 uppercase font-bold">gastado (finalizados)</p>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-4 mt-3 pt-3 border-t border-slate-700/50 text-xs">
-                        <span class="text-slate-300"><i class="fa-solid fa-receipt text-indigo-400"></i> ${c.total_pedidos} pedidos totales</span>
-                        <span class="text-slate-300"><i class="fa-solid fa-check-double text-emerald-400"></i> ${c.pedidos_finalizados} finalizados</span>
-                        <span class="text-slate-300"><i class="fa-regular fa-calendar"></i> Último: ${ultimo}</span>
+                        <span class="text-slate-100"><i class="fa-solid fa-receipt text-indigo-400"></i> ${c.total_pedidos} pedidos totales</span>
+                        <span class="text-slate-100"><i class="fa-solid fa-check-double text-emerald-400"></i> ${c.pedidos_finalizados} finalizados</span>
+                        <span class="text-slate-100"><i class="fa-regular fa-calendar"></i> Último: ${ultimo}</span>
                         ${c.tiene_clave
                             ? `<button onclick="restablecerClaveCliente(${escapeHtml(JSON.stringify(String(c.telefono || '')))}, this)" class="ml-auto text-amber-400 hover:text-amber-300 font-semibold cursor-pointer" title="Para un cliente que olvidó su clave: la borra y el menú le pide crear una nueva la próxima vez que entre"><i class="fa-solid fa-key"></i> Restablecer clave</button>`
-                            : `<span class="ml-auto text-slate-500 italic"><i class="fa-solid fa-key"></i> Sin clave todavía</span>`}
+                            : `<span class="ml-auto text-slate-300 italic"><i class="fa-solid fa-key"></i> Sin clave todavía</span>`}
                     </div>
                 </div>`;
         }).join('');
@@ -213,7 +232,7 @@ async function prepararFiltroSucursalStats() {
     const ref = document.getElementById('fechaCustom');
     if (lista.length < 2 || !ref || document.getElementById('filtroSucursalStats')) return;
     const sel = document.createElement('select'); sel.id = 'filtroSucursalStats';
-    sel.className = 'bg-slate-800 border border-slate-700 text-slate-200 text-sm font-semibold rounded-lg px-3 h-10 cursor-pointer';
+    sel.className = 'bg-slate-800 border border-slate-700 text-white text-sm font-semibold rounded-lg px-3 h-10 cursor-pointer';
     sel.innerHTML = '<option value="">📍 Todas las sucursales</option>' + lista.map(s => '<option value="' + s.id + '">' + escapeHtml(s.nombre) + '</option>').join('');
     sel.onchange = () => aplicarFiltroEstadisticas(typeof filtroActivo !== 'undefined' && filtroActivo ? filtroActivo : 'hoy');
     ref.parentElement.insertBefore(sel, ref);
@@ -264,11 +283,11 @@ function cambiarFiltroActivo(botonClickeado, rangoFiltro) {
     const botones = document.querySelectorAll('.btn-filtro');
     botones.forEach(btn => {
         btn.classList.remove('bg-indigo-600', 'text-white');
-        btn.classList.add('text-slate-400', 'hover:bg-slate-800');
+        btn.classList.add('text-slate-200', 'hover:bg-slate-800');
     });
     
     if (botonClickeado) {
-        botonClickeado.classList.remove('text-slate-400', 'hover:bg-slate-800');
+        botonClickeado.classList.remove('text-slate-200', 'hover:bg-slate-800');
         botonClickeado.classList.add('bg-indigo-600', 'text-white');
     }
     
@@ -281,7 +300,7 @@ function apagarBotonesFiltro() {
     const botones = document.querySelectorAll('.btn-filtro');
     botones.forEach(btn => {
         btn.classList.remove('bg-indigo-600', 'text-white');
-        btn.classList.add('text-slate-400', 'hover:bg-slate-800');
+        btn.classList.add('text-slate-200', 'hover:bg-slate-800');
     });
 }
 
@@ -320,7 +339,7 @@ function procesarCalculosEstadisticos(pedidos) {
     
     const conteoClientes = {};
     const conteoProductos = {};
-    const pagos = { 'Zelle': 0, 'Pago Movil': 0, 'Efectivo': 0 };
+    const pagos = {}; // método de pago (normalizado) -> { nombre, cantidad }
     const nominaRepartidores = {};
 
     pedidos.forEach(p => {
@@ -330,10 +349,9 @@ function procesarCalculosEstadisticos(pedidos) {
         totalUSD += monto;
         totalBS += (monto * tasaHistorica); 
         
-        let metodo = String(p.metodo_pago || 'Efectivo').toLowerCase();
-        if (metodo.includes('zelle')) pagos['Zelle']++;
-        else if (metodo.includes('pago') || metodo.includes('movil')) pagos['Pago Movil']++;
-        else pagos['Efectivo']++;
+        const claveMetodo = claveMetodoPago(p.metodo_pago || 'Efectivo');
+        if (!pagos[claveMetodo]) pagos[claveMetodo] = { nombre: nombreMetodoPago(p.metodo_pago || 'Efectivo'), cantidad: 0 };
+        pagos[claveMetodo].cantidad++;
 
         const cliente = p.cliente || 'Desconocido';
         if (!conteoClientes[cliente]) conteoClientes[cliente] = { gastado: 0, pedidos: 0 };
@@ -383,30 +401,35 @@ function dibujarWidgetsEstadisticas(cantPedidos, totalUSD, totalBS, pagos, clien
     document.getElementById('widgetTotalBS').innerText = `Bs. ${formatoBS}`;
     document.getElementById('widgetCantPedidos').innerHTML = `<i class="fa-solid fa-receipt"></i> ${cantPedidos} pedidos finalizados`;
 
+    // Un renglón por cada método configurado (aunque tenga 0) y, además, los que aparezcan en pedidos viejos (ej. Zelle)
+    const seriePagos = METODOS_CONFIGURADOS.map(n => ({ nombre: n, cantidad: (pagos[claveMetodoPago(n)] || {}).cantidad || 0 }));
+    Object.keys(pagos).forEach(k => { if (!METODOS_CONFIGURADOS.some(n => normMetodoPago(n) === k)) seriePagos.push({ nombre: pagos[k].nombre, cantidad: pagos[k].cantidad }); });
+    if (!seriePagos.length) seriePagos.push({ nombre: 'Sin datos', cantidad: 0 });
+
     if (graficoTorta) graficoTorta.destroy();
     const ctx = document.getElementById('graficoPagos').getContext('2d');
     graficoTorta = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Zelle', 'Pago Móvil', 'Efectivo'],
+            labels: seriePagos.map(x => x.nombre),
             datasets: [{
-                data: [pagos['Zelle'], pagos['Pago Movil'], pagos['Efectivo']],
-                backgroundColor: ['#6366f1', '#f59e0b', '#10b981'],
+                data: seriePagos.map(x => x.cantidad),
+                backgroundColor: seriePagos.map((x, i) => COLORES_PAGO[i % COLORES_PAGO.length]),
                 borderWidth: 0,
                 hoverOffset: 4
             }]
         },
-        options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } }, maintainAspectRatio: false }
+        options: { plugins: { legend: { position: 'right', labels: { color: '#f8fafc', font: { size: 12 } } } }, maintainAspectRatio: false }
     });
 
     const arrayClientes = Object.keys(clientes).map(k => ({ nombre: k, ...clientes[k] })).sort((a, b) => b.gastado - a.gastado).slice(0, 5);
     document.getElementById('listaClientes').innerHTML = arrayClientes.length > 0 
         ? arrayClientes.map(c => `
             <div class="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
-                <span class="text-sm text-white font-medium">${escapeHtml(c.nombre)} <span class="text-[10px] text-slate-500 ml-1">(${c.pedidos} pedidos)</span></span>
+                <span class="text-sm text-white font-medium">${escapeHtml(c.nombre)} <span class="text-[10px] text-slate-300 ml-1">(${c.pedidos} pedidos)</span></span>
                 <span class="text-sm font-bold text-emerald-400">$${c.gastado.toFixed(2)}</span>
             </div>`).join('') 
-        : '<p class="text-xs text-slate-500 italic">No hay datos en este rango</p>';
+        : '<p class="text-xs text-slate-300 italic">No hay datos en este rango</p>';
 
     const arrayProd = Object.keys(productos).map(k => ({ nombre: k, cant: productos[k] })).sort((a, b) => b.cant - a.cant).slice(0, 5);
     document.getElementById('listaProductos').innerHTML = arrayProd.length > 0 
@@ -415,7 +438,7 @@ function dibujarWidgetsEstadisticas(cantPedidos, totalUSD, totalBS, pagos, clien
                 <span class="text-sm text-white font-medium truncate pr-2">${escapeHtml(p.nombre)}</span>
                 <span class="text-xs font-bold bg-slate-700 px-2 py-1 rounded text-orange-400">${p.cant} unid.</span>
             </div>`).join('')
-        : '<p class="text-xs text-slate-500 italic">No hay datos en este rango</p>';
+        : '<p class="text-xs text-slate-300 italic">No hay datos en este rango</p>';
 
     const arrayRep = Object.keys(repartidores).map(k => ({ nombre: k, ...repartidores[k] })).sort((a, b) => b.viajes - a.viajes);
     document.getElementById('listaRepartidores').innerHTML = arrayRep.length > 0
@@ -423,14 +446,14 @@ function dibujarWidgetsEstadisticas(cantPedidos, totalUSD, totalBS, pagos, clien
             <div onclick="abrirModalRepartidor(${escapeHtml(JSON.stringify(String(r.nombre)))}, ${r.dineroAdeudado})" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg border border-slate-700 cursor-pointer hover:border-sky-500 hover:bg-slate-800 transition">
                 <div>
                     <p class="text-sm text-white font-bold">${escapeHtml(r.nombre)}</p>
-                    <p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-solid fa-route"></i> ${r.viajes} entregas realizadas</p>
+                    <p class="text-[10px] text-slate-200 mt-0.5"><i class="fa-solid fa-route"></i> ${r.viajes} entregas realizadas</p>
                 </div>
                 <div class="text-right">
-                    <span class="text-[10px] uppercase text-slate-500 font-bold block leading-none mb-1">Deuda a pagar</span>
+                    <span class="text-[10px] uppercase text-slate-300 font-bold block leading-none mb-1">Deuda a pagar</span>
                     <span class="text-lg font-bold text-sky-400 leading-none">$${r.dineroAdeudado.toFixed(2)}</span>
                 </div>
             </div>`).join('')
-        : '<p class="text-xs text-slate-500 italic">Nadie ha realizado entregas en este rango</p>';
+        : '<p class="text-xs text-slate-300 italic">Nadie ha realizado entregas en este rango</p>';
 }
 
 function renderHistorialFinalizadosEnStats(pedidosList) {
@@ -440,7 +463,7 @@ function renderHistorialFinalizadosEnStats(pedidosList) {
     const finalizados = pedidosList.filter(p => String(p.estado || '').toLowerCase().replace(/\s+/g, '') === 'finalizado');
 
     if (finalizados.length === 0) {
-        contenedor.innerHTML = '<p class="text-slate-400 text-sm italic">No hay pedidos finalizados en el periodo seleccionado.</p>';
+        contenedor.innerHTML = '<p class="text-slate-200 text-sm italic">No hay pedidos finalizados en el periodo seleccionado.</p>';
         return;
     }
 
@@ -478,8 +501,8 @@ function renderHistorialFinalizadosEnStats(pedidosList) {
                 <div class="flex items-center gap-3">
                     <span class="bg-emerald-400/10 text-emerald-400 px-2 py-1 rounded text-xs font-bold border border-emerald-400/20">#${idVisual}</span>
                     <div>
-                        <p class="text-slate-100 m-0 text-sm font-bold">${escapeHtml(cliente)} ${iconoMoto}</p>
-                        <p class="text-slate-400 m-0 text-[11px] mt-0.5"><i class="fa-regular fa-calendar-days"></i> ${fechaHora} • Pago: ${escapeHtml(metodo)}</p>
+                        <p class="text-white m-0 text-sm font-bold">${escapeHtml(cliente)} ${iconoMoto}</p>
+                        <p class="text-slate-200 m-0 text-[11px] mt-0.5"><i class="fa-regular fa-calendar-days"></i> ${fechaHora} • Pago: ${escapeHtml(metodo)}</p>
                     </div>
                 </div>
                 <div class="text-right">
@@ -501,7 +524,7 @@ function abrirModalRepartidor(nombre, deudaTotal) {
     const pedidosChofer = pedidosFiltradosActuales.filter(p => p.repartidor === nombre || p.Repartidor === nombre);
 
     if (pedidosChofer.length === 0) {
-        listaContenedor.innerHTML = '<p class="text-center text-slate-500 my-8 italic">No se encontraron detalles de pedidos para este rango de fecha.</p>';
+        listaContenedor.innerHTML = '<p class="text-center text-slate-300 my-8 italic">No se encontraron detalles de pedidos para este rango de fecha.</p>';
     } else {
         pedidosChofer.forEach(p => {
             const idReal = p.id_pedido || p.ID || 'S/ID';
@@ -523,12 +546,12 @@ function abrirModalRepartidor(nombre, deudaTotal) {
                 <div class="mb-3 bg-slate-950 p-4 rounded-lg border border-slate-700">
                     <div class="flex justify-between items-center mb-3 border-b border-slate-800 pb-2">
                         <span class="text-xs font-bold bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">Orden #${idVisual}</span>
-                        <span class="text-xs text-slate-400"><i class="fa-regular fa-clock"></i> ${hora}</span>
+                        <span class="text-xs text-slate-200"><i class="fa-regular fa-clock"></i> ${hora}</span>
                     </div>
                     <p class="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-user text-slate-500"></i> ${escapeHtml(cliente)}
+                        <i class="fa-solid fa-user text-slate-300"></i> ${escapeHtml(cliente)}
                     </p>
-                    <div class="text-xs text-slate-300 font-mono bg-slate-900 p-2 rounded">
+                    <div class="text-xs text-slate-100 font-mono bg-slate-900 p-2 rounded">
                         ${detalleHTML}
                     </div>
                 </div>

@@ -115,6 +115,7 @@ async function resolverSucursalPersonal() {
 }
 
 window.onload = async function() {
+    cargarMetodosPago('trab-pago'); // métodos de pago configurables
     const sesion = localStorage.getItem('usuarioActivo');
     const token = localStorage.getItem('tokioAuthToken');
 
@@ -774,7 +775,13 @@ function rellenarFormularioDeEdicion(pedido) {
 
     const selPago = document.getElementById('trab-pago');
     const pagoGuardado = String(pedido.metodo_pago || '');
-    const opcionIgual = Array.from(selPago.options).find(o => o.value.toLowerCase() === pagoGuardado.toLowerCase());
+    const sinAcento = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    selPago.dataset.guardado = pagoGuardado; // si la lista de métodos llega después, se respeta este
+    let opcionIgual = Array.from(selPago.options).find(o => sinAcento(o.value) === sinAcento(pagoGuardado));
+    if (!opcionIgual && pagoGuardado) {
+        opcionIgual = document.createElement('option'); opcionIgual.value = pagoGuardado; opcionIgual.textContent = pagoGuardado;
+        selPago.appendChild(opcionIgual);
+    }
     if (opcionIgual) selPago.value = opcionIgual.value;
 }
 

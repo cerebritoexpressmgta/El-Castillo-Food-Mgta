@@ -8,8 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
-            --bg-color: #0b1120; --card-bg: #1e293b; --primary: #e11d48;
-            --text-main: #f8fafc; --text-muted: #94a3b8; --input-bg: #0f172a;
+            --bg-color: #1d2650; --card-bg: #2e3a68; --primary: #e11d48;
+            --text-main: #f8fafc; --text-muted: #cbd5e1; --input-bg: #222c57;
         }
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 2rem; margin: 0; }
         .admin-container { background-color: var(--card-bg); border-radius: 12px; max-width: 1000px; margin: 0 auto; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -45,7 +45,7 @@
         }
         .btn-estadisticas:hover { background-color: rgba(0, 0, 0, 0.4); }
 
-        .tabs { display: flex; background-color: #162032; flex-wrap: wrap; }
+        .tabs { display: flex; background-color: #27325e; flex-wrap: wrap; }
         .tab-btn { flex: 1; padding: 1rem; background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 1rem; min-width: 120px; }
         .tab-btn.active { color: var(--text-main); border-bottom: 3px solid var(--primary); background-color: var(--card-bg); }
         
@@ -69,16 +69,16 @@
         }
         
         label { display: block; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; margin-top: 1rem; font-weight: bold;}
-        input, select, textarea { width: 100%; padding: 0.75rem; background-color: var(--input-bg); border: 1px solid #334155; color: white; border-radius: 6px; box-sizing: border-box; margin-top: 0.5rem; font-family: inherit;}
+        input, select, textarea { width: 100%; padding: 0.75rem; background-color: var(--input-bg); border: 1px solid #4a5b94; color: white; border-radius: 6px; box-sizing: border-box; margin-top: 0.5rem; font-family: inherit;}
         input[type="checkbox"] { width: auto; margin-right: 10px; }
         
         .btn-submit { background-color: var(--primary); color: white; border: none; padding: 1rem; border-radius: 6px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 1.5rem; transition: 0.2s;}
         .btn-submit:hover { background-color: #be123c; }
         .btn-cancel { background-color: #475569; margin-top: 0.5rem; display: none; }
 
-        .list-panel { background-color: var(--input-bg); border: 1px solid #334155; border-radius: 6px; padding: 1rem; max-height: 500px; overflow-y: auto; }
-        .list-panel h3 { margin-top: 0; color: var(--primary); font-size: 1.1rem; border-bottom: 1px solid #334155; padding-bottom: 10px;}
-        .list-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--card-bg); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border: 1px solid #334155; list-style: none; }
+        .list-panel { background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 6px; padding: 1rem; max-height: 500px; overflow-y: auto; }
+        .list-panel h3 { margin-top: 0; color: var(--primary); font-size: 1.1rem; border-bottom: 1px solid #4a5b94; padding-bottom: 10px;}
+        .list-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--card-bg); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border: 1px solid #4a5b94; list-style: none; }
         .item-info { flex: 1; }
         .item-title { font-weight: bold; font-size: 0.95rem; margin: 0; }
         .item-meta { font-size: 0.75rem; color: var(--text-muted); margin: 0; margin-top: 4px; }
@@ -93,8 +93,23 @@
         .deshabilitado { opacity: 0.5; border-left: 3px solid #64748b; }
 
         .chip-categoria { padding: 6px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer; border: 1px solid #fbbf24; background-color: #fbbf24; color: #1c1509; transition: 0.15s; margin: 0; }
-        .chip-categoria-inactivo { background-color: #1e293b; color: #94a3b8; border-color: #334155; }
+        .chip-categoria-inactivo { background-color: #2e3a68; color: #cbd5e1; border-color: #4a5b94; }
         .chip-categoria-inactivo:hover { border-color: #64748b; color: #e2e8f0; }
+        /* Ficha del trabajador y horario de trabajo */
+        .ficha-card { background-color: var(--card-bg); border: 1px solid #4a5b94; border-radius: 12px; padding: 1.25rem; margin-top: 1.25rem; }
+        .ficha-head { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+        .ficha-foto { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; background: var(--input-bg); border: 3px solid var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2.6rem; overflow: hidden; flex-shrink: 0; }
+        .ficha-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+        .ficha-grid .full { grid-column: 1 / -1; }
+        @media (max-width: 640px) { .ficha-grid { grid-template-columns: 1fr; } }
+        .ficha-sub { margin: 1.4rem 0 0.6rem; color: var(--primary); font-size: 1rem; border-bottom: 1px solid #4a5b94; padding-bottom: 6px; }
+        .hor-dia { display: grid; grid-template-columns: 120px 1fr; gap: 0.5rem 0.9rem; align-items: center; background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
+        .hor-dia .dia-nombre { font-weight: bold; }
+        .hor-dia .horas { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center; }
+        .hor-dia .horas small { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; font-weight: bold; }
+        .hor-dia input[type="time"] { width: auto; min-width: 120px; flex: 0 1 135px; margin-top: 0; padding: 0.5rem; }
+        .hor-dia.descanso-dia { opacity: 0.8; }
+        @media (max-width: 640px) { .hor-dia { grid-template-columns: 1fr; } }
     </style>
     <!-- PWA: app del personal -->
     <link rel="manifest" href="/manifest-personal.webmanifest">
@@ -156,23 +171,24 @@
             <button class="tab-btn" onclick="switchTab('usuarios')">👥 Usuarios</button>
             <button class="tab-btn" onclick="switchTab('mensajes')">💬 Mensajes WP</button>
             <button class="tab-btn" onclick="switchTab('horarios')">🕒 Horarios de Trabajo</button>
+            <button class="tab-btn" onclick="switchTab('pagos')">💳 Métodos de Pago</button>
             <button class="tab-btn" onclick="switchTab('anuncios')">📢 Anuncios</button>
         </div>
 
         <div id="tab-mensajes" class="tab-content">
-            <div style="background-color: var(--input-bg); border: 1px solid #334155; border-radius: 6px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
+            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 6px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
                 <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-brands fa-whatsapp"></i> Plantillas Dinámicas de WhatsApp</h2>
                 
-                <div style="background-color: var(--card-bg); border: 1px solid #334155; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                <div style="background-color: var(--card-bg); border: 1px solid #4a5b94; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
                     <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold; margin-top: 0; text-transform: uppercase;">Variables Mágicas Disponibles:</p>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-                        <span style="background-color: #0b1120; color: #38bdf8; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #334155;">[CLIENTE]</span>
-                        <span style="background-color: #0b1120; color: #34d399; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #334155;">[TOTAL_USD]</span>
-                        <span style="background-color: #0b1120; color: #fbbf24; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #334155;">[TOTAL_BS]</span>
-                        <span style="background-color: #0b1120; color: #818cf8; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #334155;">[PEDIDO_DETALLADO]</span>
-                        <span style="background-color: #0b1120; color: #fb7185; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #334155;">[TIEMPO_ESTIMADO]</span>
-                        <span style="background-color: #0b1120; color: #a78bfa; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #334155;">[PEDIDO]</span>
-                        <span style="background-color: #0b1120; color: #a78bfa; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #334155;">[DIRECCION]</span>
+                        <span style="background-color: #1d2650; color: #38bdf8; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #4a5b94;">[CLIENTE]</span>
+                        <span style="background-color: #1d2650; color: #34d399; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #4a5b94;">[TOTAL_USD]</span>
+                        <span style="background-color: #1d2650; color: #fbbf24; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #4a5b94;">[TOTAL_BS]</span>
+                        <span style="background-color: #1d2650; color: #818cf8; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #4a5b94;">[PEDIDO_DETALLADO]</span>
+                        <span style="background-color: #1d2650; color: #fb7185; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #4a5b94;">[TIEMPO_ESTIMADO]</span>
+                        <span style="background-color: #1d2650; color: #a78bfa; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #4a5b94;">[PEDIDO]</span>
+                        <span style="background-color: #1d2650; color: #a78bfa; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border: 1px solid #4a5b94;">[DIRECCION]</span>
                     </div>
                     <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0; font-style: italic; margin-top: 10px;">* Escribe estas etiquetas exactamente como se ven para que el sistema las reemplace automáticamente.</p>
                 </div>
@@ -281,7 +297,7 @@
                 <div class="list-panel">
                     <h3>Categorías Existentes</h3>
                     <p style="font-size:0.8rem; color:var(--text-muted); margin:-4px 0 12px;">⤒ la manda al primer lugar · ▲ ▼ la suben o bajan un lugar. Este orden se usa en el menú y en la lista de categorías al crear productos.</p>
-                    <input type="text" id="buscador-categorias-admin" oninput="filtrarCategoriasAdmin()" placeholder="🔍 Buscar categoría por nombre..." style="width: 100%; padding: 0.75rem; margin-bottom: 15px; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none; position: sticky; top: 0; z-index: 2;">
+                    <input type="text" id="buscador-categorias-admin" oninput="filtrarCategoriasAdmin()" placeholder="🔍 Buscar categoría por nombre..." style="width: 100%; padding: 0.75rem; margin-bottom: 15px; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none; position: sticky; top: 0; z-index: 2;">
                     <div id="lista-categorias-container">Cargando...</div>
                 </div>
             </div>
@@ -325,7 +341,7 @@
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca los que quieres destacar en el carrusel de la página principal. Si no marcas ninguno, el carrusel muestra todo el menú automáticamente.</p>
                         <div id="prod-sucursales" style="display:none"></div>
 
-                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">🏷️ Precio por paquete (opcional)</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Para lo que se vende más barato "de a varios". Ej. lumpias: el precio de arriba es $0.60 la suelta, y aquí pones 2 unidades por $1.50. El sistema cobra los paquetes completos y el resto suelto: 5 lumpias = 2 paquetes + 1 suelta. <b>Déjalo en 0 si este producto se cobra siempre por unidad.</b></p>
                             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
@@ -341,7 +357,7 @@
                             <p id="prod-preview-paquete" style="font-size: 0.8rem; color: #fbbf24; margin: 10px 0 0; font-weight: bold;"></p>
                         </div>
 
-                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">📦 Empaque (para el aviso a motorizados)</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Cuánto ocupa este producto al empacarlo. Se suma con el resto del pedido y aparece en el mensaje al grupo de motorizados, para que sepan con qué van a cargar. Puede llevar bandejas y cajas a la vez; deja un 0 en lo que no aplique.</p>
                             <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -356,7 +372,7 @@
                             </div>
                         </div>
 
-                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">⏰ Disponibilidad programada (opcional)</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Para promociones por tiempo limitado (ej. solo de 2:00pm a 10:00pm, o solo ciertos días). Deja todo vacío/sin marcar para que esté disponible siempre.</p>
                             <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -379,8 +395,8 @@
                 </div>
                 <div class="list-panel">
                     <h3>Productos Existentes</h3>
-                    <input type="text" id="buscador-productos-admin" oninput="filtrarProductosAdmin()" placeholder="🔍 Buscar producto por nombre..." style="width: 100%; padding: 0.75rem; margin-bottom: 15px; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none; position: sticky; top: 0; z-index: 2;">
-                    <button type="button" onclick="ordenarPorPrecio('producto')" style="width:100%; padding:0.6rem; margin-bottom:12px; background:#1e293b; border:1px solid #334155; color:#e2e8f0; border-radius:6px; cursor:pointer; font-weight:bold;">💲 Ordenar por precio (menor a mayor)</button>
+                    <input type="text" id="buscador-productos-admin" oninput="filtrarProductosAdmin()" placeholder="🔍 Buscar producto por nombre..." style="width: 100%; padding: 0.75rem; margin-bottom: 15px; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none; position: sticky; top: 0; z-index: 2;">
+                    <button type="button" onclick="ordenarPorPrecio('producto')" style="width:100%; padding:0.6rem; margin-bottom:12px; background:#2e3a68; border:1px solid #4a5b94; color:#e2e8f0; border-radius:6px; cursor:pointer; font-weight:bold;">💲 Ordenar por precio (menor a mayor)</button>
                     <p style="font-size:0.75rem; color:var(--text-muted); margin:-6px 0 12px;">Mantén presionado “↕ Mover” en una tarjeta y arrástrala hasta donde quieras. Este es el orden en que se ve en el menú.</p>
                     <div id="lista-productos-container">Cargando...</div>
                 </div>
@@ -403,7 +419,7 @@
                         <div style="position: relative;">
                             <input type="text" id="combo-categoria-visible" class="item-visible" onfocus="buscarCategoriaCombo(this)" oninput="buscarCategoriaCombo(this)" placeholder="🔍 Buscar categoría... (vacío = Combos)" autocomplete="off">
                             <input type="hidden" id="combo-categoria">
-                            <div id="caja-sugerencias-categoria-combo" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
+                            <div id="caja-sugerencias-categoria-combo" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
                         </div>
 
                         <label>Imagen</label>
@@ -411,17 +427,17 @@
                         <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'combo-imagen', 'combo-imagen-status', 'combo')" style="margin-top: 6px;">
                         <span id="combo-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
 
-                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">🛒 Productos incluidos:</label>
                             <div id="lista-items-combo"></div>
-                            <button type="button" id="btn-add-item" style="margin-top: 10px; background: #334155; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">+ Añadir otro producto</button>
+                            <button type="button" id="btn-add-item" style="margin-top: 10px; background: #4a5b94; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">+ Añadir otro producto</button>
                             <button type="button" onclick="agregarGrupoPiezasAlternativas()" style="margin-top: 10px; margin-left: 8px; background: #b45309; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">+ Elección por piezas (ej. Tempura o Frío)</button>
                         </div>
 
                         <label>Descripción del Combo</label>
                         <textarea id="combo-descripcion" rows="2"></textarea>
 
-                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">🎁 Promoción por cantidad (opcional)</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Si el cliente compra varios de este combo, se le regala un producto automáticamente. Deja "Cada cuántos combos" en blanco para no aplicar ninguna promoción.</p>
                             <label>Cada cuántos combos</label>
@@ -430,13 +446,13 @@
                             <div style="position: relative;">
                                 <input type="text" id="combo-promo-producto-visible" class="item-visible" onfocus="buscarProductoPromo(this)" oninput="buscarProductoPromo(this)" placeholder="🔍 Buscar producto..." autocomplete="off">
                                 <input type="hidden" id="combo-promo-producto">
-                                <div id="caja-sugerencias-promo" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
+                                <div id="caja-sugerencias-promo" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
                             </div>
                             <label>Cantidad de regalo</label>
                             <input type="number" id="combo-promo-producto-cantidad" min="1" placeholder="Ej: 2">
                         </div>
 
-                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">📦 Empaque (para el aviso a motorizados)</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Cuánto ocupa este combo al empacarlo. Se suma con el resto del pedido y aparece en el mensaje al grupo de motorizados, para que sepan con qué van a cargar. Puede llevar bandejas y cajas a la vez; deja un 0 en lo que no aplique.</p>
                             <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -451,7 +467,7 @@
                             </div>
                         </div>
 
-                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">⏰ Disponibilidad programada (opcional)</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Para promociones por tiempo limitado (ej. solo de 2:00pm a 10:00pm, o solo ciertos días). Deja todo vacío/sin marcar para que esté disponible siempre.</p>
                             <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -483,8 +499,8 @@
                 </div>
                 <div class="list-panel">
                     <h3>Combos Existentes</h3>
-                    <input type="text" id="buscador-combos-admin" oninput="filtrarCombosAdmin()" placeholder="🔍 Buscar combo por nombre..." style="width: 100%; padding: 0.75rem; margin-bottom: 15px; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none; position: sticky; top: 0; z-index: 2;">
-                    <button type="button" onclick="ordenarPorPrecio('combo')" style="width:100%; padding:0.6rem; margin-bottom:12px; background:#1e293b; border:1px solid #334155; color:#e2e8f0; border-radius:6px; cursor:pointer; font-weight:bold;">💲 Ordenar por precio (menor a mayor)</button>
+                    <input type="text" id="buscador-combos-admin" oninput="filtrarCombosAdmin()" placeholder="🔍 Buscar combo por nombre..." style="width: 100%; padding: 0.75rem; margin-bottom: 15px; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none; position: sticky; top: 0; z-index: 2;">
+                    <button type="button" onclick="ordenarPorPrecio('combo')" style="width:100%; padding:0.6rem; margin-bottom:12px; background:#2e3a68; border:1px solid #4a5b94; color:#e2e8f0; border-radius:6px; cursor:pointer; font-weight:bold;">💲 Ordenar por precio (menor a mayor)</button>
                     <p style="font-size:0.75rem; color:var(--text-muted); margin:-6px 0 12px;">Mantén presionado “↕ Mover” en una tarjeta y arrástrala hasta donde quieras. Este es el orden en que se ve en el menú.</p>
                     <div id="lista-combos-container">Cargando...</div>
                 </div>
@@ -540,18 +556,29 @@
         </div>
 
         <div id="tab-horarios" class="tab-content">
-            <div style="background-color: var(--input-bg); border: 1px solid #334155; border-radius: 6px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
+            <div style="max-width: 800px; margin: 0 auto;">
                 <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-solid fa-clock"></i> Horarios de Trabajo</h2>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.5rem;">
-                    Define qué días y a qué hora trabaja cada miembro del personal. Marca solo los días que trabaja; los demás quedan como descanso.
+                    Elige a un trabajador para ver y editar su ficha: datos personales, datos médicos y su horario de la semana. Solo los administradores ven la ficha; cada trabajador ve únicamente su propio horario.
                 </p>
+                <label style="margin-top:1rem;">Trabajador</label>
+                <select id="hor-trabajador" onchange="mostrarHorarioTrabajador()" style="margin-top:0.35rem;"></select>
+                <div id="ficha-trabajador"></div>
+            </div>
+        </div>
 
-                <label style="display:block; margin-top:1rem; font-size:0.8rem; font-weight:bold; color: var(--text-muted); text-transform:uppercase;">Trabajador</label>
-                <select id="hor-trabajador" onchange="mostrarHorarioTrabajador()" style="width:100%; margin-top:0.35rem;"></select>
-
-                <div id="lista-horarios-container" style="display:flex; flex-direction:column; gap:0.6rem; margin-top:1.25rem;"></div>
-
-                <button type="button" class="btn-submit" id="btn-save-horarios" onclick="guardarHorarios()" style="margin-top:1.25rem; max-width:280px;">💾 Guardar Horario</button>
+        <div id="tab-pagos" class="tab-content">
+            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
+                <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-solid fa-credit-card"></i> Métodos de Pago</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.5rem;">
+                    Son las opciones que ven los clientes en el menú y el personal en la caja. También se usan en Estadísticas. Puedes cambiarles el nombre, quitarlas o agregar nuevas.
+                </p>
+                <div id="lista-metodos-pago" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;"></div>
+                <div style="display:flex; gap:0.5rem; margin-top:1rem; flex-wrap:wrap;">
+                    <input type="text" id="nuevo-metodo-pago" maxlength="30" placeholder="Ej: Zelle, Punto de venta, Binance..." style="flex:1; min-width:200px; margin-top:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarMetodoPago();}">
+                    <button type="button" class="btn-submit" onclick="agregarMetodoPago()" style="width:auto; margin:0; padding:0.75rem 1.3rem;">+ Agregar</button>
+                </div>
+                <button type="button" class="btn-submit" id="btn-save-pagos" onclick="guardarMetodosPago()" style="margin-top:1.25rem; max-width:300px;">💾 Guardar métodos de pago</button>
             </div>
         </div>
 
@@ -577,7 +604,7 @@
                         <div style="position: relative;">
                             <input type="text" id="anuncio-item-visible" class="item-visible" onfocus="buscarItemAnuncio(this)" oninput="buscarItemAnuncio(this)" placeholder="🔍 Buscar producto o combo..." autocomplete="off">
                             <input type="hidden" id="anuncio-item-ref">
-                            <div id="caja-sugerencias-anuncio-item" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
+                            <div id="caja-sugerencias-anuncio-item" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
                         </div>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Si lo eliges, el anuncio tendrá un botón "🛒 Ordenar esta promoción" que lleva directo a ese producto o combo (y abre su personalización si la necesita).</p>
 
@@ -612,16 +639,16 @@
         }
     </script>
     <div id="modal-inventario" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.7); align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) cerrarInventario()">
-        <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:22px; width:100%; max-width:380px; color:#e2e8f0;">
+        <div style="background:#2e3a68; border:1px solid #4a5b94; border-radius:12px; padding:22px; width:100%; max-width:380px; color:#e2e8f0;">
             <h3 style="margin:0 0 4px;">📦 Inventario</h3>
             <p id="inv-nombre" style="margin:0 0 10px; font-weight:bold; color:#38bdf8;"></p>
             <p id="inv-estado" style="font-size:0.85rem; color:var(--text-muted); margin:0 0 12px;"></p>
             <label style="font-size:0.8rem; font-weight:bold; color:var(--text-muted);">CANTIDAD DISPONIBLE</label>
-            <input type="number" id="inv-cantidad" min="0" step="1" inputmode="numeric" placeholder="Ej: 20" onkeydown="if(event.key==='Enter') guardarInventario(false)" style="width:100%; padding:0.75rem; margin:6px 0 8px; background:#0f172a; border:1px solid #334155; color:white; border-radius:6px; font-size:1.1rem; outline:none;">
+            <input type="number" id="inv-cantidad" min="0" step="1" inputmode="numeric" placeholder="Ej: 20" onkeydown="if(event.key==='Enter') guardarInventario(false)" style="width:100%; padding:0.75rem; margin:6px 0 8px; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:1.1rem; outline:none;">
             <p style="font-size:0.75rem; color:var(--text-muted); margin:0 0 14px;">Cada venta resta esta cantidad. Al llegar a 0 el producto se marca solo como sin stock, y al volver a poner una cantidad mayor a 0 se vuelve a activar.</p>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button type="button" onclick="guardarInventario(false)" style="flex:1; padding:0.7rem; background:#16a34a; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">💾 Guardar</button>
-                <button type="button" onclick="cerrarInventario()" style="flex:1; padding:0.7rem; background:#334155; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">Cancelar</button>
+                <button type="button" onclick="cerrarInventario()" style="flex:1; padding:0.7rem; background:#4a5b94; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">Cancelar</button>
             </div>
             <button type="button" id="inv-quitar" onclick="guardarInventario(true)" style="width:100%; margin-top:10px; padding:0.55rem; background:none; border:1px solid #7f1d1d; color:#f87171; border-radius:6px; cursor:pointer; font-size:0.8rem;">Quitar control de inventario</button>
         </div>

@@ -225,3 +225,33 @@ function construirHtmlModalPedido({ cliente, tel, cedula, operador, entrega, dir
 
     return `<div class="space-y-3.5"><div class="flex justify-between"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cliente</span><p class="font-bold text-white text-base">${escapeHtml(cliente)}</p><p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone"></i> ${escapeHtml(tel)}</p>${cedulaHtml}</div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">Comandado por</span><p class="text-xs text-white bg-slate-900 border border-slate-700 px-2 py-1 rounded mt-1 font-semibold">${escapeHtml(operador)}</p></div></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Método de Distribución</span><p class="text-white text-xs mt-0.5 font-medium">${escapeHtml(entrega)}</p><p class="text-xs text-slate-400 mt-1 bg-slate-900/40 p-2 rounded border border-slate-700/30 italic">${escapeHtml(dir)}</p></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Productos</span><div class="text-xs bg-slate-900/40 p-2.5 rounded border border-slate-700/30 whitespace-pre-line max-h-32 overflow-y-auto text-slate-300 font-mono">${escapeHtml(arts)}</div></div><div class="border-t border-slate-700/50 pt-2.5 flex justify-between items-center"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Forma de Pago</span><p class="text-white text-xs font-semibold">${escapeHtml(pago)}</p>${refHtml}</div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total</span><p class="text-emerald-400 font-bold text-lg">$${monto.toFixed(2)}</p></div></div>${seccionVES}${btnImg}</div>`;
 }
+
+
+// =====================================================================
+// MÉTODOS DE PAGO configurables desde Administración → Métodos de Pago.
+// Llena un <select> con los métodos vigentes; si falla la red se queda con las opciones que ya trae la página.
+// =====================================================================
+async function cargarMetodosPago(selectId) {
+    try {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        const res = await fetch(API_BASE + "/api/metodos-pago");
+        if (!res.ok) return;
+        const lista = await res.json();
+        if (!Array.isArray(lista) || !lista.length) return;
+        const quitarAcentos = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const previo = sel.value;
+        sel.innerHTML = '';
+        lista.forEach(n => { const o = document.createElement('option'); o.value = String(n); o.textContent = String(n); sel.appendChild(o); });
+        // Si la caja está editando un pedido, se respeta el método con el que se hizo (aunque ya no esté en la lista)
+        const guardado = sel.dataset.guardado || '';
+        if (guardado) {
+            let op = Array.from(sel.options).find(o => quitarAcentos(o.value) === quitarAcentos(guardado));
+            if (!op) { op = document.createElement('option'); op.value = guardado; op.textContent = guardado; sel.appendChild(op); }
+            sel.value = op.value;
+        } else {
+            const igual = Array.from(sel.options).find(o => quitarAcentos(o.value) === quitarAcentos(previo));
+            if (igual) sel.value = igual.value;
+        }
+    } catch (e) { /* se queda con las opciones fijas de la página */ }
+}

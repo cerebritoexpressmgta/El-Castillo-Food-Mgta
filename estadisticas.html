@@ -21,24 +21,24 @@
     <link rel="stylesheet" href="fondos.css?v=3">
     <script src="seguridad.js?v=1" defer></script>
 </head>
-<body class="bg-slate-950 text-slate-300 font-sans min-h-screen p-4 md:p-8" data-fondo="estadisticas">
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen p-4 md:p-8" data-fondo="estadisticas">
 
     <div id="vistaLoginEstadisticas" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-8 shadow-2xl space-y-6">
             <div class="text-center space-y-2">
                 <span class="text-5xl" data-marca="emoji">🍔</span>
                 <h2 class="text-2xl font-bold text-white tracking-tight">Acceso Operativo</h2>
-                <p class="text-xs text-slate-400"><span data-marca="nombre">El Castillo Food Mgta</span> - Estadísticas</p>
+                <p class="text-xs text-slate-200"><span data-marca="nombre">El Castillo Food Mgta</span> - Estadísticas</p>
             </div>
 
             <form id="formLoginEstadisticas" onsubmit="iniciarSesionEstadisticas(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs uppercase font-bold text-slate-400 mb-1">Nombre de Usuario</label>
+                    <label class="block text-xs uppercase font-bold text-slate-200 mb-1">Nombre de Usuario</label>
                     <input type="text" id="loginUsernameEstadisticas" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 transition" placeholder="Ej. cajero_carlos">
                 </div>
 
                 <div>
-                    <label class="block text-xs uppercase font-bold text-slate-400 mb-1">PIN / Código de Acceso</label>
+                    <label class="block text-xs uppercase font-bold text-slate-200 mb-1">PIN / Código de Acceso</label>
                     <input type="password" id="loginPINEstadisticas" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 tracking-widest text-center text-lg transition" placeholder="••••">
                 </div>
 
@@ -59,14 +59,14 @@
             <h1 class="text-2xl font-bold text-white flex items-center gap-3">
                 <i class="fa-solid fa-chart-pie text-indigo-500"></i> Panel de Estadísticas
             </h1>
-            <p class="text-sm text-slate-400 mt-1">Análisis de ventas, clientes y repartidores</p>
+            <p class="text-sm text-slate-200 mt-1">Análisis de ventas, clientes y repartidores</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 bg-slate-900 p-2 rounded-lg border border-slate-700">
             <button onclick="cambiarFiltroActivo(this, 'hoy')" class="btn-filtro bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold transition">Hoy</button>
-            <button onclick="cambiarFiltroActivo(this, 'ayer')" class="btn-filtro text-slate-400 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Ayer</button>
-            <button onclick="cambiarFiltroActivo(this, 'semana')" class="btn-filtro text-slate-400 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Esta Semana</button>
-            <button onclick="cambiarFiltroActivo(this, 'mes')" class="btn-filtro text-slate-400 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Este Mes</button>
+            <button onclick="cambiarFiltroActivo(this, 'ayer')" class="btn-filtro text-slate-200 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Ayer</button>
+            <button onclick="cambiarFiltroActivo(this, 'semana')" class="btn-filtro text-slate-200 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Esta Semana</button>
+            <button onclick="cambiarFiltroActivo(this, 'mes')" class="btn-filtro text-slate-200 hover:text-white hover:bg-slate-800 px-3 py-1.5 rounded text-xs font-bold transition">Este Mes</button>
 
             <div class="h-6 w-px bg-slate-700 mx-1"></div>
 
@@ -93,31 +93,31 @@
     <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
 
         <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl flex flex-col justify-center">
-            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-2">Ingresos Totales</span>
+            <span class="text-[10px] uppercase text-slate-300 font-bold tracking-wider mb-2">Ingresos Totales</span>
             <h2 id="widgetTotalUSD" class="text-4xl font-bold text-emerald-400">$0.00</h2>
             <p id="widgetTotalBS" class="text-sm font-semibold text-amber-500 mt-1">Bs. 0.00</p>
-            <p id="widgetCantPedidos" class="text-xs text-slate-400 mt-3"><i class="fa-solid fa-receipt"></i> 0 pedidos procesados</p>
+            <p id="widgetCantPedidos" class="text-xs text-slate-200 mt-3"><i class="fa-solid fa-receipt"></i> 0 pedidos procesados</p>
         </div>
 
         <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 md:col-span-2 lg:col-span-1 flex flex-col items-center justify-center">
-            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-2 w-full text-left">Métodos de Pago</span>
+            <span class="text-[10px] uppercase text-slate-300 font-bold tracking-wider mb-2 w-full text-left">Métodos de Pago</span>
             <div class="relative w-full h-40 flex justify-center">
                 <canvas id="graficoPagos"></canvas>
             </div>
         </div>
 
         <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 lg:col-span-2">
-            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-crown text-amber-400"></i> Mejores Clientes</span>
+            <span class="text-[10px] uppercase text-slate-300 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-crown text-amber-400"></i> Mejores Clientes</span>
             <div id="listaClientes" class="space-y-2 max-h-40 overflow-y-auto pr-2"></div>
         </div>
 
         <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 md:col-span-2">
-            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-fire text-orange-500"></i> Productos Más Vendidos</span>
+            <span class="text-[10px] uppercase text-slate-300 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-fire text-orange-500"></i> Productos Más Vendidos</span>
             <div id="listaProductos" class="space-y-2 max-h-48 overflow-y-auto pr-2"></div>
         </div>
 
         <div id="cardRepartidores" class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl col-span-1 md:col-span-2">
-            <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-motorcycle text-sky-400"></i> Nómina de Repartidores</span>
+            <span class="text-[10px] uppercase text-slate-300 font-bold tracking-wider mb-3 block"><i class="fa-solid fa-motorcycle text-sky-400"></i> Nómina de Repartidores</span>
             <div id="listaRepartidores" class="space-y-3 max-h-48 overflow-y-auto pr-2"></div>
         </div>
         
@@ -142,13 +142,13 @@
                 <h3 class="text-lg font-bold text-sky-400 flex items-center gap-2">
                     <i class="fa-solid fa-motorcycle"></i> Historial de Entregas: <span id="modal-nombre-repartidor" class="text-white"></span>
                 </h3>
-                <button onclick="cerrarModalRepartidor()" class="text-slate-400 hover:text-white transition text-2xl leading-none">&times;</button>
+                <button onclick="cerrarModalRepartidor()" class="text-slate-200 hover:text-white transition text-2xl leading-none">&times;</button>
             </div>
             
             <div class="p-5 max-h-[60vh] overflow-y-auto" id="modal-lista-pedidos"></div>
             
             <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-between items-center">
-                <span class="text-sm text-slate-400 uppercase font-bold tracking-wider">Total deuda acumulada:</span>
+                <span class="text-sm text-slate-200 uppercase font-bold tracking-wider">Total deuda acumulada:</span>
                 <span class="text-xl font-bold text-emerald-400" id="modal-total-repartidor">$0.00</span>
             </div>
         </div>
@@ -161,14 +161,14 @@
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
                         <i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> Detalle del Pedido
                     </h3>
-                    <p class="text-xs text-slate-400" id="modalID">ID: ---</p>
+                    <p class="text-xs text-slate-200" id="modalID">ID: ---</p>
                 </div>
-                <button onclick="cerrarModalDetalle()" class="text-slate-400 hover:text-white transition duration-150 cursor-pointer">
+                <button onclick="cerrarModalDetalle()" class="text-slate-200 hover:text-white transition duration-150 cursor-pointer">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             
-            <div class="space-y-4 text-sm text-slate-300 overflow-y-auto flex-1 py-4 pr-2 scrollbar-thin scrollbar-thumb-slate-600" id="modalCuerpo"></div>
+            <div class="space-y-4 text-sm text-slate-100 overflow-y-auto flex-1 py-4 pr-2 scrollbar-thin scrollbar-thumb-slate-600" id="modalCuerpo"></div>
             
             <div class="flex justify-end pt-3 border-t border-slate-700 shrink-0">
                 <button onclick="cerrarModalDetalle()" class="bg-slate-700 hover:bg-slate-600 text-white font-medium px-5 py-2 rounded-lg transition cursor-pointer shadow-md">

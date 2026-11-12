@@ -619,11 +619,11 @@
 
     // ---- Horarios ----
     const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    function enRangoHora(h, desde, hasta) { return desde <= hasta ? (desde <= h && h <= hasta) : (h >= desde || h <= hasta); }
     function estaAbiertoAhora(db) {
         const r = db.horarios.find(h => h.dia_semana === diaSemanaCaracas());
         if (!r || !r.activo || !r.hora_apertura || !r.hora_cierre) return false;
-        const h = horaActualCaracas();
-        return r.hora_apertura <= h && h <= r.hora_cierre;
+        return enRangoHora(horaActualCaracas(), r.hora_apertura, r.hora_cierre);
     }
     ruta('GET', '/api/horarios', (ctx, db) => db.horarios.slice().sort((a, b) => a.dia_semana - b.dia_semana).map(h => ({ dia_semana: h.dia_semana, dia_nombre: DIAS_SEMANA[h.dia_semana], activo: h.activo, hora_apertura: h.hora_apertura, hora_cierre: h.hora_cierre })));
     ruta('POST', '/api/horarios/guardar', (ctx, db) => {
@@ -636,33 +636,76 @@
         return ok();
     });
 
-    // ---- Horarios de trabajo del personal (cada usuario tiene su semana: entrada/salida o descanso) ----
+    // ---- Personal: ficha del trabajador + horario de trabajo (solo la ve/edita el administrador) ----
     const HORA_VALIDA = /^([01]\d|2[0-3]):[0-5]\d$/;
+    const txtFicha = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
     function horarioTrabajoDe(u) {
         const g = Array.isArray(u.horario_trabajo) ? u.horario_trabajo : [];
         return DIAS_SEMANA.map((_, d) => {
             const r = g.find(x => x && x.dia_semana === d) || {};
-            return { dia_semana: d, activo: !!r.activo, hora_entrada: r.hora_entrada || '09:00', hora_salida: r.hora_salida || '17:00' };
+            return { dia_semana: d, activo: !!r.activo, hora_entrada: r.hora_entrada || '09:00', hora_salida: r.hora_salida || '17:00', descanso_desde: r.descanso_desde || '', descanso_hasta: r.descanso_hasta || '' };
         });
     }
     ruta('GET', '/api/horarios-trabajo', (ctx, db) => {
         requiereAdmin(ctx);
-        return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null, horario: horarioTrabajoDe(u) }));
+        return db.usuarios.map(u => ({
+            id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null,
+            apellido: u.apellido || '', cedula: u.cedula || '', direccion: u.direccion || '', telefono: u.telefono || '',
+            telefono_familiar: u.telefono_familiar || '', alergias: u.alergias || '', condicion_medica: u.condicion_medica || '',
+            medicamentos: u.medicamentos || '', foto: u.foto || '', horario: horarioTrabajoDe(u)
+        }));
     });
     ruta('POST', '/api/horarios-trabajo/guardar', (ctx, db) => {
         requiereAdmin(ctx);
-        const u = db.usuarios.find(x => x.id === ctx.body.usuario_id);
+        const b = ctx.body || {};
+        const u = db.usuarios.find(x => x.id === b.usuario_id);
         if (!u) return { success: false, error: 'Usuario no encontrado' };
-        const dias = Array.isArray(ctx.body.horarios) ? ctx.body.horarios : [];
+        const dias = Array.isArray(b.horarios) ? b.horarios : [];
         const limpio = [];
         for (let d = 0; d < 7; d++) {
             const r = dias.find(x => x && x.dia_semana === d) || {};
             const activo = r.activo === true;
-            const entrada = String(r.hora_entrada || ''), salida = String(r.hora_salida || '');
-            if (activo && (!HORA_VALIDA.test(entrada) || !HORA_VALIDA.test(salida))) return { success: false, error: 'Falta la hora de entrada o salida en un día de trabajo (' + DIAS_SEMANA[d] + ')' };
-            limpio.push({ dia_semana: d, activo, hora_entrada: HORA_VALIDA.test(entrada) ? entrada : '09:00', hora_salida: HORA_VALIDA.test(salida) ? salida : '17:00' });
+            const ent = String(r.hora_entrada || ''), sal = String(r.hora_salida || '');
+            const dd = String(r.descanso_desde || ''), dh = String(r.descanso_hasta || '');
+            if (activo && (!HORA_VALIDA.test(ent) || !HORA_VALIDA.test(sal))) return { success: false, error: 'Falta la hora de entrada o salida el ' + DIAS_SEMANA[d] };
+            if ((dd || dh) && !(HORA_VALIDA.test(dd) && HORA_VALIDA.test(dh))) return { success: false, error: 'El descanso del ' + DIAS_SEMANA[d] + ' necesita hora de inicio y de fin (o déjalo vacío)' };
+            limpio.push({ dia_semana: d, activo, hora_entrada: HORA_VALIDA.test(ent) ? ent : '09:00', hora_salida: HORA_VALIDA.test(sal) ? sal : '17:00', descanso_desde: dd, descanso_hasta: dh });
         }
-        u.horario_trabajo = limpio;
+        const foto = String(b.foto || '');
+        if (foto && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(foto) || foto.length > 90000)) return { success: false, error: 'La foto no es válida o es demasiado grande' };
+        const nombre = txtFicha(b.nombre, 80);
+        if (nombre) u.nombre = nombre;
+        u.apellido = txtFicha(b.apellido, 80); u.cedula = txtFicha(b.cedula, 20); u.direccion = txtFicha(b.direccion, 300);
+        u.telefono = txtFicha(b.telefono, 30); u.telefono_familiar = txtFicha(b.telefono_familiar, 30);
+        u.alergias = txtFicha(b.alergias, 200); u.condicion_medica = txtFicha(b.condicion_medica, 300); u.medicamentos = txtFicha(b.medicamentos, 300);
+        u.foto = foto; u.horario_trabajo = limpio;
+        return ok();
+    });
+    // Cada trabajador ve SOLO su propio horario (nunca la ficha ni los datos de otros)
+    ruta('GET', '/api/mi-horario', (ctx, db) => {
+        const p = requiereStaff(ctx);
+        const u = db.usuarios.find(x => String(x.username).toLowerCase() === String(p.sub).toLowerCase());
+        if (!u) return { nombre: '', horario: [] };
+        return { nombre: u.nombre, horario: horarioTrabajoDe(u) };
+    });
+
+    // ---- Métodos de pago (los que ve el cliente en el menú y en la caja; también alimentan las estadísticas) ----
+    const METODOS_PAGO_BASE = ['Pago Móvil', 'Efectivo / Divisas'];
+    function metodosPago(db) {
+        const l = Array.isArray(db.metodos_pago) ? db.metodos_pago.filter(x => typeof x === 'string' && x.trim()) : [];
+        return l.length ? l : METODOS_PAGO_BASE.slice();
+    }
+    ruta('GET', '/api/metodos-pago', (ctx, db) => metodosPago(db));
+    ruta('POST', '/api/metodos-pago/guardar', (ctx, db) => {
+        requiereAdmin(ctx);
+        const vistos = new Set(); const lista = [];
+        (Array.isArray((ctx.body || {}).metodos) ? ctx.body.metodos : []).forEach(n => {
+            const t = txtFicha(n, 30); const k = t.toLowerCase();
+            if (t && !vistos.has(k)) { vistos.add(k); lista.push(t); }
+        });
+        if (!lista.length) return { success: false, error: 'Debe quedar al menos un método de pago' };
+        if (lista.length > 12) return { success: false, error: 'Máximo 12 métodos de pago' };
+        db.metodos_pago = lista;
         return ok();
     });
 
@@ -846,7 +889,7 @@
             id: siguienteId(db, 'pedidos'), cliente, telefono, timestamp: ahoraCaracas(), fecha: hoyCaracas(),
             tipo_entrega: tipo, direccion, metodo_pago: metodoPago, pedido_detallado: texto, total_orden: total,
             estado: esMesa ? 'En Cocina' : (esPickup ? 'Pago Pendiente' : 'Calculando Delivery'), procesado_por: esMesa ? 'Pedido en mesa' : 'Sistema Automatizado',
-            referencia_pago: ['Efectivo', 'Punto de Venta'].includes(metodoPago) ? null : 'Pendiente',
+            referencia_pago: /efectivo|punto de venta/i.test(metodoPago) ? null : 'Pendiente',
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,
             precio_delivery: null, paga_con: null,
             total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos
