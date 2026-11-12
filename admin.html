@@ -95,6 +95,11 @@
         .chip-categoria { padding: 6px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer; border: 1px solid #fbbf24; background-color: #fbbf24; color: #1c1509; transition: 0.15s; margin: 0; }
         .chip-categoria-inactivo { background-color: #2e3a68; color: #cbd5e1; border-color: #4a5b94; }
         .chip-categoria-inactivo:hover { border-color: #64748b; color: #e2e8f0; }
+        /* Títulos rojos centrados y con aire antes del texto */
+        .titulo-seccion { color: var(--primary); margin: 0 0 0.75rem; text-align: center; font-size: 1.5rem; }
+        .list-panel h3, .ficha-sub { text-align: center; }
+        .list-panel h3 { margin-bottom: 1rem; }
+
         /* Ficha del trabajador y horario de trabajo */
         .ficha-card { background-color: var(--card-bg); border: 1px solid #4a5b94; border-radius: 12px; padding: 1.25rem; margin-top: 1.25rem; }
         .ficha-head { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
@@ -177,7 +182,7 @@
 
         <div id="tab-mensajes" class="tab-content">
             <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 6px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
-                <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-brands fa-whatsapp"></i> Plantillas Dinámicas de WhatsApp</h2>
+                <h2 class="titulo-seccion"><i class="fa-brands fa-whatsapp"></i> Plantillas Dinámicas de WhatsApp</h2>
                 
                 <div style="background-color: var(--card-bg); border: 1px solid #4a5b94; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
                     <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: bold; margin-top: 0; text-transform: uppercase;">Variables Mágicas Disponibles:</p>
@@ -557,8 +562,8 @@
 
         <div id="tab-horarios" class="tab-content">
             <div style="max-width: 800px; margin: 0 auto;">
-                <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-solid fa-clock"></i> Horarios de Trabajo</h2>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.5rem;">
+                <h2 class="titulo-seccion"><i class="fa-solid fa-clock"></i> Horarios de Trabajo</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem; text-align: center;">
                     Elige a un trabajador para ver y editar su ficha: datos personales, datos médicos y su horario de la semana. Solo los administradores ven la ficha; cada trabajador ve únicamente su propio horario.
                 </p>
                 <label style="margin-top:1rem;">Trabajador</label>
@@ -569,8 +574,8 @@
 
         <div id="tab-pagos" class="tab-content">
             <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
-                <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-solid fa-credit-card"></i> Métodos de Pago</h2>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.5rem;">
+                <h2 class="titulo-seccion"><i class="fa-solid fa-credit-card"></i> Métodos de Pago</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem; text-align: center;">
                     Son las opciones que ven los clientes en el menú y el personal en la caja. También se usan en Estadísticas. Puedes cambiarles el nombre, quitarlas o agregar nuevas.
                 </p>
                 <div id="lista-metodos-pago" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;"></div>
@@ -586,7 +591,7 @@
             <div class="grid-layout">
                 <div>
                     <h2 id="titulo-form-anuncio">Crear Anuncio</h2>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.5rem;">Aparece como un popup en pantalla completa apenas el cliente abre el menú (debe cerrarlo para poder pedir). Úsalo para promociones del día.</p>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1rem;">Aparece como un popup en pantalla completa apenas el cliente abre el menú (debe cerrarlo para poder pedir). Úsalo para promociones del día.</p>
                     <form id="form-anuncio">
                         <input type="hidden" id="anuncio-id">
                         <label>Imagen del anuncio</label>
