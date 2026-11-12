@@ -165,22 +165,37 @@ footer .links a{display:inline-flex;align-items:center;gap:6px}
 #lista-res .res p{color:#fff}#lista-res .res b{color:#ddd3f5}
 #lista-res .res .est{color:#ffd23f}
 
-/* ===== Tarjetas de sucursales: fachada de tienda con toldo a rayas y letrero ===== */
-#lista-suc{padding-top:40px;gap:34px}
-#lista-suc>.suc{position:relative;padding-top:56px;margin-top:6px;overflow:visible}
-#lista-suc>.suc::before{content:"";position:absolute;left:-6px;right:-6px;top:-16px;height:46px;z-index:2;pointer-events:none;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='46' viewBox='0 0 56 46'%3E%3Cpath d='M0 0h28v32a14 14 0 0 1-28 0z' fill='%23e8262b'/%3E%3Cpath d='M28 0h28v32a14 14 0 0 1-28 0z' fill='%23ffffff'/%3E%3Cpath d='M0 32a14 14 0 0 0 28 0z' fill='%23b81a1f' opacity='.0'/%3E%3Cpath d='M0 0h56v8H0z' fill='%23000' opacity='.14'/%3E%3C/svg%3E") center top/56px 46px repeat-x;filter:drop-shadow(0 5px 3px rgba(0,0,0,.4));
-  transform-origin:50% 0;animation:toldo 4.5s ease-in-out infinite alternate}
-#lista-suc>.suc::after{content:"El Castillo Food Mgta";position:absolute;top:-46px;left:50%;transform:translateX(-50%);z-index:1;pointer-events:none;
-  background:linear-gradient(#150a2e,#0a0418);color:#eaffff;font:800 14px/1 system-ui,sans-serif;letter-spacing:.07em;padding:11px 18px 24px;
+/* ===== Tarjetas de sucursales: fachada de tienda con toldo (rótulo con el nombre dentro de la estructura) ===== */
+#lista-suc{padding-top:78px;gap:40px}
+#lista-suc>.suc{position:relative;padding-top:64px;margin-top:6px;overflow:visible}
+/* Toldo: ocupa todo el ancho de la tarjeta (un poco más), con rótulo arriba y faldón a rayas con festón abajo */
+.toldo{position:absolute;left:-8px;right:-8px;top:-64px;height:104px;z-index:2;pointer-events:none}
+.toldo .rotulo{position:absolute;top:0;left:7%;right:7%;height:44px;padding:5px;border-radius:12px 12px 0 0;
+  background:linear-gradient(#e8262b,#a50d12);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 -2px 8px rgba(0,0,0,.35)}
+.toldo .neon{display:flex;align-items:center;justify-content:center;height:100%;padding:0 12px;overflow:hidden;
+  background:linear-gradient(#150a2e,#0a0418);border:2px solid #ff4fd8;border-radius:7px;
+  color:#eaffff;font:800 clamp(11px,3.7vw,14px)/1 system-ui,sans-serif;letter-spacing:.07em;white-space:nowrap;
   text-shadow:0 0 3px #fff,0 0 7px #3df5ff,0 0 14px #3df5ff,0 0 26px #00d0ff,0 0 42px #00b7ff;
-  border:2px solid #ff4fd8;border-bottom:0;border-radius:6px 6px 0 0;
-  box-shadow:0 0 6px #ff4fd8,0 0 16px rgba(255,79,216,.75),0 0 34px rgba(255,79,216,.45),inset 0 0 10px rgba(255,79,216,.5);
-  white-space:nowrap;animation:neon 3.6s infinite}
+  box-shadow:0 0 6px #ff4fd8,0 0 16px rgba(255,79,216,.75),inset 0 0 10px rgba(255,79,216,.5);animation:neon 3.6s infinite}
+.toldo .faldon{position:absolute;left:0;right:0;top:42px;height:62px;
+  background:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='58'%20viewBox='0%200%2064%2058'%3E%3Cdefs%3E%3ClinearGradient%20id='s'%20x1='0'%20y1='0'%20x2='0'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23000'%20stop-opacity='.30'/%3E%3Cstop%20offset='.45'%20stop-color='%23000'%20stop-opacity='.04'/%3E%3Cstop%20offset='1'%20stop-color='%23000'%20stop-opacity='.16'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d='M0%200h32v42a16%2016%200%200%201-32%200z'%20fill='%23e0141a'/%3E%3Cpath%20d='M32%200h32v42a16%2016%200%200%201-32%200z'%20fill='%23fff'/%3E%3Cpath%20d='M0%200h32v42a16%2016%200%200%201-32%200z'%20fill='url(%23s)'/%3E%3Cpath%20d='M32%200h32v42a16%2016%200%200%201-32%200z'%20fill='url(%23s)'/%3E%3Cpath%20d='M33%2042a15%2015%200%200%200%2030%200'%20fill='none'%20stroke='%23c9c9c9'%20stroke-width='1.2'/%3E%3C/svg%3E") left top/64px 58px;background-repeat:round no-repeat;
+  filter:drop-shadow(0 6px 3px rgba(0,0,0,.42));transform-origin:50% 0;animation:toldo 4.5s ease-in-out infinite alternate}
+.toldo .faldon::before{content:"";position:absolute;left:0;right:0;top:-4px;height:10px;border-radius:3px;
+  background:linear-gradient(#c8161b,#8f0a0e);box-shadow:inset 0 2px 0 rgba(255,255,255,.3),0 2px 3px rgba(0,0,0,.35)}
+#lista-suc>.suc:nth-child(2n) .faldon{animation-delay:-1.6s}
+#lista-suc>.suc:nth-child(3n) .faldon{animation-delay:-3s}
 @keyframes neon{0%,18%,22%,62%,64%,100%{opacity:1}20%,63%{opacity:.62}}
-#lista-suc>.suc:nth-child(2n)::before{animation-delay:-1.6s}
-#lista-suc>.suc:nth-child(3n)::before{animation-delay:-3s}
 @keyframes toldo{from{transform:skewX(-1.6deg)}to{transform:skewX(1.6deg)}}
+/* Botón neón Abierto / Cerrado (según el Horario de Atención del panel) */
+.suc .estado{display:inline-flex;align-items:center;gap:8px;margin:4px 0 2px;padding:8px 18px;border-radius:999px;
+  font:800 13px/1 system-ui,sans-serif;letter-spacing:.05em;background:rgba(6,3,22,.72);border:2px solid;cursor:default;user-select:none}
+.suc .estado::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor,0 0 12px currentColor}
+.suc .estado.abierto{color:#5dffa0;border-color:#39ff88;text-shadow:0 0 4px #39ff88,0 0 10px #1fe070;
+  box-shadow:0 0 6px #39ff88,0 0 18px rgba(57,255,136,.6),inset 0 0 10px rgba(57,255,136,.35)}
+.suc .estado.abierto::before{animation:titila 1.8s ease-in-out infinite}
+.suc .estado.cerrado{color:#ff6b86;border-color:#ff3b5c;text-shadow:0 0 4px #ff3b5c,0 0 10px #ff1f47;
+  box-shadow:0 0 6px #ff3b5c,0 0 16px rgba(255,59,92,.55),inset 0 0 10px rgba(255,59,92,.3)}
+.suc .estado[hidden]{display:none}
 
 /* ===== Movimiento suave en las secciones ===== */
 @keyframes fondoMueve{from{background-position:0 0,0 0,0 0}to{background-position:240px 240px,0 0,0 0}}
@@ -222,7 +237,7 @@ section.rv .gal figure:nth-child(12),section.rv #lista-suc>.suc:nth-child(12),se
 section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
 
 @media(prefers-reduced-motion:reduce){
-  #galeria,#sucursales.alt,#mapa,#resenas.alt,#nosotros,#contacto.alt,.cab-in,.suc,.res,.res .est,.gal figure,#mapa-frame,.nos p,#contacto-btn>.btn,#lista-suc>.suc::before,#lista-suc>.suc::after{animation:none!important}
+  #galeria,#sucursales.alt,#mapa,#resenas.alt,#nosotros,#contacto.alt,.cab-in,.suc,.res,.res .est,.gal figure,#mapa-frame,.nos p,#contacto-btn>.btn,.toldo .neon,.toldo .faldon,.suc .estado::before{animation:none!important}
   html.anim section.rv *{opacity:1!important;translate:none!important;transition:none!important}
 }
 </style>
@@ -435,6 +450,39 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     }
   }
 
+  // ---- Abierto / Cerrado: usa el Horario de Atención configurado en el panel (hora de Caracas, igual que el menú) ----
+  let horariosAtencion = null;
+  function ahoraCaracas() {
+    const d = new Date();
+    const fecha = d.toLocaleDateString('en-CA', { timeZone: 'America/Caracas' }).split('-').map(Number);
+    const dia = (new Date(fecha[0], fecha[1] - 1, fecha[2]).getDay() + 6) % 7; // 0 = lunes
+    const hora = d.toLocaleTimeString('en-GB', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
+    return { dia, hora };
+  }
+  function abiertoAhora() {
+    if (!Array.isArray(horariosAtencion) || !horariosAtencion.length) return null; // sin configuración: no mostramos nada
+    const t = ahoraCaracas();
+    const h = horariosAtencion.find(x => x.dia_semana === t.dia);
+    if (!h || !h.activo || !h.hora_apertura || !h.hora_cierre) return false;
+    return h.hora_apertura <= h.hora_cierre ? (t.hora >= h.hora_apertura && t.hora <= h.hora_cierre) : (t.hora >= h.hora_apertura || t.hora <= h.hora_cierre);
+  }
+  function actualizarEstado() {
+    const ab = abiertoAhora();
+    document.querySelectorAll('.suc .estado').forEach(el => {
+      if (ab === null) { el.hidden = true; return; }
+      el.hidden = false;
+      el.className = 'estado ' + (ab ? 'abierto' : 'cerrado');
+      el.textContent = ab ? 'Abierto' : 'Cerrado';
+    });
+  }
+  async function pintarEstado() {
+    if (!horariosAtencion) {
+      try { const r = await fetch('/api/horarios'); const d = await r.json(); horariosAtencion = Array.isArray(d) ? d : (d.data || []); } catch (e) {}
+    }
+    actualizarEstado();
+  }
+  setInterval(actualizarEstado, 60000);
+
   async function cargarSitio() {
     let s = {}, suc = [], gal = [], res = [];
     try { const d = await (await fetch('/api/sitio')).json(); s = d.sitio || {}; suc = d.sucursales || []; gal = d.galeria || []; res = d.resenas || []; } catch (e) {}
@@ -456,13 +504,16 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     if (suc.length && suc.every(sinDatos)) { $('sucursales').style.display = 'none'; if (navSuc) navSuc.style.display = 'none'; suc = []; }
     $('lista-suc').innerHTML = suc.length ? suc.map(x => {
       const mapa = x.mapa || (x.direccion ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.direccion) : '');
-      return '<div class="suc"><h3>📍 ' + esc(x.nombre) + '</h3>' + (x.direccion ? '<div>' + esc(x.direccion) + '</div>' : '') +
+      return '<div class="suc"><div class="toldo" aria-hidden="true"><div class="rotulo"><div class="neon">' + esc(nombre) + '</div></div><div class="faldon"></div></div>' +
+        '<h3>📍 ' + esc(x.nombre) + '</h3>' + (x.direccion ? '<div>' + esc(x.direccion) + '</div>' : '') +
         (x.horario ? '<small>🕒 ' + esc(x.horario) + '</small>' : '') +
+        '<span class="estado" role="status" hidden></span>' +
         '<div class="acc">' + (suc.length > 1 ? '<a class="btn sm" href="menu.html?sucursal=' + encodeURIComponent(x.id) + '">🛒 Pedir aquí</a>' : '') +
         (x.whatsapp ? '<a class="btn sm out" target="_blank" rel="noopener" href="https://wa.me/' + esc(String(x.whatsapp).replace(/\D/g, '')) + '?text=' + encodeURIComponent('Hola, quiero hacer un pedido en ' + nombre + ' (' + x.nombre + ')') + '">💬 WhatsApp</a>' : '') +
         (mapa ? '<a class="btn sm out" target="_blank" rel="noopener" href="' + esc(mapa) + '">Cómo llegar</a>' : '') +
         (x.telefono ? '<a class="btn sm out" href="tel:' + esc(x.telefono.replace(/[^\d+]/g, '')) + '">📞 ' + esc(x.telefono) + '</a>' : '') + '</div></div>';
     }).join('') : '<div class="vacio">Pronto publicaremos nuestras sucursales.</div>';
+    pintarEstado();
 
     // Galería
     if (gal.length) {
