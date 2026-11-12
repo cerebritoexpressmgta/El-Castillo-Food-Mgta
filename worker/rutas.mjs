@@ -978,6 +978,19 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 // ---- Web pública: datos del sitio y sucursales ----
 const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', tituloSobrePortada: false };
 const colorOk = v => (/^#[0-9a-fA-F]{6}$/.test(String(v || '').trim()) ? String(v).trim().toLowerCase() : '');
+// Horario propio de una sucursal: 7 días (0 = lunes) con activo + apertura/cierre. null = usa el horario general del negocio.
+const HORA_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
+function horariosSucursal(v) {
+    if (!Array.isArray(v) || !v.length) return null;
+    const dias = [];
+    for (let d = 0; d < 7; d++) {
+        const x = v.find(h => Number(h && h.dia_semana) === d) || {};
+        const ap = HORA_OK.test(String(x.hora_apertura || '')) ? x.hora_apertura : '11:00';
+        const ci = HORA_OK.test(String(x.hora_cierre || '')) ? x.hora_cierre : '22:00';
+        dias.push({ dia_semana: d, activo: x.activo === true, hora_apertura: ap, hora_cierre: ci });
+    }
+    return dias;
+}
 function esAdminSesion(ctx) { return !!ctx.sesion && ['admin', 'superadmin'].includes(String(ctx.sesion.rol || '').toLowerCase()); }
 function urlSegura(v) { v = limpiarTexto(v, 400, true); return /^https:\/\//i.test(v) ? v : ''; }
 ruta('GET', '/api/sitio', (ctx, db) => {
@@ -1009,7 +1022,7 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
     db.sucursales = lista.map(x => ({
         id: Number(x.id) > 0 ? Number(x.id) : siguienteId(db, 'sucursales'),
         nombre: limpiarTexto(x.nombre, 80, true) || 'Sucursal', direccion: limpiarTexto(x.direccion, 240, true), telefono: limpiarTexto(x.telefono, 30, true),
-        horario: limpiarTexto(x.horario, 120, true), mapa: urlSegura(x.mapa), activa: x.activa !== false,
+        horario: limpiarTexto(x.horario, 120, true), horarios: horariosSucursal(x.horarios), mapa: urlSegura(x.mapa), activa: x.activa !== false,
         whatsapp: String(x.whatsapp || '').replace(/\D/g, '').slice(0, 18),
         coords: /^-?\d{1,3}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(String(x.coords || '').trim()) ? String(x.coords).replace(/\s+/g, '') : ''
     }));
