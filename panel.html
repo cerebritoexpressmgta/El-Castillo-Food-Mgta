@@ -22,6 +22,12 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row input{margin:0;flex:1;min-width:200px}
 .hidden{display:none}input[type=checkbox]{width:auto!important;margin:0 8px 0 0!important}.row label{display:flex;align-items:center}.galp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}.gi{background:#1e3158;border:1px solid var(--bd);border-radius:12px;overflow:hidden}.gi img{width:100%;height:110px;object-fit:cover;display:block}.gi input{margin:0;border:0;border-top:1px solid var(--bd);border-radius:0;padding:8px;font-size:12px}.gi button{width:100%;border-radius:0;padding:6px;font-size:12px}select{padding:8px;border-radius:8px;background:#1e3158;color:var(--tx);border:1px solid var(--bd)}.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.suc-it{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px}.suc-it label{font-size:12px;color:var(--mu)}.suc-it .row2 input{margin-bottom:6px}label{font-size:13px;color:var(--mu)}small{color:var(--mu)}
 .hs{display:grid;grid-template-columns:96px auto 1fr 1fr;gap:6px 10px;align-items:center;margin:8px 0 4px}.hs input[type=time]{margin:0;padding:8px 10px}.hs .dia{font-size:13px;font-weight:700}.hs small{grid-column:1/-1;color:var(--mu)}@media(max-width:560px){.hs{grid-template-columns:78px auto 1fr 1fr}}
+.hor{margin:12px 0 6px;padding:12px 14px;border:1px solid var(--bd);border-radius:12px;background:rgba(0,0,0,.14)}.hor-t{font-size:13px;font-weight:700;margin-bottom:10px}
+.dias{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.dias button{padding:9px 13px;font-size:13px;border-radius:999px;background:#1e3158;border:1px solid var(--bd);color:var(--mu)}.dias button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.relojes{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}.relojes label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--mu)}
+.hor input[type=time]{color-scheme:dark;margin:0;width:auto;min-width:150px;padding:10px 12px;font-size:15px}
+.hor details{margin-top:12px}.hor summary{cursor:pointer;font-size:13px;color:var(--mu)}.hor .hs{grid-template-columns:96px 1fr 1fr}.hor .hs2{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.hor .hs2 button{padding:8px 12px;font-size:12px}
+.hor .aviso{font-size:12px;color:#fbbf24;margin:0 0 8px}
 </style>
     <!-- PWA: app del personal -->
     <link rel="manifest" href="/manifest-personal.webmanifest">
@@ -317,6 +323,38 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
   // ---- Datos de la web y sucursales ----
   let sucursales = [];
   let limiteSuc = 1;
+  const CORTO = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'], DIAS_L = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  function fmt12(t) { const p = t.split(':').map(Number), h = p[0] % 12 || 12; return h + ':' + String(p[1]).padStart(2, '0') + ' ' + (p[0] >= 12 ? 'pm' : 'am'); }
+  // Texto para la tarjeta a partir del horario: "Lun a Vie 9:00 am - 6:00 pm / Sáb 10:00 am - 2:00 pm"
+  function textoHorario(hs) {
+    const g = [];
+    hs.forEach(h => { if (!h.activo) return; const k = h.hora_apertura + '-' + h.hora_cierre, u = g[g.length - 1];
+      if (u && u.k === k && u.fin === h.dia_semana - 1) u.fin = h.dia_semana; else g.push({ k, ini: h.dia_semana, fin: h.dia_semana, ap: h.hora_apertura, ci: h.hora_cierre }); });
+    return g.map(x => (x.ini === x.fin ? CORTO[x.ini] : CORTO[x.ini] + ' a ' + CORTO[x.fin]) + ' ' + fmt12(x.ap) + ' - ' + fmt12(x.ci)).join(' / ');
+  }
+  // Interpreta el texto de horario ya escrito (ej. "Lun a Dom 10:00 am - 11:00 pm") para precargar los relojes; si no se entiende, 11:00 am - 10:00 pm todos los días
+  function horarioInicial(txt) {
+    const base = [0, 1, 2, 3, 4, 5, 6].map(d => ({ dia_semana: d, activo: true, hora_apertura: '11:00', hora_cierre: '22:00' }));
+    if (!txt) return base;
+    const norm = String(txt).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const K = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
+    const reHora = /(\d{1,2})(?::(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?\s*(?:-|a|hasta)\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/;
+    const hm = (h, m, mer) => { h = Number(h); m = Number(m || 0); if (mer) { const pm = mer[0] === 'p'; if (h === 12) h = pm ? 12 : 0; else if (pm) h += 12; } return (h > 23 || m > 59) ? null : String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+    const t = base.map(x => Object.assign({}, x, { activo: false })); let alguno = false;
+    norm.split(/[;\/|\n]+/).forEach(seg => {
+      const m = seg.match(reHora); if (!m) return;
+      const antes = seg.slice(0, seg.indexOf(m[0]));
+      const ap = hm(m[1], m[2], m[3] ? m[3].replace(/[^ap]/g, '') : ''), ci = hm(m[4], m[5], m[6] ? m[6].replace(/[^ap]/g, '') : '');
+      if (!ap || !ci || ap === ci) return;
+      let dias = [];
+      if (/todos|diario|cada dia/.test(antes) || !K.some(k => antes.includes(k))) dias = [0, 1, 2, 3, 4, 5, 6];
+      else { const r = antes.match(/(lun|mar|mie|jue|vie|sab|dom)\w*\s*(?:-|a|hasta)\s*(lun|mar|mie|jue|vie|sab|dom)/);
+        if (r) { let i = K.indexOf(r[1]); const f = K.indexOf(r[2]); for (let n = 0; n < 7; n++) { dias.push(i); if (i === f) break; i = (i + 1) % 7; } }
+        else K.forEach((k, i) => { if (antes.includes(k)) dias.push(i); }); }
+      dias.forEach(d => { t[d] = { dia_semana: d, activo: true, hora_apertura: ap, hora_cierre: ci }; alguno = true; });
+    });
+    return alguno ? t : base;
+  }
   function pintarSuc() {
     const activas = sucursales.filter(s => s.activa !== false).length;
     $('suc-titulo').textContent = limiteSuc === 1 ? 'Datos del local' : 'Sucursales';
@@ -335,39 +373,52 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
         '<div><label>Horario (texto)</label><input data-k="horario" maxlength="120" placeholder="Lun a Dom 11:00 am - 10:00 pm"></div>' +
         '<div><label>Enlace de Google Maps (opcional, https://)</label><input data-k="mapa" maxlength="400"></div>' +
         '<div><label>Coordenadas para el mapa (opcional)</label><input data-k="coords" maxlength="40" placeholder="10.9577,-63.8697"></div></div>' +
-        '<div class="row" style="margin-top:6px"><label><input type="checkbox" data-propio="1" style="width:auto;margin:0 6px 0 0"> Horario propio para el botón Abierto/Cerrado (si no, usa el horario general)</label></div><div data-hs="1"></div>' +
+        '<div class="hor"><div class="hor-t">Horario de atención de esta sucursal (para el botón Abierto / Cerrado)</div><div data-hs="1"></div></div>' +
         '<div class="row" style="margin-top:6px"><label><input type="checkbox" data-k="activa" style="width:auto;margin:0 6px 0 0"> Mostrar en la web</label><button class="sec" data-del="1" style="margin-left:auto">Eliminar</button></div>';
       d.querySelectorAll('input[data-k]').forEach(inp => {
         const k = inp.dataset.k;
         if (inp.type === 'checkbox') { inp.checked = s.activa !== false; inp.onchange = () => s.activa = inp.checked; }
         else { inp.value = s[k] || ''; inp.oninput = () => s[k] = inp.value; }
       });
-      const propio = d.querySelector('[data-propio]'), cajaH = d.querySelector('[data-hs]');
-      const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      const cajaH = d.querySelector('[data-hs]');
+      if (!Array.isArray(s.horarios)) s.horarios = horarioInicial(s.horario);
       function pintarHorario() {
-        cajaH.innerHTML = '';
-        if (!Array.isArray(s.horarios)) return;
-        const g = document.createElement('div'); g.className = 'hs';
-        s.horarios.forEach(h => {
-          g.insertAdjacentHTML('beforeend', '<span class="dia">' + DIAS[h.dia_semana] + '</span><label style="font-size:13px"><input type="checkbox"' + (h.activo ? ' checked' : '') + '>Abre</label><input type="time" value="' + h.hora_apertura + '"><input type="time" value="' + h.hora_cierre + '">');
-          const n = g.children.length, chk = g.children[n - 3].querySelector('input'), t1 = g.children[n - 2], t2 = g.children[n - 1];
-          const apagar = () => { t1.disabled = t2.disabled = !h.activo; t1.style.opacity = t2.style.opacity = h.activo ? '' : '.4'; };
-          apagar();
-          chk.onchange = () => { h.activo = chk.checked; apagar(); };
-          t1.oninput = () => { if (t1.value) h.hora_apertura = t1.value; };
-          t2.oninput = () => { if (t2.value) h.hora_cierre = t2.value; };
+        const hs = s.horarios; cajaH.innerHTML = '';
+        // Reloj de días: toca para marcar los días que abre esta sucursal
+        const dias = document.createElement('div'); dias.className = 'dias';
+        hs.forEach(h => {
+          const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = CORTO[h.dia_semana]; bt.title = DIAS_L[h.dia_semana];
+          bt.className = h.activo ? 'on' : ''; bt.setAttribute('aria-pressed', h.activo ? 'true' : 'false');
+          bt.onclick = () => { h.activo = !h.activo; pintarHorario(); };
+          dias.appendChild(bt);
         });
-        g.insertAdjacentHTML('beforeend', '<small>Si cierra después de medianoche, pon la hora de cierre del día siguiente (ej. 17:00 a 02:00).</small>');
-        cajaH.appendChild(g);
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'sec'; b.textContent = 'Copiar el lunes a todos los días'; b.style.cssText = 'padding:8px 12px;font-size:12px;margin-top:4px';
-        b.onclick = () => { const l = s.horarios[0]; s.horarios.forEach(h => { h.activo = l.activo; h.hora_apertura = l.hora_apertura; h.hora_cierre = l.hora_cierre; }); pintarHorario(); };
-        cajaH.appendChild(b);
+        cajaH.appendChild(dias);
+        const act = hs.find(h => h.activo);
+        if (!act) { const av = document.createElement('p'); av.className = 'aviso'; av.textContent = 'No hay días marcados: esta sucursal figurará siempre como Cerrada.'; cajaH.appendChild(av); return; }
+        // Relojes: hora de apertura y de cierre para todos los días marcados
+        const rel = document.createElement('div'); rel.className = 'relojes';
+        rel.innerHTML = '<label>Abre<input type="time" data-r="ap" value="' + act.hora_apertura + '"></label><label>Cierra<input type="time" data-r="ci" value="' + act.hora_cierre + '"></label>';
+        cajaH.appendChild(rel);
+        const det = document.createElement('details'); det.innerHTML = '<summary>Ajustar la hora de cada día por separado</summary><div class="hs" data-g="1"></div><small style="display:block;margin-top:6px;color:var(--mu)">Si cierra después de medianoche, pon el cierre del día siguiente (ej. 5:00 pm a 2:00 am).</small>';
+        cajaH.appendChild(det);
+        const grid = det.querySelector('[data-g]');
+        function pintarGrid() {
+          grid.innerHTML = '';
+          hs.filter(h => h.activo).forEach(h => {
+            grid.insertAdjacentHTML('beforeend', '<span class="dia">' + DIAS_L[h.dia_semana] + '</span><input type="time" value="' + h.hora_apertura + '"><input type="time" value="' + h.hora_cierre + '">');
+            const n = grid.children.length, t1 = grid.children[n - 2], t2 = grid.children[n - 1];
+            t1.oninput = () => { if (t1.value) h.hora_apertura = t1.value; };
+            t2.oninput = () => { if (t2.value) h.hora_cierre = t2.value; };
+          });
+        }
+        pintarGrid();
+        rel.querySelector('[data-r=ap]').oninput = e => { if (e.target.value) { hs.forEach(h => { if (h.activo) h.hora_apertura = e.target.value; }); pintarGrid(); } };
+        rel.querySelector('[data-r=ci]').oninput = e => { if (e.target.value) { hs.forEach(h => { if (h.activo) h.hora_cierre = e.target.value; }); pintarGrid(); } };
+        const acc = document.createElement('div'); acc.className = 'hs2';
+        const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'sec'; bt.textContent = 'Usar este horario como texto de la tarjeta';
+        bt.onclick = () => { s.horario = textoHorario(hs); const inp = d.querySelector('input[data-k="horario"]'); if (inp) inp.value = s.horario; };
+        acc.appendChild(bt); cajaH.appendChild(acc);
       }
-      propio.checked = Array.isArray(s.horarios);
-      propio.onchange = () => {
-        s.horarios = propio.checked ? (Array.isArray(s.horarios) ? s.horarios : [0, 1, 2, 3, 4, 5, 6].map(n => ({ dia_semana: n, activo: true, hora_apertura: '11:00', hora_cierre: '22:00' }))) : null;
-        pintarHorario();
-      };
       pintarHorario();
       d.querySelector('[data-del]').onclick = () => { if (confirm('¿Eliminar esta sucursal?')) { sucursales.splice(i, 1); pintarSuc(); } };
       cont.appendChild(d);
