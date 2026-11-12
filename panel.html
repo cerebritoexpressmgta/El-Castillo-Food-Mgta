@@ -21,6 +21,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
 .tile:hover{border-color:var(--ac);transform:translateY(-2px)}.tile b{display:block;font-size:16px;margin:8px 0 4px}.tile span{font-size:12px;color:var(--mu)}.tile i{font-style:normal;font-size:26px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row input{margin:0;flex:1;min-width:200px}
 .hidden{display:none}input[type=checkbox]{width:auto!important;margin:0 8px 0 0!important}.row label{display:flex;align-items:center}.galp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}.gi{background:#1e3158;border:1px solid var(--bd);border-radius:12px;overflow:hidden}.gi img{width:100%;height:110px;object-fit:cover;display:block}.gi input{margin:0;border:0;border-top:1px solid var(--bd);border-radius:0;padding:8px;font-size:12px}.gi button{width:100%;border-radius:0;padding:6px;font-size:12px}select{padding:8px;border-radius:8px;background:#1e3158;color:var(--tx);border:1px solid var(--bd)}.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.suc-it{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px}.suc-it label{font-size:12px;color:var(--mu)}.suc-it .row2 input{margin-bottom:6px}label{font-size:13px;color:var(--mu)}small{color:var(--mu)}
+.hs{display:grid;grid-template-columns:96px auto 1fr 1fr;gap:6px 10px;align-items:center;margin:8px 0 4px}.hs input[type=time]{margin:0;padding:8px 10px}.hs .dia{font-size:13px;font-weight:700}.hs small{grid-column:1/-1;color:var(--mu)}@media(max-width:560px){.hs{grid-template-columns:78px auto 1fr 1fr}}
 </style>
     <!-- PWA: app del personal -->
     <link rel="manifest" href="/manifest-personal.webmanifest">
@@ -334,12 +335,40 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
         '<div><label>Horario (texto)</label><input data-k="horario" maxlength="120" placeholder="Lun a Dom 11:00 am - 10:00 pm"></div>' +
         '<div><label>Enlace de Google Maps (opcional, https://)</label><input data-k="mapa" maxlength="400"></div>' +
         '<div><label>Coordenadas para el mapa (opcional)</label><input data-k="coords" maxlength="40" placeholder="10.9577,-63.8697"></div></div>' +
+        '<div class="row" style="margin-top:6px"><label><input type="checkbox" data-propio="1" style="width:auto;margin:0 6px 0 0"> Horario propio para el botón Abierto/Cerrado (si no, usa el horario general)</label></div><div data-hs="1"></div>' +
         '<div class="row" style="margin-top:6px"><label><input type="checkbox" data-k="activa" style="width:auto;margin:0 6px 0 0"> Mostrar en la web</label><button class="sec" data-del="1" style="margin-left:auto">Eliminar</button></div>';
       d.querySelectorAll('input[data-k]').forEach(inp => {
         const k = inp.dataset.k;
         if (inp.type === 'checkbox') { inp.checked = s.activa !== false; inp.onchange = () => s.activa = inp.checked; }
         else { inp.value = s[k] || ''; inp.oninput = () => s[k] = inp.value; }
       });
+      const propio = d.querySelector('[data-propio]'), cajaH = d.querySelector('[data-hs]');
+      const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      function pintarHorario() {
+        cajaH.innerHTML = '';
+        if (!Array.isArray(s.horarios)) return;
+        const g = document.createElement('div'); g.className = 'hs';
+        s.horarios.forEach(h => {
+          g.insertAdjacentHTML('beforeend', '<span class="dia">' + DIAS[h.dia_semana] + '</span><label style="font-size:13px"><input type="checkbox"' + (h.activo ? ' checked' : '') + '>Abre</label><input type="time" value="' + h.hora_apertura + '"><input type="time" value="' + h.hora_cierre + '">');
+          const n = g.children.length, chk = g.children[n - 3].querySelector('input'), t1 = g.children[n - 2], t2 = g.children[n - 1];
+          const apagar = () => { t1.disabled = t2.disabled = !h.activo; t1.style.opacity = t2.style.opacity = h.activo ? '' : '.4'; };
+          apagar();
+          chk.onchange = () => { h.activo = chk.checked; apagar(); };
+          t1.oninput = () => { if (t1.value) h.hora_apertura = t1.value; };
+          t2.oninput = () => { if (t2.value) h.hora_cierre = t2.value; };
+        });
+        g.insertAdjacentHTML('beforeend', '<small>Si cierra después de medianoche, pon la hora de cierre del día siguiente (ej. 17:00 a 02:00).</small>');
+        cajaH.appendChild(g);
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'sec'; b.textContent = 'Copiar el lunes a todos los días'; b.style.cssText = 'padding:8px 12px;font-size:12px;margin-top:4px';
+        b.onclick = () => { const l = s.horarios[0]; s.horarios.forEach(h => { h.activo = l.activo; h.hora_apertura = l.hora_apertura; h.hora_cierre = l.hora_cierre; }); pintarHorario(); };
+        cajaH.appendChild(b);
+      }
+      propio.checked = Array.isArray(s.horarios);
+      propio.onchange = () => {
+        s.horarios = propio.checked ? (Array.isArray(s.horarios) ? s.horarios : [0, 1, 2, 3, 4, 5, 6].map(n => ({ dia_semana: n, activo: true, hora_apertura: '11:00', hora_cierre: '22:00' }))) : null;
+        pintarHorario();
+      };
+      pintarHorario();
       d.querySelector('[data-del]').onclick = () => { if (confirm('¿Eliminar esta sucursal?')) { sucursales.splice(i, 1); pintarSuc(); } };
       cont.appendChild(d);
     });
@@ -355,7 +384,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     sucursales = r.d.sucursales || []; pintarSuc();
     galeria = r.d.galeria || []; pintarGal(); resenas = r.d.resenas || []; pintarRes();
   }
-  $('suc-add').onclick = () => { if (sucursales.filter(s => s.activa !== false).length >= limiteSuc) { alert('Llegaste al límite de tu plan (' + limiteSuc + ' local' + (limiteSuc === 1 ? '' : 'es') + ').'); return; } sucursales.push({ nombre: '', direccion: '', telefono: '', whatsapp: '', horario: '', mapa: '', activa: true }); pintarSuc(); };
+  $('suc-add').onclick = () => { if (sucursales.filter(s => s.activa !== false).length >= limiteSuc) { alert('Llegaste al límite de tu plan (' + limiteSuc + ' local' + (limiteSuc === 1 ? '' : 'es') + ').'); return; } sucursales.push({ nombre: '', direccion: '', telefono: '', whatsapp: '', horario: '', horarios: null, mapa: '', activa: true }); pintarSuc(); };
   async function guardarWeb() {
     const ms = [$('msg-web'), $('msg-web2')]; ms.forEach(m => { m.className = 'err'; m.textContent = ''; });
     const sitio = {}; ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });

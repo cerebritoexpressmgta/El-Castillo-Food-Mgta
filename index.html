@@ -450,8 +450,8 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     }
   }
 
-  // ---- Abierto / Cerrado: usa el Horario de Atención configurado en el panel (hora de Caracas, igual que el menú) ----
-  let horariosAtencion = null;
+  // ---- Abierto / Cerrado: cada sucursal usa su horario propio; si no lo tiene, el Horario de Atención general del panel (hora de Caracas) ----
+  let horariosAtencion = null, sucursalesWeb = [];
   function ahoraCaracas() {
     const d = new Date();
     const fecha = d.toLocaleDateString('en-CA', { timeZone: 'America/Caracas' }).split('-').map(Number);
@@ -459,16 +459,17 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     const hora = d.toLocaleTimeString('en-GB', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
     return { dia, hora };
   }
-  function abiertoAhora() {
-    if (!Array.isArray(horariosAtencion) || !horariosAtencion.length) return null; // sin configuración: no mostramos nada
+  function abiertoCon(tabla) {
+    if (!Array.isArray(tabla) || !tabla.length) return null; // sin configuración: no mostramos nada
     const t = ahoraCaracas();
-    const h = horariosAtencion.find(x => x.dia_semana === t.dia);
+    const h = tabla.find(x => x.dia_semana === t.dia);
     if (!h || !h.activo || !h.hora_apertura || !h.hora_cierre) return false;
     return h.hora_apertura <= h.hora_cierre ? (t.hora >= h.hora_apertura && t.hora <= h.hora_cierre) : (t.hora >= h.hora_apertura || t.hora <= h.hora_cierre);
   }
   function actualizarEstado() {
-    const ab = abiertoAhora();
     document.querySelectorAll('.suc .estado').forEach(el => {
+      const x = sucursalesWeb[Number(el.dataset.i)] || {};
+      const ab = abiertoCon(Array.isArray(x.horarios) && x.horarios.length ? x.horarios : horariosAtencion);
       if (ab === null) { el.hidden = true; return; }
       el.hidden = false;
       el.className = 'estado ' + (ab ? 'abierto' : 'cerrado');
@@ -502,12 +503,13 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     $('sucursales').querySelector('.sub').textContent = unica ? 'Visítanos' : 'Encuéntranos';
     if (navSuc) navSuc.textContent = unica ? 'Ubicación' : 'Sucursales';
     if (suc.length && suc.every(sinDatos)) { $('sucursales').style.display = 'none'; if (navSuc) navSuc.style.display = 'none'; suc = []; }
-    $('lista-suc').innerHTML = suc.length ? suc.map(x => {
+    sucursalesWeb = suc;
+    $('lista-suc').innerHTML = suc.length ? suc.map((x, i) => {
       const mapa = x.mapa || (x.direccion ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.direccion) : '');
       return '<div class="suc"><div class="toldo" aria-hidden="true"><div class="rotulo"><div class="neon">' + esc(nombre) + '</div></div><div class="faldon"></div></div>' +
         '<h3>📍 ' + esc(x.nombre) + '</h3>' + (x.direccion ? '<div>' + esc(x.direccion) + '</div>' : '') +
         (x.horario ? '<small>🕒 ' + esc(x.horario) + '</small>' : '') +
-        '<span class="estado" role="status" hidden></span>' +
+        '<span class="estado" role="status" data-i="' + i + '" hidden></span>' +
         '<div class="acc">' + (suc.length > 1 ? '<a class="btn sm" href="menu.html?sucursal=' + encodeURIComponent(x.id) + '">🛒 Pedir aquí</a>' : '') +
         (x.whatsapp ? '<a class="btn sm out" target="_blank" rel="noopener" href="https://wa.me/' + esc(String(x.whatsapp).replace(/\D/g, '')) + '?text=' + encodeURIComponent('Hola, quiero hacer un pedido en ' + nombre + ' (' + x.nombre + ')') + '">💬 WhatsApp</a>' : '') +
         (mapa ? '<a class="btn sm out" target="_blank" rel="noopener" href="' + esc(mapa) + '">Cómo llegar</a>' : '') +
