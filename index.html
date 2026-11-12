@@ -466,10 +466,37 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     if (!h || !h.activo || !h.hora_apertura || !h.hora_cierre) return false;
     return h.hora_apertura <= h.hora_cierre ? (t.hora >= h.hora_apertura && t.hora <= h.hora_cierre) : (t.hora >= h.hora_apertura || t.hora <= h.hora_cierre);
   }
+  // Interpreta el texto de horario de la tarjeta (ej. "Lun a Dom 10:00 am - 11:00 pm", "Lun-Vie 9-18 / Sáb 10:00-14:00"). Si no se entiende, devuelve null.
+  function horarioDeTexto(txt) {
+    if (!txt) return null;
+    const norm = String(txt).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const DIAS = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
+    const reHora = /(\d{1,2})(?::(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?\s*(?:-|a|hasta)\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/;
+    const aHHMM = (h, m, mer) => { h = Number(h); m = Number(m || 0); if (mer) { const pm = mer[0] === 'p'; if (h === 12) h = pm ? 12 : 0; else if (pm) h += 12; } return (h > 23 || m > 59) ? null : String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+    const tabla = [0, 1, 2, 3, 4, 5, 6].map(d => ({ dia_semana: d, activo: false, hora_apertura: '00:00', hora_cierre: '00:00' }));
+    let alguno = false;
+    norm.split(/[;\/|\n]+/).forEach(seg => {
+      const m = seg.match(reHora); if (!m) return;
+      const idx = seg.indexOf(m[0]); const antes = seg.slice(0, idx);
+      const ap = aHHMM(m[1], m[2], m[3] ? m[3].replace(/[^ap]/g, '') : ''), ci = aHHMM(m[4], m[5], m[6] ? m[6].replace(/[^ap]/g, '') : '');
+      if (!ap || !ci || ap === ci) return;
+      let dias = [];
+      if (/todos|diario|cada dia/.test(antes) || !DIAS.some(d => antes.includes(d))) dias = [0, 1, 2, 3, 4, 5, 6];
+      else {
+        const rango = antes.match(/(lun|mar|mie|jue|vie|sab|dom)\w*\s*(?:-|a|hasta)\s*(lun|mar|mie|jue|vie|sab|dom)/);
+        if (rango) { let i = DIAS.indexOf(rango[1]); const f = DIAS.indexOf(rango[2]); for (let n = 0; n < 7; n++) { dias.push(i); if (i === f) break; i = (i + 1) % 7; } }
+        else DIAS.forEach((d, i) => { if (antes.includes(d)) dias.push(i); });
+      }
+      dias.forEach(d => { tabla[d] = { dia_semana: d, activo: true, hora_apertura: ap, hora_cierre: ci }; alguno = true; });
+    });
+    return alguno ? tabla : null;
+  }
   function actualizarEstado() {
     document.querySelectorAll('.suc .estado').forEach(el => {
       const x = sucursalesWeb[Number(el.dataset.i)] || {};
-      const ab = abiertoCon(Array.isArray(x.horarios) && x.horarios.length ? x.horarios : horariosAtencion);
+      if (x.__txt === undefined) x.__txt = horarioDeTexto(x.horario);
+      // Prioridad: horario propio del panel > horario escrito en la tarjeta > horario general del negocio
+      const ab = abiertoCon(Array.isArray(x.horarios) && x.horarios.length ? x.horarios : (x.__txt || horariosAtencion));
       if (ab === null) { el.hidden = true; return; }
       el.hidden = false;
       el.className = 'estado ' + (ab ? 'abierto' : 'cerrado');
