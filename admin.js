@@ -24,8 +24,8 @@ const ADMIN_URL_ELIMINAR_MOT = API_BASE + "/api/motorizados/eliminar";
 const URL_OBTENER_MSJ = API_BASE + "/api/mensajes/";
 const URL_GUARDAR_MSJ = API_BASE + "/api/mensajes/guardar";
 
-const URL_OBTENER_HORARIOS = API_BASE + "/api/horarios/";
-const URL_GUARDAR_HORARIOS = API_BASE + "/api/horarios/guardar";
+const URL_OBTENER_HORARIOS_TRABAJO = API_BASE + "/api/horarios-trabajo";
+const URL_GUARDAR_HORARIOS_TRABAJO = API_BASE + "/api/horarios-trabajo/guardar";
 
 const URL_OBTENER_ANUNCIOS = API_BASE + "/api/anuncios/";
 const ADMIN_URL_GUARDAR_ANUNCIO = API_BASE + "/api/anuncios/guardar";
@@ -558,25 +558,34 @@ async function eliminarMotorizado(id) {
 }
 
 // ==========================================
-// GESTIÓN DEL HORARIO DE ATENCIÓN
+// HORARIOS DE TRABAJO DEL PERSONAL
 // ==========================================
+const DIAS_TRABAJO = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+let HORARIOS_TRABAJO = [];
+
 async function cargarHorarios() {
     try {
-        const res = await fetch(URL_OBTENER_HORARIOS, { headers: authHeaders() });
+        const res = await fetch(URL_OBTENER_HORARIOS_TRABAJO, { headers: authHeaders() });
         const data = await res.json();
-        const horarios = Array.isArray(data) ? data : (data.data || []);
-        horarios.forEach(h => {
-            const chk = document.getElementById(`hor-activo-${h.dia_semana}`);
-            const inicio = document.getElementById(`hor-inicio-${h.dia_semana}`);
-            const fin = document.getElementById(`hor-fin-${h.dia_semana}`);
-            if (!chk || !inicio || !fin) return;
-            chk.checked = h.activo;
-            inicio.value = h.hora_apertura || '';
-            fin.value = h.hora_cierre || '';
-            inicio.disabled = !h.activo;
-            fin.disabled = !h.activo;
-        });
-    } catch (error) { console.error("Error obteniendo horarios:", error); }
+        HORARIOS_TRABAJO = Array.isArray(data) ? data : (data.data || []);
+        const sel = document.getElementById('hor-trabajador');
+        const previo = sel.value;
+        sel.innerHTML = HORARIOS_TRABAJO.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)} (${escapeHtml(u.rol)})</option>`).join('');
+        if (previo && HORARIOS_TRABAJO.some(u => String(u.id) === previo)) sel.value = previo;
+        mostrarHorarioTrabajador();
+    } catch (error) { console.error("Error obteniendo horarios de trabajo:", error); }
+}
+
+function mostrarHorarioTrabajador() {
+    const cont = document.getElementById('lista-horarios-container');
+    const u = HORARIOS_TRABAJO.find(x => String(x.id) === document.getElementById('hor-trabajador').value);
+    if (!u) { cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Aún no hay usuarios. Créalos en la pestaña Usuarios.</p>'; return; }
+    cont.innerHTML = u.horario.map(h => `
+        <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
+            <span style="width:100px; font-weight:bold;">${DIAS_TRABAJO[h.dia_semana]}</span>
+            <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-${h.dia_semana}" onchange="toggleHorarioDia(${h.dia_semana})" ${h.activo ? 'checked' : ''}> Trabaja</label>
+            <input type="time" id="hor-inicio-${h.dia_semana}" value="${h.hora_entrada}" ${h.activo ? '' : 'disabled'}><span>a</span><input type="time" id="hor-fin-${h.dia_semana}" value="${h.hora_salida}" ${h.activo ? '' : 'disabled'}>
+        </div>`).join('');
 }
 
 function toggleHorarioDia(dia) {
@@ -587,28 +596,32 @@ function toggleHorarioDia(dia) {
 
 async function guardarHorarios() {
     const btn = document.getElementById('btn-save-horarios');
+    const usuarioId = Number(document.getElementById('hor-trabajador').value);
+    if (!usuarioId) { alert('Elige un trabajador.'); return; }
     const horarios = [];
     for (let dia = 0; dia <= 6; dia++) {
         const activo = document.getElementById(`hor-activo-${dia}`).checked;
         const inicio = document.getElementById(`hor-inicio-${dia}`).value;
         const fin = document.getElementById(`hor-fin-${dia}`).value;
         if (activo && (!inicio || !fin)) {
-            alert('Falta la hora de apertura o cierre en un día marcado como abierto.');
+            alert(`Falta la hora de entrada o salida el ${DIAS_TRABAJO[dia]}.`);
             return;
         }
-        horarios.push({ dia_semana: dia, activo, hora_apertura: inicio || '00:00', hora_cierre: fin || '00:00' });
+        horarios.push({ dia_semana: dia, activo, hora_entrada: inicio || '09:00', hora_salida: fin || '17:00' });
     }
 
     btn.disabled = true; btn.innerText = "Guardando...";
     try {
-        const res = await fetch(URL_GUARDAR_HORARIOS, {
+        const res = await fetch(URL_GUARDAR_HORARIOS_TRABAJO, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-            body: JSON.stringify({ horarios })
+            body: JSON.stringify({ usuario_id: usuarioId, horarios })
         });
         const data = await res.json();
         if (data.success) {
-            alert("✅ Horario de atención actualizado.");
+            const u = HORARIOS_TRABAJO.find(x => x.id === usuarioId);
+            if (u) u.horario = horarios;
+            alert("✅ Horario de trabajo actualizado.");
         } else {
             alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
         }

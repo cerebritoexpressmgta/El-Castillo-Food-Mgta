@@ -636,6 +636,36 @@
         return ok();
     });
 
+    // ---- Horarios de trabajo del personal (cada usuario tiene su semana: entrada/salida o descanso) ----
+    const HORA_VALIDA = /^([01]\d|2[0-3]):[0-5]\d$/;
+    function horarioTrabajoDe(u) {
+        const g = Array.isArray(u.horario_trabajo) ? u.horario_trabajo : [];
+        return DIAS_SEMANA.map((_, d) => {
+            const r = g.find(x => x && x.dia_semana === d) || {};
+            return { dia_semana: d, activo: !!r.activo, hora_entrada: r.hora_entrada || '09:00', hora_salida: r.hora_salida || '17:00' };
+        });
+    }
+    ruta('GET', '/api/horarios-trabajo', (ctx, db) => {
+        requiereAdmin(ctx);
+        return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null, horario: horarioTrabajoDe(u) }));
+    });
+    ruta('POST', '/api/horarios-trabajo/guardar', (ctx, db) => {
+        requiereAdmin(ctx);
+        const u = db.usuarios.find(x => x.id === ctx.body.usuario_id);
+        if (!u) return { success: false, error: 'Usuario no encontrado' };
+        const dias = Array.isArray(ctx.body.horarios) ? ctx.body.horarios : [];
+        const limpio = [];
+        for (let d = 0; d < 7; d++) {
+            const r = dias.find(x => x && x.dia_semana === d) || {};
+            const activo = r.activo === true;
+            const entrada = String(r.hora_entrada || ''), salida = String(r.hora_salida || '');
+            if (activo && (!HORA_VALIDA.test(entrada) || !HORA_VALIDA.test(salida))) return { success: false, error: 'Falta la hora de entrada o salida en un día de trabajo (' + DIAS_SEMANA[d] + ')' };
+            limpio.push({ dia_semana: d, activo, hora_entrada: HORA_VALIDA.test(entrada) ? entrada : '09:00', hora_salida: HORA_VALIDA.test(salida) ? salida : '17:00' });
+        }
+        u.horario_trabajo = limpio;
+        return ok();
+    });
+
     // ---- BCV ----
     ruta('GET', '/api/bcv', (ctx, db) => ({ success: true, tasa: tasaVigente(db) }));
     ruta('POST', '/api/bcv/actualizar', (ctx, db) => {

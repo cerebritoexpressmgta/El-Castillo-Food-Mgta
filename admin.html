@@ -155,7 +155,7 @@
             <button class="tab-btn" onclick="switchTab('mesas')">🍽️ Mesas</button>
             <button class="tab-btn" onclick="switchTab('usuarios')">👥 Usuarios</button>
             <button class="tab-btn" onclick="switchTab('mensajes')">💬 Mensajes WP</button>
-            <button class="tab-btn" onclick="switchTab('horarios')">🕒 Horario de Atención</button>
+            <button class="tab-btn" onclick="switchTab('horarios')">🕒 Horarios de Trabajo</button>
             <button class="tab-btn" onclick="switchTab('anuncios')">📢 Anuncios</button>
         </div>
 
@@ -541,48 +541,15 @@
 
         <div id="tab-horarios" class="tab-content">
             <div style="background-color: var(--input-bg); border: 1px solid #334155; border-radius: 6px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
-                <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-solid fa-clock"></i> Horario de Atención</h2>
+                <h2 style="color: var(--primary); margin-top: 0;"><i class="fa-solid fa-clock"></i> Horarios de Trabajo</h2>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.5rem;">
-                    Los clientes pueden ver el menú en cualquier momento, pero solo podrán completar un pedido dentro de este horario.
+                    Define qué días y a qué hora trabaja cada miembro del personal. Marca solo los días que trabaja; los demás quedan como descanso.
                 </p>
 
-                <div id="lista-horarios-container" style="display:flex; flex-direction:column; gap:0.6rem; margin-top:1.25rem;">
-                    <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-                        <span style="width:100px; font-weight:bold;">Lunes</span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-0" onchange="toggleHorarioDia(0)" checked> Abierto</label>
-                        <input type="time" id="hor-inicio-0"><span>a</span><input type="time" id="hor-fin-0">
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-                        <span style="width:100px; font-weight:bold;">Martes</span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-1" onchange="toggleHorarioDia(1)" checked> Abierto</label>
-                        <input type="time" id="hor-inicio-1"><span>a</span><input type="time" id="hor-fin-1">
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-                        <span style="width:100px; font-weight:bold;">Miércoles</span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-2" onchange="toggleHorarioDia(2)" checked> Abierto</label>
-                        <input type="time" id="hor-inicio-2"><span>a</span><input type="time" id="hor-fin-2">
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-                        <span style="width:100px; font-weight:bold;">Jueves</span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-3" onchange="toggleHorarioDia(3)" checked> Abierto</label>
-                        <input type="time" id="hor-inicio-3"><span>a</span><input type="time" id="hor-fin-3">
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-                        <span style="width:100px; font-weight:bold;">Viernes</span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-4" onchange="toggleHorarioDia(4)" checked> Abierto</label>
-                        <input type="time" id="hor-inicio-4"><span>a</span><input type="time" id="hor-fin-4">
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-                        <span style="width:100px; font-weight:bold;">Sábado</span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-5" onchange="toggleHorarioDia(5)" checked> Abierto</label>
-                        <input type="time" id="hor-inicio-5"><span>a</span><input type="time" id="hor-fin-5">
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; background-color: var(--card-bg); border:1px solid #334155; padding:0.6rem 0.9rem; border-radius:6px; flex-wrap:wrap;">
-                        <span style="width:100px; font-weight:bold;">Domingo</span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.85rem;"><input type="checkbox" id="hor-activo-6" onchange="toggleHorarioDia(6)" checked> Abierto</label>
-                        <input type="time" id="hor-inicio-6"><span>a</span><input type="time" id="hor-fin-6">
-                    </div>
-                </div>
+                <label style="display:block; margin-top:1rem; font-size:0.8rem; font-weight:bold; color: var(--text-muted); text-transform:uppercase;">Trabajador</label>
+                <select id="hor-trabajador" onchange="mostrarHorarioTrabajador()" style="width:100%; margin-top:0.35rem;"></select>
+
+                <div id="lista-horarios-container" style="display:flex; flex-direction:column; gap:0.6rem; margin-top:1.25rem;"></div>
 
                 <button type="button" class="btn-submit" id="btn-save-horarios" onclick="guardarHorarios()" style="margin-top:1.25rem; max-width:280px;">💾 Guardar Horario</button>
             </div>
