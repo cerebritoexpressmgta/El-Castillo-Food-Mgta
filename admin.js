@@ -1422,7 +1422,7 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     fila.className = 'fila-item-combo'; fila.style.display = 'flex'; fila.style.gap = '10px'; fila.style.marginBottom = '10px';
 
     let nombreLegible = "";
-    if (valorSeleccionado.startsWith('CAT_')) { nombreLegible = "📁 El cliente elige: " + valorSeleccionado.replace('CAT_', ''); } 
+    if (valorSeleccionado.startsWith('CAT_')) { nombreLegible = "📁 Toda la categoría: " + valorSeleccionado.replace('CAT_', ''); } 
     else if (valorSeleccionado.startsWith('PROD_')) {
         const pId = parseInt(valorSeleccionado.replace('PROD_', ''));
         const p = adminProductos.find(x => x.id === pId);
@@ -1432,11 +1432,12 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     const idCaja = 'sug-combo-' + Math.random().toString(36).substr(2, 9);
     fila.innerHTML = `
         <div style="flex: 2; position: relative;">
-            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto o categoría..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none;">
+            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto fijo..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none;">
             <input type="hidden" class="item-referencia" value="${valorSeleccionado}">
             <div id="${idCaja}" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
         </div>
         <input type="number" class="item-cantidad" min="1" value="${qty}" required style="flex: 1; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px;" placeholder="Cant.">
+        ${valorSeleccionado.startsWith('CAT_') ? `<button type="button" onclick="convertirFilaCategoriaASeleccion(this)" title="Elegir cuáles productos de esta categoría puede escoger el cliente" style="background: #0e7490; color: white; border: none; border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 11px; font-weight: bold; white-space: nowrap;">👆 Elegir cuáles</button>` : ''}
         <button type="button" onclick="this.parentElement.remove()" style="background: #e11d48; color: white; border: none; border-radius: 4px; padding: 0 15px; cursor: pointer; font-weight: bold;">X</button>
     `;
     contenedor.appendChild(fila);
@@ -1513,6 +1514,21 @@ function agregarGrupoSeleccionCombo(existente = null) {
     grupo.querySelector('.sel-quitar').onclick = () => grupo.remove();
     actualizarContador();
     contenedor.appendChild(grupo);
+}
+
+// Convierte una fila vieja "📁 Toda la categoría: X" en el bloque "El cliente elige entre estos
+// productos", con todos los de esa categoría ya marcados para que solo desmarques los que no van.
+function convertirFilaCategoriaASeleccion(btn) {
+    const fila = btn.closest('.fila-item-combo');
+    const ref = fila.querySelector('.item-referencia').value;
+    if (!ref.startsWith('CAT_')) return;
+    const cat = ref.replace('CAT_', '');
+    const qty = parseInt(fila.querySelector('.item-cantidad').value, 10) || 1;
+    const ids = adminProductos.filter(p => p.categoria === cat).map(p => p.id);
+    agregarGrupoSeleccionCombo({ nombre: cat, cantidad: qty, productos: ids });
+    const grupo = document.getElementById('lista-items-combo').lastElementChild;
+    fila.replaceWith(grupo);
+    grupo.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExistente = 'excluyente') {
@@ -1709,12 +1725,6 @@ function buscarItemCombo(inputElement, idCaja) {
     const prodFiltrados = adminProductos.filter(p => p.nombre.toLowerCase().includes(texto) || texto === '');
 
     let html = '';
-    // Categorías: el cliente escoge UNO de los productos de la categoría (ej. su hamburguesa o su bebida).
-    const catsFiltradas = adminCategorias.filter(c => c.nombre.toLowerCase().includes(texto) || texto === '');
-    catsFiltradas.forEach(c => {
-        const nomJs = String(c.nombre).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'CAT_${nomJs}', '📁 El cliente elige: ${nomJs}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; display: flex; justify-content: space-between; align-items: center; background: rgba(251,191,36,0.08);" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='rgba(251,191,36,0.08)'"><span>📁 ${c.nombre}</span><span style="color:#fbbf24; font-size: 11px; flex-shrink:0;">el cliente elige</span></div>`;
-    });
     if (prodFiltrados.length > 0) {
         prodFiltrados.forEach(p => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'PROD_${p.id}', '🍔 Producto: ${p.nombre}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">🍔 ${p.nombre}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`; });
     }
