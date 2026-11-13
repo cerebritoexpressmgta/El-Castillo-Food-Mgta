@@ -577,6 +577,8 @@
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem; text-align: center;">
                     Elige a un trabajador para ver y editar su ficha: datos personales, datos médicos y su horario de la semana. Solo los administradores ven la ficha; cada trabajador ve únicamente su propio horario.
                 </p>
+                <label style="margin-top:1rem;">Tienda</label>
+                <select id="hor-tienda" onchange="cambiarTienda()" style="margin-top:0.35rem;"></select>
                 <label style="margin-top:1rem;">Trabajador</label>
                 <select id="hor-trabajador" onchange="mostrarHorarioTrabajador()" style="margin-top:0.35rem;"></select>
                 <div id="ficha-trabajador"></div>

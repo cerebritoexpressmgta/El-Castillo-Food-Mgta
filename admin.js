@@ -568,16 +568,48 @@ let FICHA_EDITANDO = false; // la ficha se abre en modo "ver"; con "Editar" se p
 
 async function cargarHorarios() {
     try {
+        if (!SUCURSALES_ADMIN.length) await cargarSucursalesAdmin();
         const res = await fetch(URL_OBTENER_HORARIOS_TRABAJO, { headers: authHeaders() });
         const data = await res.json();
         HORARIOS_TRABAJO = Array.isArray(data) ? data : (data.data || []);
-        const sel = document.getElementById('hor-trabajador');
-        const previo = sel.value;
-        sel.innerHTML = HORARIOS_TRABAJO.map(u => `<option value="${u.id}">${escapeHtml(((u.nombre || '') + ' ' + (u.apellido || '')).trim())} (${escapeHtml(u.rol)})</option>`).join('');
-        if (previo && HORARIOS_TRABAJO.some(u => String(u.id) === previo)) sel.value = previo;
+        pintarFiltroTienda();
+        pintarListaTrabajadores();
         mostrarHorarioTrabajador();
     } catch (error) { console.error("Error obteniendo fichas de trabajadores:", error); }
 }
+
+// Con varias sucursales: "Todas las tiendas" + cada una. Si el plan es de un solo local, solo aparece la principal.
+function pintarFiltroTienda() {
+    const sel = document.getElementById('hor-tienda');
+    if (!sel) return;
+    const previo = sel.value;
+    let html = SUCURSALES_ADMIN.length > 1 ? '<option value="">Todas las tiendas</option>' : '';
+    html += SUCURSALES_ADMIN.length
+        ? SUCURSALES_ADMIN.map(s => `<option value="${s.id}">${escapeHtml(s.nombre)}</option>`).join('')
+        : '<option value="">Principal</option>';
+    sel.innerHTML = html;
+    if (Array.from(sel.options).some(o => o.value === previo)) sel.value = previo;
+}
+
+// Un trabajador asignado a "todas las sucursales" aparece en cualquier tienda que se elija
+function trabajadoresVisibles() {
+    const t = (document.getElementById('hor-tienda') || {}).value;
+    if (!t || SUCURSALES_ADMIN.length <= 1) return HORARIOS_TRABAJO;
+    return HORARIOS_TRABAJO.filter(u => !u.sucursal_id || String(u.sucursal_id) === t);
+}
+
+function pintarListaTrabajadores() {
+    const sel = document.getElementById('hor-trabajador');
+    const previo = sel.value;
+    const multi = SUCURSALES_ADMIN.length > 1;
+    const lista = trabajadoresVisibles();
+    sel.innerHTML = lista.length
+        ? lista.map(u => `<option value="${u.id}">${escapeHtml(((u.nombre || '') + ' ' + (u.apellido || '')).trim())} (${escapeHtml(u.cargo || u.rol)})${multi && u.sucursal_id ? ' · ' + escapeHtml(nombreSucursalAdmin(u.sucursal_id)) : ''}</option>`).join('')
+        : '<option value="">— Sin trabajadores —</option>';
+    if (previo && lista.some(u => String(u.id) === previo)) sel.value = previo;
+}
+
+function cambiarTienda() { pintarListaTrabajadores(); mostrarHorarioTrabajador(); }
 
 function campoFicha(id, etiqueta, valor, opciones) {
     opciones = opciones || {};
@@ -617,9 +649,15 @@ function mostrarHorarioTrabajador() {
     FICHA_EDITANDO = false;
     const cont = document.getElementById('ficha-trabajador');
     const u = HORARIOS_TRABAJO.find(x => String(x.id) === document.getElementById('hor-trabajador').value);
-    if (!u) { cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; margin-top:1rem;">Aún no hay usuarios. Créalos en la pestaña Usuarios.</p>'; return; }
+    if (!u) { cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; margin-top:1rem; text-align:center;">' + (HORARIOS_TRABAJO.length ? 'No hay trabajadores asignados a esta tienda.' : 'Aún no hay usuarios. Créalos en la pestaña Usuarios.') + '</p>'; return; }
     FOTO_TRABAJADOR = u.foto || '';
     const hoyISO = new Date().toLocaleDateString('en-CA');
+    const esAdminRol = ['admin', 'superadmin'].includes(String(u.rol).toLowerCase());
+    const multiTienda = SUCURSALES_ADMIN.length > 1;
+    const opcionesTienda = multiTienda
+        ? '<option value="">Todas las sucursales</option>' + SUCURSALES_ADMIN.map(x => `<option value="${x.id}" ${String(u.sucursal_id) === String(x.id) ? 'selected' : ''}>${escapeHtml(x.nombre)}</option>`).join('')
+        : `<option value="">${escapeHtml(SUCURSALES_ADMIN.length ? SUCURSALES_ADMIN[0].nombre : 'Principal')}</option>`;
+    const tiendaNombre = u.sucursal_id ? nombreSucursalAdmin(u.sucursal_id) : (multiTienda ? 'Todas las sucursales' : (SUCURSALES_ADMIN[0] ? SUCURSALES_ADMIN[0].nombre : 'Principal'));
 
     const filas = u.horario.map(h => {
         const d = h.dia_semana;
@@ -639,7 +677,7 @@ function mostrarHorarioTrabajador() {
             <div id="ficha-foto-box" class="ficha-foto"></div>
             <div>
                 <div style="font-size:1.15rem; font-weight:bold;">${escapeHtml(((u.nombre || '') + ' ' + (u.apellido || '')).trim())}</div>
-                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Usuario: ${escapeHtml(u.username)} · Rol: ${escapeHtml(u.rol)}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Usuario: ${escapeHtml(u.username)} · Rol: ${escapeHtml(u.rol)}${u.cargo ? ' · Cargo: ' + escapeHtml(u.cargo) : ''} · 📍 ${escapeHtml(tiendaNombre)}</div>
                 <div class="ficha-acciones">
                     <button type="button" class="btn-submit solo-vista" onclick="editarFicha()">✏️ Editar</button>
                     <button type="button" class="btn-peligro solo-vista" onclick="eliminarTrabajador()">🗑️ Eliminar</button>
@@ -664,6 +702,16 @@ function mostrarHorarioTrabajador() {
                 <input type="text" id="fic-edad" readonly tabindex="-1" placeholder="Se calcula sola"></div>
             ${campoFicha('fic-direccion', 'Dirección', u.direccion, { full: true, max: 300 })}
             ${campoFicha('fic-tel-familiar', 'Teléfono de un familiar', u.telefono_familiar, { max: 30, tipo: 'tel', full: true })}
+        </div>
+
+        <h3 class="ficha-sub">Puesto de trabajo</h3>
+        <div class="ficha-grid">
+            <div><label for="fic-cargo">Cargo a desempeñar</label>
+                <input type="text" id="fic-cargo" class="fic-editable" list="lista-cargos" value="${escapeHtml(u.cargo || '')}" maxlength="60" placeholder="Ej: Cajero, Cocinero, Mesero...">
+                <datalist id="lista-cargos"><option value="Cajero/a"><option value="Cocinero/a"><option value="Ayudante de cocina"><option value="Mesero/a"><option value="Repartidor / Motorizado"><option value="Encargado/a"><option value="Limpieza"><option value="Administrador/a"></datalist></div>
+            <div><label for="fic-tienda">Tienda asignada</label>
+                <select id="fic-tienda" ${esAdminRol ? 'disabled' : 'class="fic-editable"'}>${opcionesTienda}</select>
+                ${esAdminRol ? '<p style="font-size:0.72rem;color:var(--text-muted);margin:4px 0 0;">Los administradores ven todas las tiendas.</p>' : (multiTienda ? '<p style="font-size:0.72rem;color:var(--text-muted);margin:4px 0 0;">Solo verá los pedidos y mesas de su tienda.</p>' : '')}</div>
         </div>
 
         <h3 class="ficha-sub">Salud</h3>
@@ -742,8 +790,10 @@ async function guardarHorarios() {
         nombre: val('fic-nombre'), apellido: val('fic-apellido'), cedula: val('fic-cedula'), telefono: val('fic-telefono'),
         fecha_nacimiento: document.getElementById('fic-nacimiento').value, direccion: val('fic-direccion'),
         telefono_familiar: val('fic-tel-familiar'), alergias: val('fic-alergias'),
-        condicion_medica: val('fic-condicion'), medicamentos: val('fic-medicamentos'), foto: FOTO_TRABAJADOR
+        condicion_medica: val('fic-condicion'), medicamentos: val('fic-medicamentos'), cargo: val('fic-cargo'), foto: FOTO_TRABAJADOR
     };
+    const selTienda = document.getElementById('fic-tienda');
+    if (selTienda && !selTienda.disabled) ficha.sucursal_id = parseInt(selTienda.value, 10) || null;
     if (!ficha.nombre) { alert('El nombre es obligatorio.'); return; }
 
     botones.forEach(b => { b.disabled = true; b.innerText = "Guardando..."; });
