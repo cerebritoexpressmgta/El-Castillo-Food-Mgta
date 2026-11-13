@@ -564,6 +564,7 @@ async function eliminarMotorizado(id) {
 const DIAS_TRABAJO = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 let HORARIOS_TRABAJO = [];
 let FOTO_TRABAJADOR = '';
+let FICHA_EDITANDO = false; // la ficha se abre en modo "ver"; con "Editar" se puede modificar
 
 async function cargarHorarios() {
     try {
@@ -581,25 +582,55 @@ async function cargarHorarios() {
 function campoFicha(id, etiqueta, valor, opciones) {
     opciones = opciones || {};
     return `<div class="${opciones.full ? 'full' : ''}"><label for="${id}">${etiqueta}</label>` +
-        `<input type="${opciones.tipo || 'text'}" id="${id}" value="${escapeHtml(valor)}" maxlength="${opciones.max || 80}" placeholder="${escapeHtml(opciones.ph || '')}"></div>`;
+        `<input type="${opciones.tipo || 'text'}" id="${id}" class="fic-editable" value="${escapeHtml(valor)}" maxlength="${opciones.max || 80}" placeholder="${escapeHtml(opciones.ph || '')}"></div>`;
 }
 
+// La edad no se guarda: se calcula con la fecha de nacimiento y la fecha de hoy, así sube sola cada cumpleaños.
+function calcularEdad(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    if (!m) return null;
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - Number(m[1]);
+    const mes = hoy.getMonth() + 1;
+    if (mes < Number(m[2]) || (mes === Number(m[2]) && hoy.getDate() < Number(m[3]))) edad--;
+    return edad >= 0 ? edad : null;
+}
+
+function actualizarEdad() {
+    const e = calcularEdad(document.getElementById('fic-nacimiento').value);
+    document.getElementById('fic-edad').value = e === null ? '' : (e === 1 ? '1 año' : e + ' años');
+}
+
+function aplicarModoFicha() {
+    const cont = document.getElementById('ficha-trabajador');
+    if (!cont) return;
+    cont.querySelectorAll('.fic-editable').forEach(el => { el.disabled = !FICHA_EDITANDO; });
+    if (FICHA_EDITANDO) for (let d = 0; d <= 6; d++) toggleHorarioDia(d); // los días sin marcar siguen con las horas bloqueadas
+    cont.querySelectorAll('.solo-edicion').forEach(el => el.classList.toggle('oculto', !FICHA_EDITANDO));
+    cont.querySelectorAll('.solo-vista').forEach(el => el.classList.toggle('oculto', FICHA_EDITANDO));
+}
+
+function editarFicha() { FICHA_EDITANDO = true; aplicarModoFicha(); }
+function cancelarEdicionFicha() { FICHA_EDITANDO = false; mostrarHorarioTrabajador(); } // vuelve a mostrar lo guardado
+
 function mostrarHorarioTrabajador() {
+    FICHA_EDITANDO = false;
     const cont = document.getElementById('ficha-trabajador');
     const u = HORARIOS_TRABAJO.find(x => String(x.id) === document.getElementById('hor-trabajador').value);
     if (!u) { cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; margin-top:1rem;">Aún no hay usuarios. Créalos en la pestaña Usuarios.</p>'; return; }
     FOTO_TRABAJADOR = u.foto || '';
+    const hoyISO = new Date().toLocaleDateString('en-CA');
 
     const filas = u.horario.map(h => {
         const d = h.dia_semana;
         return `<div class="hor-dia">
             <div><div class="dia-nombre">${DIAS_TRABAJO[d]}</div>
-                <label style="display:flex; align-items:center; margin:4px 0 0; font-size:0.78rem;"><input type="checkbox" id="hor-activo-${d}" onchange="toggleHorarioDia(${d})" ${h.activo ? 'checked' : ''}> Trabaja</label></div>
+                <label style="display:flex; align-items:center; margin:4px 0 0; font-size:0.78rem;"><input type="checkbox" id="hor-activo-${d}" class="fic-editable" onchange="toggleHorarioDia(${d})" ${h.activo ? 'checked' : ''}> Trabaja</label></div>
             <div>
-                <div class="horas"><small>Entrada</small><input type="time" id="hor-inicio-${d}" value="${h.hora_entrada}" ${h.activo ? '' : 'disabled'}>
-                    <small>Salida</small><input type="time" id="hor-fin-${d}" value="${h.hora_salida}" ${h.activo ? '' : 'disabled'}></div>
-                <div class="horas" style="margin-top:0.4rem;"><small>Descanso</small><input type="time" id="hor-desc-ini-${d}" value="${h.descanso_desde || ''}" ${h.activo ? '' : 'disabled'}>
-                    <small>a</small><input type="time" id="hor-desc-fin-${d}" value="${h.descanso_hasta || ''}" ${h.activo ? '' : 'disabled'}></div>
+                <div class="horas"><small>Entrada</small><input type="time" id="hor-inicio-${d}" class="fic-editable" value="${h.hora_entrada}">
+                    <small>Salida</small><input type="time" id="hor-fin-${d}" class="fic-editable" value="${h.hora_salida}"></div>
+                <div class="horas" style="margin-top:0.4rem;"><small>Descanso</small><input type="time" id="hor-desc-ini-${d}" class="fic-editable" value="${h.descanso_desde || ''}">
+                    <small>a</small><input type="time" id="hor-desc-fin-${d}" class="fic-editable" value="${h.descanso_hasta || ''}"></div>
             </div></div>`;
     }).join('');
 
@@ -609,9 +640,15 @@ function mostrarHorarioTrabajador() {
             <div>
                 <div style="font-size:1.15rem; font-weight:bold;">${escapeHtml(((u.nombre || '') + ' ' + (u.apellido || '')).trim())}</div>
                 <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Usuario: ${escapeHtml(u.username)} · Rol: ${escapeHtml(u.rol)}</div>
-                <label for="ficha-foto-input" class="action-btn btn-edit" style="display:inline-block; margin:0; cursor:pointer; text-transform:none; font-size:0.8rem;">📷 Subir foto</label>
-                <input type="file" id="ficha-foto-input" accept="image/*" style="display:none" onchange="elegirFotoTrabajador(this)">
-                <button type="button" class="action-btn btn-delete" onclick="quitarFotoTrabajador()">Quitar</button>
+                <div class="ficha-acciones">
+                    <button type="button" class="btn-submit solo-vista" onclick="editarFicha()">✏️ Editar</button>
+                    <button type="button" class="btn-peligro solo-vista" onclick="eliminarTrabajador()">🗑️ Eliminar</button>
+                    <label for="ficha-foto-input" class="action-btn btn-edit solo-edicion" style="display:inline-block; margin:0; cursor:pointer; text-transform:none; font-size:0.8rem;">📷 Subir foto</label>
+                    <input type="file" id="ficha-foto-input" accept="image/*" style="display:none" onchange="elegirFotoTrabajador(this)">
+                    <button type="button" class="action-btn btn-delete solo-edicion" onclick="quitarFotoTrabajador()">Quitar foto</button>
+                    <button type="button" class="btn-submit solo-edicion btn-guardar-ficha" onclick="guardarHorarios()">💾 Guardar</button>
+                    <button type="button" class="btn-gris solo-edicion" onclick="cancelarEdicionFicha()">Cancelar</button>
+                </div>
             </div>
         </div>
 
@@ -621,6 +658,10 @@ function mostrarHorarioTrabajador() {
             ${campoFicha('fic-apellido', 'Apellido', u.apellido)}
             ${campoFicha('fic-cedula', 'Cédula', u.cedula, { max: 20, ph: 'V-12345678' })}
             ${campoFicha('fic-telefono', 'Teléfono', u.telefono, { max: 30, tipo: 'tel' })}
+            <div><label for="fic-nacimiento">Fecha de nacimiento</label>
+                <input type="date" id="fic-nacimiento" class="fic-editable" value="${escapeHtml(u.fecha_nacimiento || '')}" min="1900-01-01" max="${hoyISO}" onchange="actualizarEdad()" oninput="actualizarEdad()"></div>
+            <div><label for="fic-edad">Edad (automática)</label>
+                <input type="text" id="fic-edad" readonly tabindex="-1" placeholder="Se calcula sola"></div>
             ${campoFicha('fic-direccion', 'Dirección', u.direccion, { full: true, max: 300 })}
             ${campoFicha('fic-tel-familiar', 'Teléfono de un familiar', u.telefono_familiar, { max: 30, tipo: 'tel', full: true })}
         </div>
@@ -633,12 +674,18 @@ function mostrarHorarioTrabajador() {
         </div>
 
         <h3 class="ficha-sub">Horario de trabajo</h3>
-        <p style="font-size:0.78rem; color:var(--text-muted); margin:0 0 0.6rem;">Marca los días que trabaja y configura la hora de entrada, de salida y el descanso (el descanso es opcional).</p>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:0 0 0.6rem; text-align:center;">Para cambiar cualquier dato o el horario, pulsa <b>✏️ Editar</b>. El descanso es opcional.</p>
         ${filas}
 
-        <button type="button" class="btn-submit" id="btn-save-horarios" onclick="guardarHorarios()" style="margin-top:1rem; max-width:300px;">💾 Guardar ficha y horario</button>
+        <div class="ficha-acciones" style="margin-top:1rem;">
+            <button type="button" class="btn-submit solo-vista" onclick="editarFicha()">✏️ Editar</button>
+            <button type="button" class="btn-submit solo-edicion btn-guardar-ficha" onclick="guardarHorarios()">💾 Guardar cambios</button>
+            <button type="button" class="btn-gris solo-edicion" onclick="cancelarEdicionFicha()">Cancelar</button>
+        </div>
     </div>`;
+    actualizarEdad();
     pintarFotoTrabajador();
+    aplicarModoFicha();
 }
 
 function pintarFotoTrabajador() {
@@ -672,11 +719,11 @@ function elegirFotoTrabajador(input) {
 
 function toggleHorarioDia(dia) {
     const activo = document.getElementById(`hor-activo-${dia}`).checked;
-    ['hor-inicio-', 'hor-fin-', 'hor-desc-ini-', 'hor-desc-fin-'].forEach(p => { document.getElementById(p + dia).disabled = !activo; });
+    ['hor-inicio-', 'hor-fin-', 'hor-desc-ini-', 'hor-desc-fin-'].forEach(p => { document.getElementById(p + dia).disabled = !activo || !FICHA_EDITANDO; });
 }
 
 async function guardarHorarios() {
-    const btn = document.getElementById('btn-save-horarios');
+    const botones = document.querySelectorAll('.btn-guardar-ficha');
     const usuarioId = Number(document.getElementById('hor-trabajador').value);
     if (!usuarioId) { alert('Elige un trabajador.'); return; }
     const val = id => document.getElementById(id).value.trim();
@@ -693,12 +740,13 @@ async function guardarHorarios() {
     }
     const ficha = {
         nombre: val('fic-nombre'), apellido: val('fic-apellido'), cedula: val('fic-cedula'), telefono: val('fic-telefono'),
-        direccion: val('fic-direccion'), telefono_familiar: val('fic-tel-familiar'), alergias: val('fic-alergias'),
+        fecha_nacimiento: document.getElementById('fic-nacimiento').value, direccion: val('fic-direccion'),
+        telefono_familiar: val('fic-tel-familiar'), alergias: val('fic-alergias'),
         condicion_medica: val('fic-condicion'), medicamentos: val('fic-medicamentos'), foto: FOTO_TRABAJADOR
     };
     if (!ficha.nombre) { alert('El nombre es obligatorio.'); return; }
 
-    btn.disabled = true; btn.innerText = "Guardando...";
+    botones.forEach(b => { b.disabled = true; b.innerText = "Guardando..."; });
     try {
         const res = await fetch(URL_GUARDAR_HORARIOS_TRABAJO, {
             method: 'POST',
@@ -707,9 +755,8 @@ async function guardarHorarios() {
         });
         const data = await res.json();
         if (data.success) {
-            const u = HORARIOS_TRABAJO.find(x => x.id === usuarioId);
-            if (u) Object.assign(u, ficha, { horario: horarios });
-            await cargarHorarios();
+            await cargarHorarios();       // vuelve al modo "ver" con lo guardado
+            await cargarUsuariosDesdeDB(); // por si cambió el nombre
             alert("✅ Ficha y horario guardados.");
         } else {
             alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
@@ -717,9 +764,28 @@ async function guardarHorarios() {
     } catch (error) {
         alert('Error de red al guardar.');
     } finally {
-        const b2 = document.getElementById('btn-save-horarios');
-        if (b2) { b2.disabled = false; b2.innerText = "💾 Guardar ficha y horario"; }
+        document.querySelectorAll('.btn-guardar-ficha').forEach(b => { b.disabled = false; b.innerText = "💾 Guardar"; });
     }
+}
+
+// Para quien ya no trabaja en la empresa: borra su usuario (ya no podrá entrar), su ficha y su horario.
+async function eliminarTrabajador() {
+    const u = HORARIOS_TRABAJO.find(x => String(x.id) === document.getElementById('hor-trabajador').value);
+    if (!u) return;
+    const nombre = ((u.nombre || '') + ' ' + (u.apellido || '')).trim() || u.username;
+    if (!confirm(`¿Eliminar a ${nombre}?\n\nSe borrará su usuario (ya no podrá iniciar sesión), su ficha y su horario. Esta acción no se puede deshacer.`)) return;
+    try {
+        const res = await fetch(ADMIN_URL_ELIMINAR_USUARIO, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+            body: JSON.stringify({ id: u.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) { alert('No se pudo eliminar: ' + (data.detail || data.error || 'error desconocido')); return; }
+        await cargarHorarios();
+        await cargarUsuariosDesdeDB();
+        alert(`✅ ${nombre} fue eliminado.`);
+    } catch (e) { alert('Error de red al eliminar.'); }
 }
 
 // ==========================================

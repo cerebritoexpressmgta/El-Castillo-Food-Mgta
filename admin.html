@@ -100,6 +100,17 @@
         .list-panel h3, .ficha-sub { text-align: center; }
         .list-panel h3 { margin-bottom: 1rem; }
 
+        /* Ficha: modo ver / modo editar */
+        .oculto { display: none !important; }
+        .ficha-card input:disabled, .ficha-card select:disabled { opacity: 0.9; cursor: default; }
+        .ficha-card input[readonly] { opacity: 0.9; cursor: default; background-color: #1b2349; }
+        .ficha-acciones { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
+        .ficha-acciones .btn-submit { width: auto; margin: 0; padding: 0.6rem 1.1rem; }
+        .btn-gris { background-color: #475569; color: white; border: none; border-radius: 6px; padding: 0.6rem 1.1rem; font-weight: bold; cursor: pointer; }
+        .btn-gris:hover { background-color: #64748b; }
+        .btn-peligro { background-color: rgba(248,113,113,0.15); color: #fca5a5; border: 1px solid #f87171; border-radius: 6px; padding: 0.6rem 1.1rem; font-weight: bold; cursor: pointer; }
+        .btn-peligro:hover { background-color: rgba(248,113,113,0.3); }
+
         /* Ficha del trabajador y horario de trabajo */
         .ficha-card { background-color: var(--card-bg); border: 1px solid #4a5b94; border-radius: 12px; padding: 1.25rem; margin-top: 1.25rem; }
         .ficha-head { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
