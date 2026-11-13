@@ -1422,7 +1422,7 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     fila.className = 'fila-item-combo'; fila.style.display = 'flex'; fila.style.gap = '10px'; fila.style.marginBottom = '10px';
 
     let nombreLegible = "";
-    if (valorSeleccionado.startsWith('CAT_')) { nombreLegible = "📁 Categoría: " + valorSeleccionado.replace('CAT_', ''); } 
+    if (valorSeleccionado.startsWith('CAT_')) { nombreLegible = "📁 El cliente elige: " + valorSeleccionado.replace('CAT_', ''); } 
     else if (valorSeleccionado.startsWith('PROD_')) {
         const pId = parseInt(valorSeleccionado.replace('PROD_', ''));
         const p = adminProductos.find(x => x.id === pId);
@@ -1432,7 +1432,7 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     const idCaja = 'sug-combo-' + Math.random().toString(36).substr(2, 9);
     fila.innerHTML = `
         <div style="flex: 2; position: relative;">
-            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none;">
+            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto o categoría..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none;">
             <input type="hidden" class="item-referencia" value="${valorSeleccionado}">
             <div id="${idCaja}" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
         </div>
@@ -1450,7 +1450,7 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
     grupo.innerHTML = `
         <div style="display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; margin-bottom: 12px;">
             <div>
-                <p style="color:#fbbf24; font-size: 13px; font-weight: bold; margin: 0;">🍥 Elección por piezas</p>
+                <p style="color:#fbbf24; font-size: 13px; font-weight: bold; margin: 0;">🧩 Elección por piezas</p>
                 <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">El cliente elige rolls completos tocándolos, no piezas sueltas: en cada fila defines cuántos rolls elige y cuántas piezas vale cada uno. Para que pueda mezclar categorías (ej. 3 rolls entre clásicos, tempura y fríos) usa UNA sola fila y márcale todas esas categorías. Usa 2+ filas solo cuando sean ofertas distintas entre sí (ej. Tempura 12pz o Frío 10pz); ahí elige abajo cómo se comportan esas pestañas.</p>
             </div>
             <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="flex-shrink:0; background:#e11d48; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold; font-size: 11px;">Quitar</button>
@@ -1636,6 +1636,12 @@ function buscarItemCombo(inputElement, idCaja) {
     const prodFiltrados = adminProductos.filter(p => p.nombre.toLowerCase().includes(texto) || texto === '');
 
     let html = '';
+    // Categorías: el cliente escoge UNO de los productos de la categoría (ej. su hamburguesa o su bebida).
+    const catsFiltradas = adminCategorias.filter(c => c.nombre.toLowerCase().includes(texto) || texto === '');
+    catsFiltradas.forEach(c => {
+        const nomJs = String(c.nombre).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'CAT_${nomJs}', '📁 El cliente elige: ${nomJs}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; display: flex; justify-content: space-between; align-items: center; background: rgba(251,191,36,0.08);" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='rgba(251,191,36,0.08)'"><span>📁 ${c.nombre}</span><span style="color:#fbbf24; font-size: 11px; flex-shrink:0;">el cliente elige</span></div>`;
+    });
     if (prodFiltrados.length > 0) {
         prodFiltrados.forEach(p => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'PROD_${p.id}', '🍔 Producto: ${p.nombre}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">🍔 ${p.nombre}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`; });
     }

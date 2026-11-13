@@ -738,7 +738,7 @@ function construirTarjetaItemHtml(item) {
     // seleccionadas en cuanto el cliente empezaba a escribir.
     const esComboPersonalizable = esComboConOpciones(item);
     const bloqueNotaHtml = esComboPersonalizable
-        ? `<p class="text-[10px] text-gray-400 mt-1">📝 Podrás añadir una nota especial al personalizar tu combo</p>`
+        ? `<p class="text-[10px] text-gray-400 mt-1">👉 Podrás elegir las opciones de tu combo y añadir una nota</p>`
         : `
             <button type="button" onclick="toggleNoteField('${item.id}')" id="note-btn-${item.id}" class="text-[11px] font-medium text-gray-500 hover:text-red-600 flex items-center gap-1 cursor-pointer select-none">
                 📝 Añadir nota especial
@@ -752,7 +752,7 @@ function construirTarjetaItemHtml(item) {
     const bloquePersonalizarPendienteHtml = esComboPersonalizable ? `
         <div id="personalizar-pendiente-${item.id}" class="${pendientesActuales > 0 ? '' : 'hidden'}">
             <button type="button" onclick="personalizarPendientesCombo('${item.id}')" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer mt-1.5">
-                🎨 Personalizar (${pendientesActuales} pendiente${pendientesActuales === 1 ? '' : 's'})
+                👉 Elegir opciones (${pendientesActuales} por elegir)
             </button>
         </div>
     ` : '';
@@ -916,7 +916,7 @@ function actualizarUiPendienteCombo(id) {
     if (pendientes > 0) {
         bloque.classList.remove('hidden');
         const btn = bloque.querySelector('button');
-        if (btn) btn.innerHTML = `🎨 Personalizar (${pendientes} pendiente${pendientes === 1 ? '' : 's'})`;
+        if (btn) btn.innerHTML = `👉 Elegir opciones (${pendientes} por elegir)`;
     } else {
         bloque.classList.add('hidden');
     }
@@ -1058,7 +1058,7 @@ function setExactQty(id, name, price, value) {
 // --- ELEGIR CUÁL PERSONALIZACIÓN DE UN COMBO QUITAR (cuando hay más de una distinta en el carrito) ---
 function abrirSelectorEliminarVariantes(id, nombreCombo) {
     comboIdSelectorActivo = id;
-    document.getElementById('eliminar-variantes-subtitulo').innerText = `Tienes varias personalizaciones de "${nombreCombo}"`;
+    document.getElementById('eliminar-variantes-subtitulo').innerText = `Tienes varias versiones de "${nombreCombo}"`;
     renderizarSelectorEliminarVariantes();
 
     const modal = document.getElementById('modal-eliminar-variantes');
@@ -1288,9 +1288,9 @@ function abrirModalCombosPendientes(idsPendientes) {
                 ${construirMiniaturaComboHtml(item ? item.image : '')}
                 <div class="flex-grow min-w-0">
                     <p class="text-sm font-bold text-gray-800 leading-snug">${escapeHtml(nombre)}</p>
-                    <p class="text-xs text-amber-700 font-medium mt-0.5">${cantidad} sin personalizar</p>
+                    <p class="text-xs text-amber-700 font-medium mt-0.5">${cantidad} por elegir</p>
                 </div>
-                <button type="button" onclick="personalizarDesdeModalPendientes('${id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer flex-shrink-0">Personalizar</button>
+                <button type="button" onclick="personalizarDesdeModalPendientes('${id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer flex-shrink-0">Elegir</button>
             </div>
         `;
     }).join('');
@@ -1395,9 +1395,9 @@ function renderizarResumenCarrito() {
                     <button type="button" onclick="eliminarPendientesCombo('${id}')" title="Quitar del pedido" class="text-red-500 hover:text-red-700 text-md p-1 cursor-pointer flex-shrink-0">❌</button>
                 </div>
                 <div class="flex items-center gap-2 mt-1.5">
-                    <span class="text-[11px] font-bold text-orange-700 flex-shrink-0">⚠️ Falta personalizarlo</span>
+                    <span class="text-[11px] font-bold text-orange-700 flex-shrink-0">⚠️ Falta elegir opciones</span>
                     <button type="button" onclick="personalizarPendientesCombo('${id}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer">
-                        🎨 Personalizar ahora
+                        👉 Elegir ahora
                     </button>
                 </div>
             </div>`);
@@ -1750,7 +1750,7 @@ function abrirModalCombo(item) {
             let primeraDesc = primeraOpcion && primeraOpcion.desc ? primeraOpcion.desc : '';
 
             for(let i=0; i < grupo.cantidad; i++) {
-                let tituloVisual = grupo.cantidad > 1 ? `Elige tu ${grupo.valor} (${i+1} de ${grupo.cantidad})` : `Elige tu ${grupo.valor}`;
+                let tituloVisual = grupo.cantidad > 1 ? `Elige: ${grupo.valor} (${i+1} de ${grupo.cantidad})` : `Elige: ${grupo.valor}`;
 
                 let grupoHtml = `
                     <div class="space-y-1 mb-3">

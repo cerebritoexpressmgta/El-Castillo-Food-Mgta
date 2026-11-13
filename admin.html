@@ -466,9 +466,10 @@
 
                         <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #4a5b94; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">🛒 Productos incluidos:</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px; line-height: 1.5;">Busca un <strong>🍔 producto</strong> si va fijo en el combo (el cliente no escoge). Busca una <strong>📁 categoría</strong> si el cliente debe escoger uno de ella (ej. categoría «Hamburguesas» con cantidad 1 y categoría «Bebidas» con cantidad 1). El cliente solo verá los productos de esa categoría.</p>
                             <div id="lista-items-combo"></div>
                             <button type="button" id="btn-add-item" style="margin-top: 10px; background: #4a5b94; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">+ Añadir otro producto</button>
-                            <button type="button" onclick="agregarGrupoPiezasAlternativas()" style="margin-top: 10px; margin-left: 8px; background: #b45309; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">+ Elección por piezas (ej. Tempura o Frío)</button>
+                            <button type="button" onclick="agregarGrupoPiezasAlternativas()" style="margin-top: 10px; margin-left: 8px; background: #b45309; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">+ Elección por piezas (ej. 12 piezas a escoger)</button>
                         </div>
 
                         <label>Descripción del Combo</label>
@@ -645,7 +646,7 @@
                             <input type="hidden" id="anuncio-item-ref">
                             <div id="caja-sugerencias-anuncio-item" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
                         </div>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Si lo eliges, el anuncio tendrá un botón "🛒 Ordenar esta promoción" que lleva directo a ese producto o combo (y abre su personalización si la necesita).</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Si lo eliges, el anuncio tendrá un botón "🛒 Ordenar esta promoción" que lleva directo a ese producto o combo (y abre la elección de opciones si la necesita).</p>
 
                         <label>Orden de aparición</label>
                         <input type="number" id="anuncio-orden" min="0" value="0">
