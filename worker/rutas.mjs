@@ -526,7 +526,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null,
             apellido: u.apellido || '', cedula: u.cedula || '', direccion: u.direccion || '', telefono: u.telefono || '',
             telefono_familiar: u.telefono_familiar || '', alergias: u.alergias || '', condicion_medica: u.condicion_medica || '',
-            medicamentos: u.medicamentos || '', foto: u.foto || '', horario: horarioTrabajoDe(u)
+            medicamentos: u.medicamentos || '', fecha_nacimiento: u.fecha_nacimiento || '', foto: u.foto || '', horario: horarioTrabajoDe(u)
         }));
     });
     ruta('POST', '/api/horarios-trabajo/guardar', (ctx, db) => {
@@ -547,12 +547,19 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         }
         const foto = String(b.foto || '');
         if (foto && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(foto) || foto.length > 90000)) return { success: false, error: 'La foto no es válida o es demasiado grande' };
+        const nac = String(b.fecha_nacimiento || '').trim();
+        if (nac) {
+            const mm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(nac);
+            const f = mm ? new Date(Date.UTC(+mm[1], +mm[2] - 1, +mm[3])) : null;
+            const real = f && f.getUTCFullYear() === +mm[1] && f.getUTCMonth() === +mm[2] - 1 && f.getUTCDate() === +mm[3];
+            if (!real || +mm[1] < 1900 || f.getTime() > Date.now()) return { success: false, error: 'La fecha de nacimiento no es válida' };
+        }
         const nombre = txtFicha(b.nombre, 80);
         if (nombre) u.nombre = nombre;
         u.apellido = txtFicha(b.apellido, 80); u.cedula = txtFicha(b.cedula, 20); u.direccion = txtFicha(b.direccion, 300);
         u.telefono = txtFicha(b.telefono, 30); u.telefono_familiar = txtFicha(b.telefono_familiar, 30);
         u.alergias = txtFicha(b.alergias, 200); u.condicion_medica = txtFicha(b.condicion_medica, 300); u.medicamentos = txtFicha(b.medicamentos, 300);
-        u.foto = foto; u.horario_trabajo = limpio;
+        u.foto = foto; u.fecha_nacimiento = nac; u.horario_trabajo = limpio;
         return ok();
     });
     // Cada trabajador ve SOLO su propio horario (nunca la ficha ni los datos de otros)
