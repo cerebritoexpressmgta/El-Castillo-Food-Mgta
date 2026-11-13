@@ -1442,6 +1442,79 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     contenedor.appendChild(fila);
 }
 
+// Grupo "Elegir entre estos productos": el dueño marca cuáles productos concretos puede escoger
+// el cliente y cuántos elige (ej. 4 hamburguesas entre 4 de las 8 del menú).
+function agregarGrupoSeleccionCombo(existente = null) {
+    const contenedor = document.getElementById('lista-items-combo');
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const marcados = new Set(((existente && existente.productos) || []).map(Number));
+    const cats = [...new Set(adminProductos.map(p => p.categoria).filter(Boolean))];
+
+    const grupo = document.createElement('div');
+    grupo.className = 'fila-seleccion-combo';
+    grupo.style.cssText = 'border: 1px solid #0e7490; background: linear-gradient(#10343f, #0d2c36); border-radius: 10px; padding: 14px; margin-bottom: 12px;';
+    grupo.innerHTML = `
+        <div style="display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; margin-bottom: 10px;">
+            <div>
+                <p style="color:#67e8f9; font-size: 13px; font-weight: bold; margin: 0;">👆 El cliente elige entre estos productos</p>
+                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">Marca solo los productos que puede escoger. Los agotados no se le muestran. El precio del combo no cambia, sea cual sea el que elija.</p>
+            </div>
+            <button type="button" class="sel-quitar" style="flex-shrink:0; background:#e11d48; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold; font-size: 11px;">Quitar</button>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <div style="flex:2;">
+                <label style="display:block; font-size:11px; color:#67e8f9; font-weight:normal; text-transform:none; margin-bottom:3px;">¿Qué elige? (lo ve el cliente, ej. Hamburguesa, Refresco)</label>
+                <input type="text" class="sel-nombre" value="${esc(existente ? existente.nombre : '')}" placeholder="Ej: Hamburguesa" style="width:100%; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+            </div>
+            <div style="flex:1;">
+                <label style="display:block; font-size:11px; color:#67e8f9; font-weight:normal; text-transform:none; margin-bottom:3px;">¿Cuántos elige?</label>
+                <input type="number" class="sel-cantidad" min="1" value="${existente ? (existente.cantidad || 1) : 1}" style="width:100%; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+            </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+            <input type="text" class="sel-filtro" placeholder="🔍 Filtrar productos..." style="flex:2; min-width:120px; padding:0.5rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+            <select class="sel-cat" style="flex:1; min-width:110px; padding:0.5rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+                <option value="">Todas las categorías</option>
+                ${cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+            </select>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
+            <button type="button" class="sel-todos" style="background:#155e75; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px;">Marcar los visibles</button>
+            <button type="button" class="sel-ninguno" style="background:#334155; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px;">Quitar todos</button>
+            <span class="sel-contador" style="font-size:11px; color:#fbbf24; font-weight:bold; margin-left:auto;"></span>
+        </div>
+        <div class="sel-lista" style="max-height: 220px; overflow-y: auto; border: 1px solid #164e63; border-radius: 6px; background:#0b2530;">
+            ${adminProductos.map(p => `
+                <label class="sel-fila" data-nombre="${esc(String(p.nombre).toLowerCase())}" data-cat="${esc(p.categoria || '')}" style="display:flex; align-items:center; gap:8px; padding:7px 10px; border-bottom:1px solid #164e63; cursor:pointer; font-size:13px; color:white; text-transform:none; font-weight:normal; margin:0;">
+                    <input type="checkbox" class="sel-chk" value="${p.id}" ${marcados.has(Number(p.id)) ? 'checked' : ''} style="width:auto; margin:0;">
+                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(p.nombre)}</span>
+                    <span style="color:#10b981; font-weight:bold; flex-shrink:0;">$${Number(p.precio || 0).toFixed(2)}</span>
+                </label>`).join('')}
+        </div>`;
+
+    const contador = grupo.querySelector('.sel-contador');
+    const actualizarContador = () => {
+        const n = grupo.querySelectorAll('.sel-chk:checked').length;
+        contador.textContent = n === 0 ? 'Ninguno marcado' : (n === 1 ? '1 marcado' : n + ' marcados');
+    };
+    const aplicarFiltro = () => {
+        const t = grupo.querySelector('.sel-filtro').value.toLowerCase().trim();
+        const c = grupo.querySelector('.sel-cat').value;
+        grupo.querySelectorAll('.sel-fila').forEach(f => {
+            const ok = (!t || f.dataset.nombre.includes(t)) && (!c || f.dataset.cat === c);
+            f.style.display = ok ? 'flex' : 'none';
+        });
+    };
+    grupo.querySelector('.sel-filtro').addEventListener('input', aplicarFiltro);
+    grupo.querySelector('.sel-cat').addEventListener('change', aplicarFiltro);
+    grupo.querySelectorAll('.sel-chk').forEach(ch => ch.addEventListener('change', actualizarContador));
+    grupo.querySelector('.sel-todos').onclick = () => { grupo.querySelectorAll('.sel-fila').forEach(f => { if (f.style.display !== 'none') f.querySelector('.sel-chk').checked = true; }); actualizarContador(); };
+    grupo.querySelector('.sel-ninguno').onclick = () => { grupo.querySelectorAll('.sel-chk').forEach(ch => ch.checked = false); actualizarContador(); };
+    grupo.querySelector('.sel-quitar').onclick = () => grupo.remove();
+    actualizarContador();
+    contenedor.appendChild(grupo);
+}
+
 function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExistente = 'excluyente') {
     const contenedor = document.getElementById('lista-items-combo');
     const grupo = document.createElement('div');
@@ -1716,6 +1789,16 @@ if (formCombo) {
             if (alternativas.length > 0) itemsSeleccionados.push({ tipo: 'piezas_alternativas', alternativas, modo });
         });
 
+        let faltaCompletarSeleccion = false;
+        document.querySelectorAll('.fila-seleccion-combo').forEach(g => {
+            const nombre = g.querySelector('.sel-nombre').value.trim();
+            const cantidad = parseInt(g.querySelector('.sel-cantidad').value, 10);
+            const productos = [...g.querySelectorAll('.sel-chk:checked')].map(ch => parseInt(ch.value, 10));
+            if (!nombre || !(cantidad > 0) || productos.length < 2) { faltaCompletarSeleccion = true; return; }
+            itemsSeleccionados.push({ tipo: 'seleccion', nombre, cantidad, productos });
+        });
+        if (faltaCompletarSeleccion) { alert('⚠️ En cada "El cliente elige entre estos productos" escribe qué elige, cuántos elige y marca al menos 2 productos. Si solo hay uno, agrégalo como producto fijo.'); return; }
+
         if (faltaHacerClic) { alert('⚠️ Importante: Debes HACER CLIC en una de las opciones flotantes.'); return; }
         if (faltaCompletarPiezas) { alert('⚠️ En cada "Elección por piezas" completa nombre, al menos 1 categoría, cuántas opciones elige el cliente y cuántas piezas vale cada una (o quita la fila).'); return; }
         if (itemsSeleccionados.length === 0) { alert('Añade al menos 1 elemento válido al combo.'); return; }
@@ -1787,6 +1870,7 @@ function editarCombo(id) {
     if (parsedItems && parsedItems.length > 0) {
         parsedItems.forEach(item => {
             if (item.tipo === 'piezas_alternativas') { agregarGrupoPiezasAlternativas(item.alternativas, item.modo || (item.compartido === true ? 'compartido' : 'excluyente')); }
+            else if (item.tipo === 'seleccion') { agregarGrupoSeleccionCombo(item); }
             else if (item.tipo) { const valorSelect = item.tipo === 'categoria' ? 'CAT_' + item.valor : 'PROD_' + item.valor; agregarFilaProductoCombo(valorSelect, item.cantidad); }
         });
     } else agregarFilaProductoCombo(); 

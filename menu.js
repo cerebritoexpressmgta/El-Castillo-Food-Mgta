@@ -1769,6 +1769,46 @@ function abrirModalCombo(item) {
                 container.insertAdjacentHTML('beforeend', grupoHtml);
                 selectIndex++;
             }
+        } else if (grupo.tipo === 'seleccion') {
+            // Productos concretos que el dueño dejó escoger (no toda una categoría).
+            const idsPermitidos = (grupo.productos || []).map(String);
+            let opcionesSel = [];
+            for (let key in menuData) {
+                menuData[key].items.forEach(x => {
+                    if (!x.agotado && idsPermitidos.includes(String(x.id).replace('p_', '')) && !opcionesSel.some(o => o.id === x.id)) opcionesSel.push(x);
+                });
+            }
+            // Respeta el orden en que el dueño los marcó
+            opcionesSel.sort((p, q) => idsPermitidos.indexOf(String(p.id).replace('p_', '')) - idsPermitidos.indexOf(String(q.id).replace('p_', '')));
+            const etiqueta = grupo.nombre || 'opción';
+
+            if (opcionesSel.length === 0) {
+                container.insertAdjacentHTML('beforeend', `<p class="text-xs text-red-500 mb-2 font-bold">⚠️ Por ahora no hay "${escapeHtml(etiqueta)}" disponible para este combo.</p>`);
+                return;
+            }
+
+            const optionsHtmlSel = opcionesSel.map(opt => `<option value="${escapeHtml(opt.name)}" data-desc="${escapeHtml(opt.desc || '')}" data-img="${escapeHtml(opt.image || '')}">${escapeHtml(opt.name)}</option>`).join('');
+            const primeraSel = opcionesSel[0];
+            const cantSel = Math.max(1, parseInt(grupo.cantidad, 10) || 1);
+
+            for (let i = 0; i < cantSel; i++) {
+                const tituloSel = cantSel > 1 ? `Elige: ${etiqueta} (${i + 1} de ${cantSel})` : `Elige: ${etiqueta}`;
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="space-y-1 mb-3">
+                        <label class="block text-gray-500 font-bold text-[10px] uppercase tracking-wider">${escapeHtml(tituloSel)}</label>
+                        <div class="flex items-center gap-2">
+                            <div id="img-combo-${selectIndex}" class="flex-shrink-0">${construirMiniaturaComboHtml(primeraSel.image)}</div>
+                            <div class="flex-grow min-w-0">
+                                <select id="select-combo-grupo-${selectIndex}" onchange="actualizarDescripcionCombo(this, 'desc-combo-${selectIndex}', 'img-combo-${selectIndex}')" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-gray-50 focus:outline-none focus:border-red-500 font-medium text-gray-800 shadow-sm cursor-pointer">
+                                    ${optionsHtmlSel}
+                                </select>
+                                <p id="desc-combo-${selectIndex}" class="text-[10px] text-gray-400 italic px-1 min-h-[15px] mt-1">${escapeHtml(primeraSel.desc || '')}</p>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                selectIndex++;
+            }
         } else if (grupo.tipo === 'producto') {
             let prodOriginal = null;
             for (let key in menuData) {
