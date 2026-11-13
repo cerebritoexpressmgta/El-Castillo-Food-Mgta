@@ -526,7 +526,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null,
             apellido: u.apellido || '', cedula: u.cedula || '', direccion: u.direccion || '', telefono: u.telefono || '',
             telefono_familiar: u.telefono_familiar || '', alergias: u.alergias || '', condicion_medica: u.condicion_medica || '',
-            medicamentos: u.medicamentos || '', fecha_nacimiento: u.fecha_nacimiento || '', foto: u.foto || '', horario: horarioTrabajoDe(u)
+            medicamentos: u.medicamentos || '', fecha_nacimiento: u.fecha_nacimiento || '', cargo: u.cargo || '', foto: u.foto || '', horario: horarioTrabajoDe(u)
         }));
     });
     ruta('POST', '/api/horarios-trabajo/guardar', (ctx, db) => {
@@ -560,6 +560,9 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         u.telefono = txtFicha(b.telefono, 30); u.telefono_familiar = txtFicha(b.telefono_familiar, 30);
         u.alergias = txtFicha(b.alergias, 200); u.condicion_medica = txtFicha(b.condicion_medica, 300); u.medicamentos = txtFicha(b.medicamentos, 300);
         u.foto = foto; u.fecha_nacimiento = nac; u.horario_trabajo = limpio;
+        u.cargo = txtFicha(b.cargo, 60);
+        // Tienda asignada = la misma "sucursal donde trabaja" de Usuarios (los administradores ven todas)
+        if (Object.prototype.hasOwnProperty.call(b, 'sucursal_id')) u.sucursal_id = ['admin', 'superadmin'].includes(String(u.rol).toLowerCase()) ? null : idSucursalValido(db, b.sucursal_id);
         return ok();
     });
     // Cada trabajador ve SOLO su propio horario (nunca la ficha ni los datos de otros)
