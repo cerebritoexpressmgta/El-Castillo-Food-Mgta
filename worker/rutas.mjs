@@ -513,6 +513,14 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     // ---- Personal: ficha del trabajador + horario de trabajo (solo la ve/edita el administrador) ----
     const HORA_VALIDA = /^([01]\d|2[0-3]):[0-5]\d$/;
     const txtFicha = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+    // Fecha AAAA-MM-DD real: '' si viene vacía, null si es inválida
+    function fechaIso(v) {
+        const t = String(v || '').trim(); if (!t) return '';
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t); if (!m) return null;
+        const f = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+        const real = f.getUTCFullYear() === +m[1] && f.getUTCMonth() === +m[2] - 1 && f.getUTCDate() === +m[3];
+        return real && +m[1] >= 1900 && +m[1] <= 2100 ? t : null;
+    }
     function horarioTrabajoDe(u) {
         const g = Array.isArray(u.horario_trabajo) ? u.horario_trabajo : [];
         return DIAS_SEMANA.map((_, d) => {
@@ -526,7 +534,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null,
             apellido: u.apellido || '', cedula: u.cedula || '', direccion: u.direccion || '', telefono: u.telefono || '',
             telefono_familiar: u.telefono_familiar || '', alergias: u.alergias || '', condicion_medica: u.condicion_medica || '',
-            medicamentos: u.medicamentos || '', fecha_nacimiento: u.fecha_nacimiento || '', cargo: u.cargo || '', foto: u.foto || '', horario: horarioTrabajoDe(u)
+            medicamentos: u.medicamentos || '', fecha_nacimiento: u.fecha_nacimiento || '', cargo: u.cargo || '',
+            fecha_ingreso: u.fecha_ingreso || '', fecha_egreso: u.fecha_egreso || '', vacaciones: !!u.vacaciones, vacaciones_desde: u.vacaciones_desde || '', vacaciones_hasta: u.vacaciones_hasta || '', foto: u.foto || '', horario: horarioTrabajoDe(u)
         }));
     });
     ruta('POST', '/api/horarios-trabajo/guardar', (ctx, db) => {
@@ -554,6 +563,20 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             const real = f && f.getUTCFullYear() === +mm[1] && f.getUTCMonth() === +mm[2] - 1 && f.getUTCDate() === +mm[3];
             if (!real || +mm[1] < 1900 || f.getTime() > Date.now()) return { success: false, error: 'La fecha de nacimiento no es válida' };
         }
+        // Ingreso / egreso y vacaciones (solo se tocan si el cliente los envía)
+        const trae = k => Object.prototype.hasOwnProperty.call(b, k);
+        const ingreso = trae('fecha_ingreso') ? fechaIso(b.fecha_ingreso) : (u.fecha_ingreso || '');
+        const egreso = trae('fecha_egreso') ? fechaIso(b.fecha_egreso) : (u.fecha_egreso || '');
+        if (ingreso === null) return { success: false, error: 'La fecha de ingreso no es válida' };
+        if (egreso === null) return { success: false, error: 'La fecha de egreso no es válida' };
+        if (ingreso && egreso && egreso < ingreso) return { success: false, error: 'La fecha de egreso no puede ser anterior a la de ingreso' };
+        const enVac = trae('vacaciones') ? b.vacaciones === true : !!u.vacaciones;
+        let vd = trae('vacaciones_desde') ? fechaIso(b.vacaciones_desde) : (u.vacaciones_desde || '');
+        let vh = trae('vacaciones_hasta') ? fechaIso(b.vacaciones_hasta) : (u.vacaciones_hasta || '');
+        if (enVac) {
+            if (!vd || !vh) return { success: false, error: 'Indica el periodo vacacional (desde y hasta)' };
+            if (vh < vd) return { success: false, error: 'El periodo vacacional termina antes de empezar' };
+        } else { vd = ''; vh = ''; }
         const nombre = txtFicha(b.nombre, 80);
         if (nombre) u.nombre = nombre;
         u.apellido = txtFicha(b.apellido, 80); u.cedula = txtFicha(b.cedula, 20); u.direccion = txtFicha(b.direccion, 300);
@@ -561,6 +584,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         u.alergias = txtFicha(b.alergias, 200); u.condicion_medica = txtFicha(b.condicion_medica, 300); u.medicamentos = txtFicha(b.medicamentos, 300);
         u.foto = foto; u.fecha_nacimiento = nac; u.horario_trabajo = limpio;
         u.cargo = txtFicha(b.cargo, 60);
+        u.fecha_ingreso = ingreso; u.fecha_egreso = egreso; u.vacaciones = enVac; u.vacaciones_desde = vd; u.vacaciones_hasta = vh;
         // Tienda asignada = la misma "sucursal donde trabaja" de Usuarios (los administradores ven todas)
         if (Object.prototype.hasOwnProperty.call(b, 'sucursal_id')) u.sucursal_id = ['admin', 'superadmin'].includes(String(u.rol).toLowerCase()) ? null : idSucursalValido(db, b.sucursal_id);
         return ok();
@@ -570,7 +594,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const p = requiereStaff(ctx);
         const u = db.usuarios.find(x => String(x.username).toLowerCase() === String(p.sub).toLowerCase());
         if (!u) return { nombre: '', horario: [] };
-        return { nombre: u.nombre, horario: horarioTrabajoDe(u) };
+        return { nombre: u.nombre, horario: horarioTrabajoDe(u), fecha_ingreso: u.fecha_ingreso || '', fecha_egreso: u.fecha_egreso || '', vacaciones: !!u.vacaciones, vacaciones_desde: u.vacaciones_desde || '', vacaciones_hasta: u.vacaciones_hasta || '' };
     });
 
     // ---- Métodos de pago (los que ve el cliente en el menú y en la caja; también alimentan las estadísticas) ----
