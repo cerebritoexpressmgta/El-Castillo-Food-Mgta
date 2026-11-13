@@ -633,13 +633,86 @@ function actualizarEdad() {
     document.getElementById('fic-edad').value = e === null ? '' : (e === 1 ? '1 año' : e + ' años');
 }
 
+// ---------- Calendario de la semana (fechas reales) ----------
+const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+let SEMANA_FICHA = ''; // lunes (AAAA-MM-DD) de la semana que se está viendo
+
+function isoHoyCaracas() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Caracas' }); }
+function isoSumar(iso, dias) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + dias); return d.toISOString().slice(0, 10); }
+function lunesDe(iso) { const d = new Date(iso + 'T00:00:00Z'); return isoSumar(iso, -((d.getUTCDay() + 6) % 7)); }
+function partesIso(iso) { const p = iso.split('-').map(Number); return { y: p[0], m: p[1], d: p[2] }; }
+function fechaCorta(iso) { const p = partesIso(iso); return p.d + ' ' + MESES_CORTO[p.m - 1]; }
+function tituloSemana(lunes) {
+    const a = partesIso(lunes), b = partesIso(isoSumar(lunes, 6));
+    if (a.y !== b.y) return `Semana del ${a.d} de ${MESES_LARGO[a.m - 1]} de ${a.y} al ${b.d} de ${MESES_LARGO[b.m - 1]} de ${b.y}`;
+    if (a.m !== b.m) return `Semana del ${a.d} de ${MESES_LARGO[a.m - 1]} al ${b.d} de ${MESES_LARGO[b.m - 1]} de ${b.y}`;
+    return `Semana del ${a.d} al ${b.d} de ${MESES_LARGO[b.m - 1]} de ${b.y}`;
+}
+function hora12(h) {
+    const m = /^(\d{2}):(\d{2})$/.exec(h || ''); if (!m) return '';
+    let n = parseInt(m[1], 10); const suf = n >= 12 ? 'p. m.' : 'a. m.'; n = n % 12 || 12;
+    return n + ':' + m[2] + ' ' + suf;
+}
+
+// Lo que dice el formulario en este momento (así el calendario reacciona mientras se edita)
+function leerContextoFicha() {
+    const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const dias = [];
+    for (let d = 0; d <= 6; d++) dias.push({ activo: document.getElementById(`hor-activo-${d}`).checked, ent: v(`hor-inicio-${d}`), sal: v(`hor-fin-${d}`), di: v(`hor-desc-ini-${d}`), df: v(`hor-desc-fin-${d}`) });
+    return { ingreso: v('fic-ingreso'), egreso: v('fic-egreso'), vacOn: document.getElementById('fic-vacaciones').checked, vd: v('fic-vac-desde'), vh: v('fic-vac-hasta'), dias };
+}
+
+function estadoDiaFicha(iso, d, c) {
+    if (c.ingreso && iso < c.ingreso) return { k: 'fuera', txt: 'Aún no ingresa', corto: '✖' };
+    if (c.egreso && iso > c.egreso) return { k: 'fuera', txt: 'Ya egresó', corto: '✖' };
+    if (c.vacOn && c.vd && c.vh && iso >= c.vd && iso <= c.vh) return { k: 'vac', txt: '🏖️ Vacaciones', corto: '🏖️' };
+    const x = c.dias[d];
+    if (x.activo) {
+        let t = (x.ent && x.sal) ? `${hora12(x.ent)} – ${hora12(x.sal)}` : 'Trabaja';
+        if (x.di && x.df) t += ` · descanso ${hora12(x.di)} – ${hora12(x.df)}`;
+        return { k: 'trabaja', txt: t, corto: '✔' };
+    }
+    return { k: 'libre', txt: 'Libre', corto: '–' };
+}
+
+function pintarSemanaFicha() {
+    if (!document.getElementById('sem-strip') || !SEMANA_FICHA) return;
+    const c = leerContextoFicha(), hoy = isoHoyCaracas();
+    document.getElementById('sem-titulo').textContent = tituloSemana(SEMANA_FICHA);
+    let strip = '';
+    for (let d = 0; d <= 6; d++) {
+        const iso = isoSumar(SEMANA_FICHA, d), est = estadoDiaFicha(iso, d, c), esHoy = iso === hoy;
+        strip += `<div class="sem-celda ${est.k} ${esHoy ? 'hoy' : ''}" title="${escapeHtml(DIAS_TRABAJO[d] + ' ' + fechaCorta(iso) + ': ' + est.txt)}">${DIAS_TRABAJO[d].slice(0, 3)}<b>${partesIso(iso).d}</b>${est.corto}</div>`;
+        document.getElementById(`hor-fecha-${d}`).textContent = fechaCorta(iso) + (esHoy ? ' · hoy' : '');
+        document.getElementById(`hor-estado-${d}`).textContent = est.txt;
+        const fila = document.getElementById(`hor-row-${d}`);
+        fila.classList.toggle('estado-vac', est.k === 'vac');
+        fila.classList.toggle('estado-fuera', est.k === 'fuera');
+    }
+    document.getElementById('sem-strip').innerHTML = strip;
+}
+
+function cambiarSemanaFicha(delta) {
+    SEMANA_FICHA = delta === 0 ? lunesDe(isoHoyCaracas()) : isoSumar(SEMANA_FICHA, 7 * delta);
+    pintarSemanaFicha();
+}
+
 function aplicarModoFicha() {
     const cont = document.getElementById('ficha-trabajador');
     if (!cont) return;
     cont.querySelectorAll('.fic-editable').forEach(el => { el.disabled = !FICHA_EDITANDO; });
-    if (FICHA_EDITANDO) for (let d = 0; d <= 6; d++) toggleHorarioDia(d); // los días sin marcar siguen con las horas bloqueadas
+    // Con "de vacaciones" marcado se bloquean los días de trabajo; el periodo vacacional solo se edita en ese caso
+    const vac = document.getElementById('fic-vacaciones').checked;
+    ['fic-vac-desde', 'fic-vac-hasta'].forEach(id => { document.getElementById(id).disabled = !FICHA_EDITANDO || !vac; });
+    for (let d = 0; d <= 6; d++) {
+        document.getElementById(`hor-activo-${d}`).disabled = !FICHA_EDITANDO || vac;
+        toggleHorarioDia(d, true);
+        document.getElementById(`hor-row-${d}`).classList.toggle('vac-bloqueado', vac);
+    }
     cont.querySelectorAll('.solo-edicion').forEach(el => el.classList.toggle('oculto', !FICHA_EDITANDO));
     cont.querySelectorAll('.solo-vista').forEach(el => el.classList.toggle('oculto', FICHA_EDITANDO));
+    pintarSemanaFicha();
 }
 
 function editarFicha() { FICHA_EDITANDO = true; aplicarModoFicha(); }
@@ -651,6 +724,7 @@ function mostrarHorarioTrabajador() {
     const u = HORARIOS_TRABAJO.find(x => String(x.id) === document.getElementById('hor-trabajador').value);
     if (!u) { cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; margin-top:1rem; text-align:center;">' + (HORARIOS_TRABAJO.length ? 'No hay trabajadores asignados a esta tienda.' : 'Aún no hay usuarios. Créalos en la pestaña Usuarios.') + '</p>'; return; }
     FOTO_TRABAJADOR = u.foto || '';
+    SEMANA_FICHA = lunesDe(isoHoyCaracas());
     const hoyISO = new Date().toLocaleDateString('en-CA');
     const esAdminRol = ['admin', 'superadmin'].includes(String(u.rol).toLowerCase());
     const multiTienda = SUCURSALES_ADMIN.length > 1;
@@ -661,14 +735,15 @@ function mostrarHorarioTrabajador() {
 
     const filas = u.horario.map(h => {
         const d = h.dia_semana;
-        return `<div class="hor-dia">
-            <div><div class="dia-nombre">${DIAS_TRABAJO[d]}</div>
-                <label style="display:flex; align-items:center; margin:4px 0 0; font-size:0.78rem;"><input type="checkbox" id="hor-activo-${d}" class="fic-editable" onchange="toggleHorarioDia(${d})" ${h.activo ? 'checked' : ''}> Trabaja</label></div>
+        return `<div class="hor-dia" id="hor-row-${d}">
+            <div><div class="dia-nombre">${DIAS_TRABAJO[d]}</div><div class="hor-fecha" id="hor-fecha-${d}"></div>
+                <label style="display:flex; align-items:center; margin:4px 0 0; font-size:0.78rem;"><input type="checkbox" id="hor-activo-${d}" class="fic-editable" onchange="toggleHorarioDia(${d})" ${h.activo ? 'checked' : ''}> Trabaja</label>
+                <div class="hor-estado" id="hor-estado-${d}"></div></div>
             <div>
-                <div class="horas"><small>Entrada</small><input type="time" id="hor-inicio-${d}" class="fic-editable" value="${h.hora_entrada}">
-                    <small>Salida</small><input type="time" id="hor-fin-${d}" class="fic-editable" value="${h.hora_salida}"></div>
-                <div class="horas" style="margin-top:0.4rem;"><small>Descanso</small><input type="time" id="hor-desc-ini-${d}" class="fic-editable" value="${h.descanso_desde || ''}">
-                    <small>a</small><input type="time" id="hor-desc-fin-${d}" class="fic-editable" value="${h.descanso_hasta || ''}"></div>
+                <div class="horas"><small>Entrada</small><input type="time" id="hor-inicio-${d}" class="fic-editable" value="${h.hora_entrada}" oninput="pintarSemanaFicha()">
+                    <small>Salida</small><input type="time" id="hor-fin-${d}" class="fic-editable" value="${h.hora_salida}" oninput="pintarSemanaFicha()"></div>
+                <div class="horas" style="margin-top:0.4rem;"><small>Descanso</small><input type="time" id="hor-desc-ini-${d}" class="fic-editable" value="${h.descanso_desde || ''}" oninput="pintarSemanaFicha()">
+                    <small>a</small><input type="time" id="hor-desc-fin-${d}" class="fic-editable" value="${h.descanso_hasta || ''}" oninput="pintarSemanaFicha()"></div>
             </div></div>`;
     }).join('');
 
@@ -677,7 +752,7 @@ function mostrarHorarioTrabajador() {
             <div id="ficha-foto-box" class="ficha-foto"></div>
             <div>
                 <div style="font-size:1.15rem; font-weight:bold;">${escapeHtml(((u.nombre || '') + ' ' + (u.apellido || '')).trim())}</div>
-                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Usuario: ${escapeHtml(u.username)} · Rol: ${escapeHtml(u.rol)}${u.cargo ? ' · Cargo: ' + escapeHtml(u.cargo) : ''} · 📍 ${escapeHtml(tiendaNombre)}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Usuario: ${escapeHtml(u.username)} · Rol: ${escapeHtml(u.rol)}${u.cargo ? ' · Cargo: ' + escapeHtml(u.cargo) : ''} · 📍 ${escapeHtml(tiendaNombre)}${u.vacaciones ? ' · 🏖️ De vacaciones' : ''}</div>
                 <div class="ficha-acciones">
                     <button type="button" class="btn-submit solo-vista" onclick="editarFicha()">✏️ Editar</button>
                     <button type="button" class="btn-peligro solo-vista" onclick="eliminarTrabajador()">🗑️ Eliminar</button>
@@ -712,6 +787,11 @@ function mostrarHorarioTrabajador() {
             <div><label for="fic-tienda">Tienda asignada</label>
                 <select id="fic-tienda" ${esAdminRol ? 'disabled' : 'class="fic-editable"'}>${opcionesTienda}</select>
                 ${esAdminRol ? '<p style="font-size:0.72rem;color:var(--text-muted);margin:4px 0 0;">Los administradores ven todas las tiendas.</p>' : (multiTienda ? '<p style="font-size:0.72rem;color:var(--text-muted);margin:4px 0 0;">Solo verá los pedidos y mesas de su tienda.</p>' : '')}</div>
+            <div><label for="fic-ingreso">Fecha de ingreso</label>
+                <input type="date" id="fic-ingreso" class="fic-editable" value="${escapeHtml(u.fecha_ingreso || '')}" min="1900-01-01" max="2100-12-31" onchange="pintarSemanaFicha()" oninput="pintarSemanaFicha()"></div>
+            <div><label for="fic-egreso">Fecha de egreso</label>
+                <input type="date" id="fic-egreso" class="fic-editable" value="${escapeHtml(u.fecha_egreso || '')}" min="1900-01-01" max="2100-12-31" onchange="pintarSemanaFicha()" oninput="pintarSemanaFicha()">
+                <p style="font-size:0.72rem;color:var(--text-muted);margin:4px 0 0;">Déjala vacía si sigue trabajando en la empresa.</p></div>
         </div>
 
         <h3 class="ficha-sub">Salud</h3>
@@ -721,8 +801,26 @@ function mostrarHorarioTrabajador() {
             ${campoFicha('fic-medicamentos', 'Medicamentos que toma', u.medicamentos, { full: true, max: 300, ph: 'Ninguno' })}
         </div>
 
+        <h3 class="ficha-sub">Vacaciones</h3>
+        <label class="fila-vac"><input type="checkbox" id="fic-vacaciones" class="fic-editable" onchange="aplicarModoFicha()" ${u.vacaciones ? 'checked' : ''}> 🏖️ El trabajador está de vacaciones</label>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:0 0 0.6rem;">Al marcarlo se bloquean los días de trabajo y se activa el periodo vacacional.</p>
+        <div class="ficha-grid">
+            <div><label for="fic-vac-desde">Periodo vacacional · desde</label>
+                <input type="date" id="fic-vac-desde" class="fic-editable" value="${escapeHtml(u.vacaciones_desde || '')}" min="1900-01-01" max="2100-12-31" onchange="pintarSemanaFicha()" oninput="pintarSemanaFicha()"></div>
+            <div><label for="fic-vac-hasta">Periodo vacacional · hasta</label>
+                <input type="date" id="fic-vac-hasta" class="fic-editable" value="${escapeHtml(u.vacaciones_hasta || '')}" min="1900-01-01" max="2100-12-31" onchange="pintarSemanaFicha()" oninput="pintarSemanaFicha()"></div>
+        </div>
+
         <h3 class="ficha-sub">Horario de trabajo</h3>
-        <p style="font-size:0.78rem; color:var(--text-muted); margin:0 0 0.6rem; text-align:center;">Para cambiar cualquier dato o el horario, pulsa <b>✏️ Editar</b>. El descanso es opcional.</p>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:0 0 0.6rem; text-align:center;">Para cambiar cualquier dato o el horario, pulsa <b>✏️ Editar</b>. El horario se repite cada semana; el calendario muestra las fechas reales.</p>
+        <div class="sem-nav">
+            <button type="button" class="btn-gris btn-mini" onclick="cambiarSemanaFicha(-1)">◀ Anterior</button>
+            <span class="titulo" id="sem-titulo"></span>
+            <button type="button" class="btn-gris btn-mini" onclick="cambiarSemanaFicha(1)">Siguiente ▶</button>
+            <button type="button" class="btn-gris btn-mini" onclick="cambiarSemanaFicha(0)">Hoy</button>
+        </div>
+        <div class="sem-strip" id="sem-strip"></div>
+        <div class="sem-leyenda"><span>✔ Trabaja</span><span>– Libre</span><span>🏖️ Vacaciones</span><span>✖ Fuera de la empresa (antes del ingreso o después del egreso)</span></div>
         ${filas}
 
         <div class="ficha-acciones" style="margin-top:1rem;">
@@ -765,9 +863,11 @@ function elegirFotoTrabajador(input) {
     input.value = '';
 }
 
-function toggleHorarioDia(dia) {
+function toggleHorarioDia(dia, sinPintar) {
     const activo = document.getElementById(`hor-activo-${dia}`).checked;
-    ['hor-inicio-', 'hor-fin-', 'hor-desc-ini-', 'hor-desc-fin-'].forEach(p => { document.getElementById(p + dia).disabled = !activo || !FICHA_EDITANDO; });
+    const bloqueado = !activo || !FICHA_EDITANDO || document.getElementById('fic-vacaciones').checked;
+    ['hor-inicio-', 'hor-fin-', 'hor-desc-ini-', 'hor-desc-fin-'].forEach(p => { document.getElementById(p + dia).disabled = bloqueado; });
+    if (!sinPintar) pintarSemanaFicha();
 }
 
 async function guardarHorarios() {
@@ -795,6 +895,15 @@ async function guardarHorarios() {
     const selTienda = document.getElementById('fic-tienda');
     if (selTienda && !selTienda.disabled) ficha.sucursal_id = parseInt(selTienda.value, 10) || null;
     if (!ficha.nombre) { alert('El nombre es obligatorio.'); return; }
+    const vacOn = document.getElementById('fic-vacaciones').checked;
+    ficha.fecha_ingreso = document.getElementById('fic-ingreso').value;
+    ficha.fecha_egreso = document.getElementById('fic-egreso').value;
+    ficha.vacaciones = vacOn;
+    ficha.vacaciones_desde = vacOn ? document.getElementById('fic-vac-desde').value : '';
+    ficha.vacaciones_hasta = vacOn ? document.getElementById('fic-vac-hasta').value : '';
+    if (ficha.fecha_ingreso && ficha.fecha_egreso && ficha.fecha_egreso < ficha.fecha_ingreso) { alert('La fecha de egreso no puede ser anterior a la de ingreso.'); return; }
+    if (vacOn && (!ficha.vacaciones_desde || !ficha.vacaciones_hasta)) { alert('Indica el periodo vacacional: desde y hasta.'); return; }
+    if (vacOn && ficha.vacaciones_hasta < ficha.vacaciones_desde) { alert('El periodo vacacional termina antes de empezar.'); return; }
 
     botones.forEach(b => { b.disabled = true; b.innerText = "Guardando..."; });
     try {

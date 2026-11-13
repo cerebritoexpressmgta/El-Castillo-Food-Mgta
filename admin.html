@@ -100,6 +100,27 @@
         .list-panel h3, .ficha-sub { text-align: center; }
         .list-panel h3 { margin-bottom: 1rem; }
 
+        /* Calendario de la semana + vacaciones */
+        .sem-nav { display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin: 0.4rem 0 0.8rem; }
+        .sem-nav .titulo { font-weight: bold; text-align: center; flex: 1 1 220px; }
+        .btn-mini { padding: 0.4rem 0.8rem !important; font-size: 0.8rem; }
+        .sem-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.35rem; margin-bottom: 0.9rem; }
+        .sem-celda { border-radius: 8px; padding: 0.4rem 0.1rem; text-align: center; font-size: 0.7rem; border: 1px solid #4a5b94; background: var(--input-bg); line-height: 1.3; text-transform: uppercase; }
+        .sem-celda b { display: block; font-size: 1.05rem; }
+        .sem-celda.trabaja { background: rgba(16,185,129,0.25); border-color: #10b981; }
+        .sem-celda.libre { opacity: 0.75; }
+        .sem-celda.vac { background: rgba(245,158,11,0.28); border-color: #f59e0b; }
+        .sem-celda.fuera { background: rgba(148,163,184,0.12); border-style: dashed; opacity: 0.6; }
+        .sem-celda.hoy { box-shadow: 0 0 0 2px #fff; }
+        .sem-leyenda { display: flex; gap: 0.9rem; flex-wrap: wrap; justify-content: center; font-size: 0.72rem; color: var(--text-muted); margin: -0.3rem 0 0.9rem; }
+        .hor-dia .hor-fecha { font-size: 0.78rem; color: var(--text-muted); }
+        .hor-dia .hor-estado { font-size: 0.72rem; margin-top: 3px; font-weight: bold; }
+        .hor-dia.estado-vac { border-color: #f59e0b; background-color: rgba(245,158,11,0.12); }
+        .hor-dia.estado-fuera { opacity: 0.55; }
+        .hor-dia.vac-bloqueado .horas { opacity: 0.45; }
+        .fila-vac { display: flex; align-items: center; gap: 0.55rem; text-transform: none; font-size: 0.95rem; font-weight: bold; cursor: pointer; margin: 0.2rem 0 0.4rem; }
+        .fila-vac input { width: auto; margin: 0; }
+
         /* Ficha: modo ver / modo editar */
         .oculto { display: none !important; }
         .ficha-card input:disabled, .ficha-card select:disabled { opacity: 0.9; cursor: default; }

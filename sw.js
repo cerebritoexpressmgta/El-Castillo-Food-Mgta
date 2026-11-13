@@ -2,7 +2,7 @@
 // - Los datos (/api/*) NUNCA se guardan: siempre van a internet para ver pedidos y menú al día.
 // - Páginas y scripts: primero internet; si no hay conexión, la última copia guardada.
 // - Imágenes, íconos y librerías externas: copia guardada y se actualiza en segundo plano.
-const VERSION = 'v9';
+const VERSION = 'v10';
 const SHELL = 'castillo-shell-' + VERSION;
 const RUNTIME = 'castillo-runtime-' + VERSION;
 const MAX_RUNTIME = 120;
