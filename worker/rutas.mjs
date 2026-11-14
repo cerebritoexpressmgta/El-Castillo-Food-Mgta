@@ -3,6 +3,8 @@
 import { DEMO_CONFIG as CFG } from './demo-config.mjs';
 import { crearToken, hashClave, verificarClave, firmarObjeto, leerObjeto } from './auth.mjs';
 import { registrarResenas } from './resenas.mjs';
+import { consultarBcv, aplicarTasaBcv, aplicarTasaManual, anotarFalloBcv, infoTasa, configTasa } from './bcv.mjs';
+import { configDelivery, validarConfigDelivery, parsearCoords, coordenadasValidas, distanciaKm, cotizarDelivery } from './delivery.mjs';
 import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
 
 const VERSION_DATOS = 3;
@@ -333,8 +335,6 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     // Tasa BCV simulada (sin consultar a internet)
     // ------------------------------------------------------------------
     function tasaVigente(db) {
-        const hoy = hoyCaracas();
-        if (db.tasa.fecha !== hoy) db.tasa.fecha = hoy; // "oficial" de hoy: la misma de demo
         return db.tasa.tasa;
     }
 
@@ -618,13 +618,73 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     });
 
     // ---- BCV ----
-    ruta('GET', '/api/bcv', (ctx, db) => ({ success: true, tasa: tasaVigente(db) }));
+    // La tasa se actualiza sola cada mañana (cron del Worker, ver index.mjs); aquí también se puede
+    // forzar a mano (panel), corregir (cajero) o dejarla fija (modo manual).
+    ruta('GET', '/api/bcv', (ctx, db) => ({ success: true, tasa: tasaVigente(db), info: infoTasa(db) }));
     ruta('POST', '/api/bcv/actualizar', (ctx, db) => {
         requiereStaff(ctx);
         const tasa = parseFloat(ctx.body.tasa);
         if (!(tasa > 0)) throw new HttpError(422, 'Tasa inválida');
-        db.tasa = { tasa, fecha: hoyCaracas() };
-        return { success: true, tasa };
+        aplicarTasaManual(db, tasa, hoyCaracas(), ahoraCaracas());
+        return { success: true, tasa, info: infoTasa(db) };
+    });
+    ruta('POST', '/api/bcv/sincronizar', async (ctx, db) => {
+        const ses = requiereStaff(ctx);
+        const esAdm = ['admin', 'superadmin'].includes(String(ses.rol || '').toLowerCase());
+        const forzar = !!(ctx.body && ctx.body.forzar) && esAdm;
+        const hoy = hoyCaracas(), ahora = ahoraCaracas();
+        if (!forzar && !configTasa(db).auto) return { success: true, motivo: 'modo_manual', info: infoTasa(db) };
+        if (!forzar && db.tasa.fecha === hoy) return { success: true, motivo: 'al_dia', info: infoTasa(db) };
+        try {
+            const r = await consultarBcv();
+            const res = aplicarTasaBcv(db, r, { hoy, ahora, forzar });
+            ctx.tras.push(() => emitirTablero('actualizacion', null));
+            return Object.assign({ success: true }, res, { info: infoTasa(db) });
+        } catch (e) {
+            anotarFalloBcv(db, e && e.message || e, ahora);
+            return { success: false, motivo: 'sin_conexion', error: 'No se pudo consultar el BCV. Se mantiene la última tasa.', info: infoTasa(db) };
+        }
+    });
+    ruta('POST', '/api/bcv/config', (ctx, db) => {
+        requiereAdmin(ctx);
+        db.tasa_config = { auto: !!(ctx.body && ctx.body.auto) };
+        return { success: true, info: infoTasa(db) };
+    });
+    ruta('GET', '/api/bcv/historial', (ctx, db) => { requiereStaff(ctx); return { success: true, historial: db.tasa_historial || [] }; });
+
+    // ---- Delivery por distancia ----
+    ruta('GET', '/api/delivery/config', (ctx, db) => {
+        requiereStaff(ctx);
+        const sucs = (db.sucursales || []).map(sc => ({ id: sc.id, nombre: sc.nombre, coords_ok: !!parsearCoords(sc.coords) }));
+        return { success: true, config: configDelivery(db), sucursales: sucs };
+    });
+    ruta('POST', '/api/delivery/config/guardar', (ctx, db) => {
+        requiereAdmin(ctx);
+        const v = validarConfigDelivery(ctx.body);
+        if (!v.ok) return { success: false, error: v.error };
+        db.delivery = v.config;
+        return { success: true, config: v.config };
+    });
+    // Precio que verá el cliente antes de enviar el pedido (la misma cuenta que usa el servidor al crearlo)
+    ruta('POST', '/api/delivery/cotizar', (ctx, db) => {
+        const b = ctx.body || {};
+        const cfg = configDelivery(db);
+        const destino = coordenadasValidas(b.lat, b.lng);
+        const activas = sucursalesActivas(db);
+        let sid = parseInt(b.sucursal_id, 10) || null;
+        if (sid && !activas.some(x => x.id === sid)) sid = null;
+        if (!sid && activas.length === 1) sid = activas[0].id;
+        const suc = sid ? db.sucursales.find(x => x.id === sid) : null;
+        const origen = parsearCoords(suc ? suc.coords : '');
+        if (cfg.modo !== 'automatico') return { success: true, automatico: false, motivo: 'manual', mensaje: 'El costo del delivery te lo confirmamos al recibir tu pedido.' };
+        if (!destino) return { success: true, automatico: false, motivo: 'sin_ubicacion', mensaje: 'Comparte tu ubicación para ver el costo del delivery.' };
+        if (!origen) return { success: true, automatico: false, motivo: 'sin_origen', mensaje: 'El costo del delivery te lo confirmamos al recibir tu pedido.' };
+        let subtotal = 0;
+        try { subtotal = construirResumenPedido(db, b.articulos || [], false, sid).total; } catch (e) { subtotal = Number(b.subtotal) || 0; }
+        const km = distanciaKm(origen, destino, cfg.factor_ruta);
+        const c = cotizarDelivery(cfg, { km, subtotal, hora: horaActualCaracas() });
+        if (!c.ok) return { success: true, automatico: true, ok: false, codigo: c.codigo, mensaje: c.mensaje, km: Math.round(km * 10) / 10 };
+        return { success: true, automatico: true, ok: true, precio: c.precio, km: c.km, gratis: c.gratis, recargos: c.recargos };
     });
 
     // ---- Mensajes ----
@@ -861,13 +921,34 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const emp = calcularEmpaque(db, p.articulos);
         const esPickup = esEntregaPickup(tipo);
 
+        // Delivery por distancia: si el cliente compartió su ubicación y la sucursal tiene coordenadas,
+        // se calcula el precio con la tabla del panel. En modo automático el pedido sale directo a cobro;
+        // en modo manual (o sin ubicación) pasa por "Calculando Delivery" como siempre.
+        let delivery = null;
+        const esDelivery = !esMesa && !esPickup;
+        const destinoCli = esDelivery ? coordenadasValidas(p.lat, p.lng) : null;
+        const origenSuc = suc ? parsearCoords(suc.coords) : null;
+        if (destinoCli && origenSuc) {
+            const cfgD = configDelivery(db);
+            const km = distanciaKm(origenSuc, destinoCli, cfgD.factor_ruta);
+            const c = cotizarDelivery(cfgD, { km, subtotal: total, hora: horaActualCaracas() });
+            if (!c.ok) throw new HttpError(400, c.mensaje);
+            delivery = Object.assign({}, c, { auto: cfgD.modo === 'automatico' });
+        }
+        const deliveryAuto = !!(delivery && delivery.auto);
+        const totalFinal = deliveryAuto ? Math.round((total + delivery.precio) * 100) / 100 : total;
+        const textoFinal = deliveryAuto ? texto + `\n1x Servicio de Delivery ($${delivery.precio})` : texto;
+        const cobroDirecto = esPickup || deliveryAuto;
+
         const nuevo = {
             id: siguienteId(db, 'pedidos'), cliente, telefono, timestamp: ahoraCaracas(), fecha: hoyCaracas(),
-            tipo_entrega: tipo, direccion, metodo_pago: metodoPago, pedido_detallado: texto, total_orden: total,
-            estado: esMesa ? 'En Cocina' : (esPickup ? 'Pago Pendiente' : 'Calculando Delivery'), procesado_por: esMesa ? 'Pedido en mesa' : 'Sistema Automatizado',
+            tipo_entrega: tipo, direccion, metodo_pago: metodoPago, pedido_detallado: textoFinal, total_orden: totalFinal,
+            estado: esMesa ? 'En Cocina' : (cobroDirecto ? 'Pago Pendiente' : 'Calculando Delivery'), procesado_por: esMesa ? 'Pedido en mesa' : 'Sistema Automatizado',
             referencia_pago: /efectivo|punto de venta/i.test(metodoPago) ? null : 'Pendiente',
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,
-            precio_delivery: null, paga_con: null,
+            precio_delivery: deliveryAuto ? delivery.precio : null, paga_con: null,
+            delivery_auto: deliveryAuto, delivery_sugerido: delivery && !deliveryAuto ? delivery.precio : null, distancia_km: delivery ? delivery.km : null,
+            lat: destinoCli ? destinoCli.lat : null, lng: destinoCli ? destinoCli.lng : null,
             total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos,
             sucursal_id: sid, sucursal_nombre: suc ? suc.nombre : null
         };
@@ -881,24 +962,24 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (esMesa) {
             const pl = db.mensajes.find(x => x.id === 'recepcion_mesa');
             mensaje = aplicarPlaceholders(pl ? pl.texto : PLANTILLAS.recepcion_mesa, { '[CLIENTE]': cliente, '[PEDIDO]': idVisual, '[MESA]': mesa.nombre });
-        } else if (esPickup) {
+        } else if (cobroDirecto) {
             const m = metodoPago.toLowerCase();
             const plantillaId = m.includes('zelle') ? 'cobro_zelle' : (m.includes('efectivo') ? 'cobro_efectivo' : 'cobro_pago_movil');
             const pl = db.mensajes.find(x => x.id === plantillaId);
-            const bs = (total * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            mensaje = pl ? aplicarPlaceholders(pl.texto, { '[CLIENTE]': cliente, '[PEDIDO_DETALLADO]': texto, '[PEDIDO]': idVisual, '[TOTAL_USD]': total.toFixed(2), '[TOTAL_BS]': bs })
-                : `¡Hola ${cliente}! Tu pedido #${idVisual} está listo para ser pagado. Total: $${total.toFixed(2)}`;
+            const bs = (totalFinal * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            mensaje = pl ? aplicarPlaceholders(pl.texto, { '[CLIENTE]': cliente, '[PEDIDO_DETALLADO]': textoFinal, '[PEDIDO]': idVisual, '[TOTAL_USD]': totalFinal.toFixed(2), '[TOTAL_BS]': bs })
+                : `¡Hola ${cliente}! Tu pedido #${idVisual} está listo para ser pagado. Total: $${totalFinal.toFixed(2)}`;
         } else {
             const pl = db.mensajes.find(x => x.id === 'recepcion');
             mensaje = pl ? aplicarPlaceholders(pl.texto, { '[CLIENTE]': cliente, '[PEDIDO]': idVisual })
                 : `🍔 ¡Hola, ${cliente}! Hemos recibido tu pedido #${idVisual}. En breve calcularemos el delivery.`;
         }
         enviarWhatsappSimulado(db, telefono, mensaje, 'nuevo pedido');
-        ctx.tras.push(() => emitirTablero(esPickup ? 'actualizacion' : 'nuevo_pedido', sid));
+        ctx.tras.push(() => emitirTablero(cobroDirecto ? 'actualizacion' : 'nuevo_pedido', sid));
         if (esMesa) ctx.tras.push(() => emitirTablero('mesas', sid));
         // Pase para reseñar ESTE pedido cuando sea entregado (solo para clientes, no para pedidos tomados por el personal)
         const resenaToken = esPersonal ? null : await firmarObjeto({ fase: 'resena', pid: nuevo.id, tel: telefono }, 45 * 24 * 3600e3);
-        return { success: true, resena_token: resenaToken, pedido: { id: nuevo.id, id_visual: idVisual, total }, sucursal: suc ? { id: suc.id, nombre: suc.nombre, whatsapp: suc.whatsapp || '', telefono: suc.telefono || '' } : null };
+        return { success: true, resena_token: resenaToken, pedido: { id: nuevo.id, id_visual: idVisual, total: totalFinal }, delivery: delivery ? { precio: delivery.precio, km: delivery.km, auto: deliveryAuto } : null, sucursal: suc ? { id: suc.id, nombre: suc.nombre, whatsapp: suc.whatsapp || '', telefono: suc.telefono || '' } : null };
     });
 
     function filtrarFecha(db, q, filtro) {

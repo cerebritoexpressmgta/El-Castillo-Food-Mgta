@@ -188,6 +188,12 @@
                     <span>Total a Pagar:</span>
                     <span id="checkout-total-price">$0.00</span>
                 </div>
+                <div id="checkout-delivery-row" class="hidden flex justify-between text-sm font-semibold text-amber-800 mt-1">
+                    <span>🛵 Delivery:</span><span id="checkout-delivery-price"></span>
+                </div>
+                <div id="checkout-total-con-delivery-row" class="hidden flex justify-between font-black text-xl text-green-700 mt-1">
+                    <span>Total con delivery:</span><span id="checkout-total-con-delivery"></span>
+                </div>
             </div>
 
             <div id="banner-cerrado" class="hidden bg-red-50 border border-red-300 text-red-800 text-sm p-4 rounded-2xl font-semibold text-center"></div>
@@ -244,6 +250,12 @@
                             <label for="chk-guardar-frecuente" class="text-xs font-semibold text-blue-900 cursor-pointer">Guardar como dirección frecuente</label>
                         </div>
                     </div>
+                </div>
+
+                <div id="caja-ubicacion-delivery" class="hidden space-y-2">
+                    <button type="button" id="btn-ubicacion" onclick="compartirUbicacion()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3 rounded-xl shadow-sm transition cursor-pointer">📍 Compartir mi ubicación para ver el costo del delivery</button>
+                    <p id="txt-ubicacion-estado" class="text-[11px] text-gray-500 leading-snug"></p>
+                    <div id="caja-cotizacion-delivery" class="hidden rounded-xl p-3 border text-sm font-semibold"></div>
                 </div>
 
                 <div>

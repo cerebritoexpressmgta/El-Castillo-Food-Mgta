@@ -1,6 +1,7 @@
 // Worker de El Castillo Food Mgta: API (/api/*) + solicitud diaria a Supabase.
 // Los archivos de la web los sirve Cloudflare directamente (binding ASSETS).
-import { rutas, HttpError, crearDbInicial, usarFallos, tomarEvento, usarLimiteSucursales } from './rutas.mjs';
+import { rutas, HttpError, crearDbInicial, usarFallos, tomarEvento, usarLimiteSucursales, ahoraCaracas } from './rutas.mjs';
+import { consultarBcv, aplicarTasaBcv, anotarFalloBcv } from './bcv.mjs';
 import { configurarSecreto, verificarToken, hashClave } from './auth.mjs';
 import { leerEstado, crearEstado, guardarEstado, leerVersion, mantenerActivo, subirImagen } from './supabase.mjs';
 
@@ -93,11 +94,38 @@ export default {
         }
         return env.ASSETS.fetch(request);
     },
-    // Cron diario: mantiene activo el proyecto de Supabase
+    // Cron (ver wrangler.jsonc): mantiene activo Supabase y actualiza la tasa BCV cada mañana
     async scheduled(event, env, ctx) {
         ctx.waitUntil(
             mantenerActivo(env).then(() => console.log('Ping diario a Supabase OK'))
                 .catch(e => console.error('Ping diario a Supabase FALLÓ:', e.message))
         );
+        ctx.waitUntil(
+            sincronizarTasa(env).then(m => console.log('Tasa BCV:', m))
+                .catch(e => console.error('Tasa BCV FALLÓ:', e.message))
+        );
     }
 };
+
+// Actualiza la tasa BCV una vez al día. Los cron de reintento (10 a. m. y 1 p. m.) no hacen nada si ya está al día.
+async function sincronizarTasa(env) {
+    for (let intento = 0; intento < 5; intento++) {
+        const est = await cargarOCrear(env);
+        const db = est.data;
+        const ahora = ahoraCaracas(), hoy = ahora.slice(0, 10);
+        if (db.tasa_config && db.tasa_config.auto === false) return 'modo manual: no se toca';
+        if (db.tasa && db.tasa.fecha === hoy) return 'ya estaba al día';
+        let resumen;
+        try {
+            const r = await consultarBcv();
+            const res = aplicarTasaBcv(db, r, { hoy, ahora, forzar: false });
+            resumen = res.aplicada ? `actualizada a ${db.tasa.tasa} (${db.tasa.fuente})` : `no aplicada (${res.motivo})`;
+        } catch (e) {
+            anotarFalloBcv(db, e.message, ahora);
+            resumen = 'no se pudo consultar: ' + e.message;
+        }
+        const guardado = await guardarEstado(env, est.version, db, { mensaje: 'actualizacion', sucursal_id: null, ts: Date.now() });
+        if (guardado) return resumen;
+    }
+    return 'mucha actividad al guardar; se reintenta en el próximo cron';
+}

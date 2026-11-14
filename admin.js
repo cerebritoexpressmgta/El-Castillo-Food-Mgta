@@ -160,6 +160,8 @@ async function desbloquearAdmin() {
             cargarMensajesWP();
             cargarHorarios();
             cargarMetodosPago();
+            cargarTasaBcv();
+            cargarDeliveryAdmin();
             cargarAnuncios();
         } else {
             lanzarErrorBloqueo(errorMsg, boton, "Usuario/PIN incorrecto o sin privilegios.");
@@ -995,6 +997,198 @@ async function guardarMetodosPago() {
         else alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
     } catch (e) { alert('Error de red al guardar.'); }
     finally { btn.disabled = false; btn.innerText = "💾 Guardar métodos de pago"; }
+}
+
+// ==========================================
+// TASA BCV (se actualiza sola cada mañana; aquí se ve, se fuerza, se apaga o se escribe a mano)
+// ==========================================
+function fmtBs(n) { return new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0); }
+function fmtFechaHora(iso) { return iso ? String(iso).replace('T', ' ').slice(0, 16) : '—'; }
+
+async function cargarTasaBcv() {
+    try {
+        const [r1, r2] = await Promise.all([
+            fetch(API_BASE + "/api/bcv?t=" + Date.now(), { headers: authHeaders() }),
+            fetch(API_BASE + "/api/bcv/historial", { headers: authHeaders() })
+        ]);
+        const d = await r1.json();
+        const hist = r2.ok ? (await r2.json()).historial || [] : [];
+        if (d && d.info) renderTasaBcv(d.info, hist);
+    } catch (e) { console.error("Error obteniendo la tasa BCV:", e); }
+}
+
+function renderTasaBcv(info, hist) {
+    const auto = info.fuente === 'bcv' || info.fuente === 'dolarapi';
+    const origen = info.fuente === 'bcv' ? '🏦 Banco Central de Venezuela' : (info.fuente === 'dolarapi' ? '🏦 BCV (vía respaldo DolarAPI)' : '✍️ Escrita a mano');
+    document.getElementById('tasa-actual').innerHTML =
+        `<div style="font-size:0.75rem; color:var(--text-muted); font-weight:bold;">TASA ACTUAL</div>
+         <div style="font-size:2.2rem; font-weight:900; color:#34d399; line-height:1.2;">Bs ${fmtBs(info.tasa)}</div>
+         <div style="font-size:0.85rem; color:#cbd5e1;">por cada $1 · ${origen}</div>
+         <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Vigente desde el ${escapeHtml(info.fecha || '—')} · actualizada ${escapeHtml(fmtFechaHora(info.actualizado))}${info.anterior ? ` · antes Bs ${fmtBs(info.anterior)}` : ''}</div>`;
+    const err = document.getElementById('tasa-error');
+    if (info.error) { err.style.display = 'block'; err.textContent = '⚠️ ' + info.error; } else { err.style.display = 'none'; }
+    document.getElementById('tasa-auto').checked = !!info.auto;
+    document.getElementById('tasa-historial').innerHTML = hist.length
+        ? `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">` + hist.slice(0, 15).map(x =>
+            `<tr style="border-bottom:1px solid #4a5b94;"><td style="padding:6px 10px;">${escapeHtml(x.fecha)} ${escapeHtml(x.hora || '')}</td><td style="padding:6px 10px; font-weight:bold; color:#34d399;">Bs ${fmtBs(x.tasa)}</td><td style="padding:6px 10px; color:var(--text-muted);">${x.fuente === 'manual' ? '✍️ Manual' : '🏦 BCV'}</td></tr>`).join('') + `</table>`
+        : '<p style="padding:10px; color:var(--text-muted); font-size:0.85rem; margin:0;">Todavía no hay cambios registrados.</p>';
+}
+
+async function cambiarModoTasa() {
+    const auto = document.getElementById('tasa-auto').checked;
+    try {
+        const res = await fetch(API_BASE + "/api/bcv/config", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ auto }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.detail || data.error);
+        await cargarTasaBcv();
+    } catch (e) { alert('No se pudo cambiar el modo: ' + e.message); await cargarTasaBcv(); }
+}
+
+async function sincronizarTasaAdmin() {
+    const btn = document.getElementById('btn-sync-tasa');
+    btn.disabled = true; btn.innerText = 'Consultando al BCV...';
+    try {
+        const res = await fetch(API_BASE + "/api/bcv/sincronizar", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ forzar: true }) });
+        const d = await res.json();
+        if (d.success === false) alert('⚠️ ' + (d.error || 'No se pudo consultar al BCV.') + '\nSe mantiene la última tasa; puedes escribirla a mano.');
+        else if (d.motivo === 'rige_despues') alert('El BCV ya publicó una tasa nueva, pero rige desde el ' + d.fecha_valor + '. Hasta entonces se mantiene la actual.');
+        else if (d.motivo === 'fuera_de_rango') alert('La tasa leída se aleja demasiado de la actual y no se aplicó. Revísala y escríbela a mano si hace falta.');
+        else if (d.info) alert(d.cambio ? `✅ Tasa actualizada: Bs ${fmtBs(d.info.tasa)}` : `✅ La tasa del BCV sigue igual: Bs ${fmtBs(d.info.tasa)}`);
+        await cargarTasaBcv();
+    } catch (e) { alert('Error de red al consultar la tasa.'); }
+    finally { btn.disabled = false; btn.innerText = '🔄 Actualizar ahora desde el BCV'; }
+}
+
+async function guardarTasaManualAdmin() {
+    const inp = document.getElementById('tasa-manual');
+    const tasa = parseFloat(inp.value);
+    if (!(tasa > 0)) { alert('Escribe una tasa válida (mayor a 0).'); return; }
+    const btn = document.getElementById('btn-save-tasa');
+    btn.disabled = true;
+    try {
+        const res = await fetch(API_BASE + "/api/bcv/actualizar", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ tasa }) });
+        const d = await res.json();
+        if (d.success) { inp.value = ''; alert(`✅ Tasa guardada: Bs ${fmtBs(tasa)}` + (document.getElementById('tasa-auto').checked ? '\nMañana a las 8:00 a. m. se actualizará sola desde el BCV.' : '')); await cargarTasaBcv(); }
+        else alert('No se pudo guardar: ' + (d.detail || d.error || 'error desconocido'));
+    } catch (e) { alert('Error de red al guardar la tasa.'); }
+    finally { btn.disabled = false; }
+}
+
+// ==========================================
+// DELIVERY POR DISTANCIA
+// ==========================================
+let DELIVERY_ADMIN = null;
+
+async function cargarDeliveryAdmin() {
+    try {
+        const res = await fetch(API_BASE + "/api/delivery/config?t=" + Date.now(), { headers: authHeaders() });
+        const d = await res.json();
+        if (!d.success) return;
+        DELIVERY_ADMIN = d.config;
+        const c = d.config;
+        document.querySelectorAll('input[name="dl-modo"]').forEach(r => { r.checked = r.value === c.modo; });
+        document.getElementById('dl-extra-base').value = c.extra.base;
+        document.getElementById('dl-extra-km').value = c.extra.por_km;
+        document.getElementById('dl-factor').value = c.factor_ruta;
+        document.getElementById('dl-estandar').value = c.precio_estandar;
+        document.getElementById('dl-max').value = c.max_km;
+        document.getElementById('dl-noc-activo').checked = c.recargo_nocturno.activo;
+        document.getElementById('dl-noc-desde').value = c.recargo_nocturno.desde;
+        document.getElementById('dl-noc-hasta').value = c.recargo_nocturno.hasta;
+        document.getElementById('dl-noc-monto').value = c.recargo_nocturno.monto;
+        document.getElementById('dl-lluvia-activo').checked = c.recargo_lluvia.activo;
+        document.getElementById('dl-lluvia-monto').value = c.recargo_lluvia.monto;
+        document.getElementById('dl-min-activo').checked = c.minimo_lejos.activo;
+        document.getElementById('dl-min-km').value = c.minimo_lejos.desde_km;
+        document.getElementById('dl-min-monto').value = c.minimo_lejos.monto;
+        document.getElementById('dl-gratis-activo').checked = c.gratis_cerca.activo;
+        document.getElementById('dl-gratis-km').value = c.gratis_cerca.hasta_km;
+        document.getElementById('dl-gratis-monto').value = c.gratis_cerca.desde_pedido;
+        renderTramosDelivery(c.tramos);
+        const sin = (d.sucursales || []).filter(x => !x.coords_ok);
+        const av = document.getElementById('dl-aviso-coords');
+        if (sin.length) {
+            av.style.display = 'block';
+            av.innerHTML = '⚠️ Para calcular el precio automático cada sucursal necesita sus <b>coordenadas</b>. Falta en: <b>' + sin.map(x => escapeHtml(x.nombre)).join(', ') + '</b>. Ponlas en el <a href="panel.html" style="color:#fde68a;">Panel</a> → Sucursales → "Coordenadas para el mapa" (ej. 10.9577,-63.8697; en Google Maps, toca y mantén el local y copia los dos números). Mientras tanto esos pedidos pasan a precio manual.';
+        } else av.style.display = 'none';
+        simularDelivery();
+    } catch (e) { console.error("Error obteniendo la configuración de delivery:", e); }
+}
+
+function renderTramosDelivery(tramos) {
+    const cont = document.getElementById('dl-tramos');
+    let prev = 0;
+    cont.innerHTML = tramos.map((t, i) => {
+        const desde = prev; prev = t.hasta_km;
+        return `<div class="dl-fila" style="margin:0; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.5rem 0.7rem;">
+            <span style="min-width:62px; color:var(--text-muted);">De ${desde} a</span>
+            <input type="number" class="dl-t-km" value="${t.hasta_km}" step="0.5" min="0.5" oninput="actualizarTramosDelivery()"> <span>km  →  $</span>
+            <input type="number" class="dl-t-precio" value="${t.precio}" step="0.25" min="0" oninput="simularDelivery()">
+            <button type="button" class="action-btn btn-delete" onclick="quitarTramoDelivery(${i})" title="Quitar tramo" style="margin-left:auto;">🗑️</button></div>`;
+    }).join('');
+}
+function leerTramosDelivery() {
+    const kms = [...document.querySelectorAll('.dl-t-km')], ps = [...document.querySelectorAll('.dl-t-precio')];
+    return kms.map((k, i) => ({ hasta_km: parseFloat(k.value), precio: parseFloat(ps[i].value) }));
+}
+function actualizarTramosDelivery() { renderTramosDeliveryManteniendoFoco(); simularDelivery(); }
+function renderTramosDeliveryManteniendoFoco() {
+    // Solo actualiza las etiquetas "De X a" sin reconstruir los campos (para no perder el cursor)
+    let prev = 0;
+    document.querySelectorAll('#dl-tramos .dl-fila').forEach((fila, i) => {
+        const km = parseFloat(fila.querySelector('.dl-t-km').value) || 0;
+        fila.querySelector('span').textContent = 'De ' + prev + ' a'; prev = km;
+    });
+}
+function agregarTramoDelivery() {
+    const t = leerTramosDelivery();
+    if (t.length >= 10) { alert('Máximo 10 tramos.'); return; }
+    const ult = t.length ? t[t.length - 1] : { hasta_km: 0, precio: 1 };
+    t.push({ hasta_km: (ult.hasta_km || 0) + 2, precio: (ult.precio || 0) + 1 });
+    renderTramosDelivery(t); simularDelivery();
+}
+function quitarTramoDelivery(i) {
+    const t = leerTramosDelivery();
+    if (t.length <= 1) { alert('Debe quedar al menos un tramo.'); return; }
+    t.splice(i, 1); renderTramosDelivery(t); simularDelivery();
+}
+
+function simularDelivery() {
+    const out = document.getElementById('dl-sim-res'); if (!out) return;
+    const km = parseFloat(document.getElementById('dl-sim-km').value);
+    const tr = leerTramosDelivery().filter(t => t.hasta_km > 0).sort((a, b) => a.hasta_km - b.hasta_km);
+    if (!(km >= 0) || !tr.length) { out.textContent = '—'; return; }
+    const t = tr.find(x => km <= x.hasta_km);
+    let precio;
+    if (t) precio = t.precio;
+    else precio = (parseFloat(document.getElementById('dl-extra-base').value) || 0) + (parseFloat(document.getElementById('dl-extra-km').value) || 0) * Math.ceil(km - tr[tr.length - 1].hasta_km);
+    out.textContent = '$' + (Math.round(precio * 100) / 100).toFixed(2);
+}
+
+function armarConfigDelivery() {
+    const n = id => parseFloat(document.getElementById(id).value);
+    return {
+        modo: (document.querySelector('input[name="dl-modo"]:checked') || {}).value || 'automatico',
+        factor_ruta: n('dl-factor'), precio_estandar: n('dl-estandar'), max_km: n('dl-max') || 0,
+        tramos: leerTramosDelivery(),
+        extra: { base: n('dl-extra-base') || 0, por_km: n('dl-extra-km') || 0 },
+        recargo_nocturno: { activo: document.getElementById('dl-noc-activo').checked, desde: document.getElementById('dl-noc-desde').value, hasta: document.getElementById('dl-noc-hasta').value, monto: n('dl-noc-monto') || 0 },
+        recargo_lluvia: { activo: document.getElementById('dl-lluvia-activo').checked, monto: n('dl-lluvia-monto') || 0 },
+        minimo_lejos: { activo: document.getElementById('dl-min-activo').checked, desde_km: n('dl-min-km') || 0, monto: n('dl-min-monto') || 0 },
+        gratis_cerca: { activo: document.getElementById('dl-gratis-activo').checked, hasta_km: n('dl-gratis-km') || 0, desde_pedido: n('dl-gratis-monto') || 0 }
+    };
+}
+
+async function guardarDeliveryAdmin() {
+    const btn = document.getElementById('btn-save-delivery');
+    btn.disabled = true; btn.innerText = 'Guardando...';
+    try {
+        const res = await fetch(API_BASE + "/api/delivery/config/guardar", { method: 'POST', headers: authHeaders(), body: JSON.stringify(armarConfigDelivery()) });
+        const d = await res.json();
+        if (d.success) { alert('✅ Tarifas de delivery guardadas.' + (d.config.modo === 'automatico' ? '\nLos clientes que compartan su ubicación verán el precio antes de pedir.' : '')); await cargarDeliveryAdmin(); }
+        else alert('No se pudo guardar: ' + (d.error || d.detail || 'error desconocido'));
+    } catch (e) { alert('Error de red al guardar.'); }
+    finally { btn.disabled = false; btn.innerText = '💾 Guardar tarifas de delivery'; }
 }
 
 // ==========================================

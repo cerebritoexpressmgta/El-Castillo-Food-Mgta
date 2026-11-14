@@ -1326,6 +1326,7 @@ function renderizarResumenCarrito() {
     // no está vacío y tiene que poder verlo (y quitarlo) desde aquí.
     if (cartItems.length === 0 && pendientes.length === 0) {
         document.getElementById('checkout-total-price').innerText = "$0.00";
+        window.__totalCarritoCheckout = 0;
         goToStep(1);
         return false;
     }
@@ -1404,6 +1405,8 @@ function renderizarResumenCarrito() {
     });
 
     document.getElementById('checkout-total-price').innerText = `$${total.toFixed(2)}`;
+    window.__totalCarritoCheckout = total;
+    refrescarCotizacionDelivery();
 
     return true;
 }
@@ -1500,6 +1503,8 @@ function manejarSeleccionDireccion() {
     } else {
         wrapperManual.classList.add('hidden'); inputAddress.removeAttribute('required'); inputAddress.value = select.value;
     }
+    restaurarUbicacionDeDireccion();
+    refrescarCotizacionDelivery();
 }
 
 function toggleAddress() {
@@ -1519,6 +1524,7 @@ function toggleAddress() {
     } else {
         container.style.display = 'block'; select.setAttribute('required', 'required'); manejarSeleccionDireccion();
     }
+    refrescarCotizacionDelivery();
 }
 
 // --- Mesas (pedir comiendo en el local) ---
@@ -1614,6 +1620,13 @@ async function sendOrder(event) {
         }
     }
 
+    // Delivery automático: si el servidor ya dijo que este pedido no cumple (mínimo, zona), se avisa antes de enviar
+    if (tipoEntrega === 'Delivery' && COTIZACION_DELIVERY && COTIZACION_DELIVERY.automatico && COTIZACION_DELIVERY.ok === false) {
+        alert(COTIZACION_DELIVERY.mensaje || 'Este pedido no cumple las condiciones de delivery.');
+        submitBtn.innerText = "🚀 Confirmar y Enviar Pedido"; submitBtn.disabled = false;
+        return;
+    }
+
     const orderPayload = {
         timestamp: new Date().toISOString(),
         cliente: nombreFinal,
@@ -1623,6 +1636,8 @@ async function sendOrder(event) {
         metodo_pago: document.getElementById('payment-method').value,
         articulos: itemsInCart,
         sucursal_id: SUCURSAL_ACTUAL ? SUCURSAL_ACTUAL.id : undefined,
+        lat: (tipoEntrega === 'Delivery' && UBICACION_ENTREGA) ? UBICACION_ENTREGA.lat : undefined,
+        lng: (tipoEntrega === 'Delivery' && UBICACION_ENTREGA) ? UBICACION_ENTREGA.lng : undefined,
         metadata_titular: datosClienteLogueado ? `Pedido por: ${datosClienteLogueado.nombre} ` : "No registrado",
         estado_inicial: tipoEntrega === 'Delivery' ? 'Calculando Delivery' : 'Pago Pendiente',
         pedido_detallado: "Generado por Backend" // Validacion Pydantic FastAPI
@@ -1643,7 +1658,11 @@ async function sendOrder(event) {
             const datosOk = await response.json().catch(() => ({}));
             const msgOk = document.getElementById('msg-pedido-recibido');
             const hayWa = !!numeroWhatsAppPedido();
-            if (msgOk) msgOk.textContent = tipoEntrega === 'Mesa'
+            if (tipoEntrega === 'Delivery' && UBICACION_ENTREGA) guardarUbicacionDeDireccion(direccionFinal, UBICACION_ENTREGA);
+            const delAuto = datosOk && datosOk.delivery && datosOk.delivery.auto ? datosOk.delivery : null;
+            if (msgOk) msgOk.textContent = delAuto
+                ? `Recibimos tu pedido. El delivery (${delAuto.precio > 0 ? '$' + Number(delAuto.precio).toFixed(2) : 'gratis'}) ya está incluido: total $${Number(datosOk.pedido.total).toFixed(2)}. ` + (hayWa ? 'Toca el botón verde para enviarlo por WhatsApp y coordinar el pago.' : 'La sucursal se comunicará contigo para coordinar el pago.')
+                : tipoEntrega === 'Mesa'
                 ? `Tu pedido ya está en cocina. Te lo llevamos a la ${direccionFinal} en cuanto esté listo.`
                 : (hayWa ? 'Recibimos tu pedido. Toca el botón verde para enviarlo por WhatsApp y coordinar el pago y la entrega.' : 'Recibimos tu pedido. La sucursal se comunicará contigo para coordinar el pago y la entrega.');
             mostrarBotonWhatsApp(armarMensajeWhatsApp(datosOk, itemsInCart, tipoEntrega, direccionFinal, nombreFinal, orderPayload.metodo_pago));
@@ -2460,4 +2479,105 @@ async function guardarEdicionDatos() {
     } finally {
         btn.disabled = false; btn.innerText = "💾 Guardar Direcciones";
     }
+}
+
+
+// ==========================================
+// DELIVERY POR DISTANCIA: ubicación del cliente y precio antes de pedir
+// ==========================================
+let UBICACION_ENTREGA = null;     // { lat, lng } compartida por el cliente
+let COTIZACION_DELIVERY = null;   // última respuesta de /api/delivery/cotizar
+let _cotizSeq = 0;
+
+function claveUbicacion(dir) { return String(dir || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 200); }
+function leerUbicacionesGuardadas() { try { return JSON.parse(localStorage.getItem('ubicacionesEntrega') || '{}') || {}; } catch (e) { return {}; } }
+function guardarUbicacionDeDireccion(dir, ub) {
+    if (!dir || !ub) return;
+    const m = leerUbicacionesGuardadas();
+    m[claveUbicacion(dir)] = { lat: ub.lat, lng: ub.lng };
+    const claves = Object.keys(m);
+    if (claves.length > 20) delete m[claves[0]];
+    try { localStorage.setItem('ubicacionesEntrega', JSON.stringify(m)); } catch (e) {}
+}
+// Cada dirección guardada recuerda su ubicación, así el cliente que repite no tiene que compartirla otra vez.
+function restaurarUbicacionDeDireccion() {
+    const sel = document.getElementById('sel-direccion-entrega');
+    UBICACION_ENTREGA = null;
+    if (sel && sel.value && sel.value !== '__MANUAL__') {
+        const g = leerUbicacionesGuardadas()[claveUbicacion(sel.value)];
+        if (g && Number.isFinite(g.lat) && Number.isFinite(g.lng)) UBICACION_ENTREGA = g;
+    }
+}
+
+function compartirUbicacion() {
+    const estado = document.getElementById('txt-ubicacion-estado');
+    const btn = document.getElementById('btn-ubicacion');
+    if (!navigator.geolocation) { if (estado) estado.textContent = 'Tu navegador no permite compartir la ubicación. Igual puedes pedir: el costo del delivery te lo confirmamos.'; return; }
+    if (estado) estado.textContent = 'Buscando tu ubicación...';
+    if (btn) btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(pos => {
+        UBICACION_ENTREGA = { lat: Math.round(pos.coords.latitude * 1e6) / 1e6, lng: Math.round(pos.coords.longitude * 1e6) / 1e6 };
+        if (btn) btn.disabled = false;
+        refrescarCotizacionDelivery();
+    }, err => {
+        if (btn) btn.disabled = false;
+        if (estado) estado.textContent = err && err.code === 1
+            ? 'No pudimos acceder a tu ubicación. Activa el permiso de ubicación en tu navegador y vuelve a intentar. Igual puedes pedir: el costo del delivery te lo confirmamos.'
+            : 'No pudimos obtener tu ubicación ahora. Intenta de nuevo, o pide igual y te confirmamos el costo del delivery.';
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+}
+
+async function refrescarCotizacionDelivery() {
+    const caja = document.getElementById('caja-ubicacion-delivery');
+    if (!caja) return; // esta pantalla no tiene el bloque (ej. menú de trabajadores)
+    const tipo = (document.getElementById('delivery-type') || {}).value;
+    if (tipo !== 'Delivery') { COTIZACION_DELIVERY = null; pintarCotizacionDelivery(); return; }
+    const seq = ++_cotizSeq;
+    try {
+        const r = await fetch(API_BASE + '/api/delivery/cotizar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sucursal_id: SUCURSAL_ACTUAL ? SUCURSAL_ACTUAL.id : undefined, lat: UBICACION_ENTREGA ? UBICACION_ENTREGA.lat : undefined, lng: UBICACION_ENTREGA ? UBICACION_ENTREGA.lng : undefined, articulos: Object.values(cart) })
+        });
+        if (seq !== _cotizSeq) return; // llegó una respuesta más nueva
+        COTIZACION_DELIVERY = r.ok ? await r.json() : null;
+    } catch (e) { COTIZACION_DELIVERY = null; }
+    pintarCotizacionDelivery();
+}
+
+function pintarCotizacionDelivery() {
+    const caja = document.getElementById('caja-ubicacion-delivery');
+    if (!caja) return;
+    const btn = document.getElementById('btn-ubicacion'), estado = document.getElementById('txt-ubicacion-estado'), box = document.getElementById('caja-cotizacion-delivery');
+    const fila = document.getElementById('checkout-delivery-row'), filaTot = document.getElementById('checkout-total-con-delivery-row');
+    const c = COTIZACION_DELIVERY;
+    const ocultarFilas = () => { fila.classList.add('hidden'); filaTot.classList.add('hidden'); };
+    box.classList.add('hidden'); ocultarFilas();
+    if (!c) { caja.classList.add('hidden'); return; }
+    caja.classList.remove('hidden');
+    const sub = Number(window.__totalCarritoCheckout) || 0;
+
+    if (!c.automatico) {
+        // Modo manual (o sucursal sin coordenadas) o aún sin ubicación
+        if (c.motivo === 'sin_ubicacion') {
+            btn.classList.remove('hidden'); btn.innerText = '📍 Compartir mi ubicación para ver el costo del delivery';
+            estado.textContent = 'Solo la usamos para calcular el delivery. Si prefieres no compartirla, igual puedes pedir: el costo te lo confirmamos.';
+        } else {
+            btn.classList.add('hidden');
+            estado.textContent = '🛵 ' + (c.mensaje || 'El costo del delivery te lo confirmamos al recibir tu pedido.');
+        }
+        return;
+    }
+    btn.classList.remove('hidden'); btn.innerText = '📍 Actualizar mi ubicación';
+    if (c.ok === false) {
+        estado.textContent = '';
+        box.className = 'rounded-xl p-3 border text-sm font-semibold bg-red-50 border-red-300 text-red-800';
+        box.textContent = '⚠️ ' + c.mensaje; return;
+    }
+    estado.textContent = 'Ubicación recibida ✓ · distancia aproximada: ' + c.km + ' km.';
+    const rec = (c.recargos || []).map(x => x.tipo === 'nocturno' ? 'recargo nocturno' : (x.tipo === 'lluvia' ? 'recargo por lluvia' : x.tipo));
+    box.className = 'rounded-xl p-3 border text-sm font-semibold bg-green-50 border-green-300 text-green-800';
+    box.textContent = c.gratis ? '🎁 ¡Delivery gratis en este pedido!' : '🛵 Delivery: $' + Number(c.precio).toFixed(2) + (rec.length ? ' (incluye ' + rec.join(' y ') + ')' : '');
+    fila.classList.remove('hidden'); filaTot.classList.remove('hidden');
+    document.getElementById('checkout-delivery-price').innerText = c.gratis ? 'Gratis' : '$' + Number(c.precio).toFixed(2);
+    document.getElementById('checkout-total-con-delivery').innerText = '$' + (sub + Number(c.precio)).toFixed(2);
 }

@@ -81,6 +81,7 @@
                     <div class="flex items-center bg-slate-700 px-3 h-10 rounded-lg border border-slate-600">
                         <span class="text-xs text-slate-400 mr-2 whitespace-nowrap">Tasa BCV:</span>
                         <input type="number" id="tasaBCV" step="0.01" class="w-20 bg-slate-800 text-white text-sm font-semibold text-center border border-slate-600 rounded py-1 focus:outline-none focus:border-indigo-500">
+                        <span id="tasaOrigen" class="ml-2 text-[10px] font-bold text-slate-400 whitespace-nowrap" title=""></span>
                     </div>
                     
                     <div class="flex items-center bg-slate-700 px-3 h-10 rounded-lg border border-slate-600">
@@ -200,6 +201,7 @@
             <div class="p-5 space-y-4">
                 <div>
                     <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Costo del delivery</label>
+                    <button id="btnDeliverySugerido" class="hidden w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg shadow-md transition cursor-pointer mb-2"></button>
                     <button id="btnDeliveryEstandar" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg shadow-md transition cursor-pointer">Delivery estándar · $2</button>
                 </div>
                 <div>

@@ -46,6 +46,11 @@
         .btn-estadisticas:hover { background-color: rgba(0, 0, 0, 0.4); }
 
         .tabs { display: flex; background-color: #27325e; flex-wrap: wrap; }
+        .dl-extra-caja { background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.7rem 0.9rem; }
+        .dl-chk { display:flex; gap:0.5rem; align-items:center; cursor:pointer; text-transform:none; color:white; margin:0; font-size:0.9rem; }
+        .dl-chk input { width:auto; margin:0; transform:scale(1.15); }
+        .dl-fila { display:flex; gap:0.45rem; align-items:center; flex-wrap:wrap; margin-top:0.45rem; font-size:0.85rem; color:#cbd5e1; }
+        .dl-fila input { width:92px; margin:0; padding:0.4rem 0.5rem; background-color:#1a2347; border:1px solid #4a5b94; color:white; border-radius:6px; }
         .tab-btn { flex: 1; padding: 1rem; background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 1rem; min-width: 120px; }
         .tab-btn.active { color: var(--text-main); border-bottom: 3px solid var(--primary); background-color: var(--card-bg); }
         
@@ -210,6 +215,8 @@
             <button class="tab-btn" onclick="switchTab('horarios')">🕒 Horarios de Trabajo</button>
             <button class="tab-btn" onclick="switchTab('pagos')">💳 Métodos de Pago</button>
             <button class="tab-btn" onclick="switchTab('anuncios')">📢 Anuncios</button>
+            <button class="tab-btn" onclick="switchTab('tasa')">💱 Tasa BCV</button>
+            <button class="tab-btn" onclick="switchTab('delivery')">🛵 Delivery</button>
         </div>
 
         <div id="tab-mensajes" class="tab-content">
@@ -620,6 +627,111 @@
                     <button type="button" class="btn-submit" onclick="agregarMetodoPago()" style="width:auto; margin:0; padding:0.75rem 1.3rem;">+ Agregar</button>
                 </div>
                 <button type="button" class="btn-submit" id="btn-save-pagos" onclick="guardarMetodosPago()" style="margin-top:1.25rem; max-width:300px;">💾 Guardar métodos de pago</button>
+            </div>
+        </div>
+
+
+        <div id="tab-tasa" class="tab-content">
+            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
+                <h2 class="titulo-seccion">💱 Tasa BCV (dólar oficial)</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem; text-align: center; line-height:1.5;">
+                    Es la tasa que usa Cocina para calcular los bolívares de cada pedido. Con la actualización automática encendida, el sistema consulta al Banco Central de Venezuela <b>cada mañana a las 8:00 a. m.</b> y Cocina avisa al abrir que el precio se actualizó.
+                </p>
+                <div id="tasa-actual" style="background:#222c57; border:1px solid #4a5b94; border-radius:10px; padding:1.1rem; text-align:center; margin-bottom:1rem;"></div>
+                <div id="tasa-error" style="display:none; background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.5); color:#fcd34d; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.85rem; margin-bottom:1rem;"></div>
+
+                <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.8rem 1rem; text-transform:none; font-weight:bold; color:white; margin:0 0 1rem;">
+                    <input type="checkbox" id="tasa-auto" onchange="cambiarModoTasa()" style="width:auto; margin:0; transform:scale(1.2);">
+                    <span>Actualizar automáticamente cada mañana desde el BCV
+                        <span style="display:block; font-weight:normal; font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Si lo apagas, la tasa queda fija hasta que la cambies tú (aquí o en la casilla de Cocina).</span>
+                    </span>
+                </label>
+
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+                    <button type="button" class="btn-submit" id="btn-sync-tasa" onclick="sincronizarTasaAdmin()" style="width:auto; margin:0; padding:0.75rem 1.3rem;">🔄 Actualizar ahora desde el BCV</button>
+                </div>
+                <p style="font-size:0.75rem; color:var(--text-muted); margin:0 0 1.25rem;">Si el BCV publicó la tasa del lunes un viernes, se aplica a partir del lunes (el fin de semana rige la del viernes).</p>
+
+                <label style="font-size:0.8rem; font-weight:bold; color:var(--text-muted);">O ESCRIBIR LA TASA A MANO (Bs por $1)</label>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.3rem;">
+                    <input type="number" id="tasa-manual" step="0.01" min="0" placeholder="Ej: 915.12" onkeydown="if(event.key==='Enter'){event.preventDefault();guardarTasaManualAdmin();}" style="flex:1; min-width:160px; margin-top:0; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+                    <button type="button" class="btn-submit" id="btn-save-tasa" onclick="guardarTasaManualAdmin()" style="width:auto; margin:0; padding:0.75rem 1.3rem;">💾 Guardar tasa</button>
+                </div>
+
+                <h3 style="margin:1.5rem 0 0.5rem; font-size:0.95rem;">Últimos cambios</h3>
+                <div id="tasa-historial" style="max-height:240px; overflow-y:auto; border:1px solid #4a5b94; border-radius:8px;"></div>
+            </div>
+        </div>
+
+        <div id="tab-delivery" class="tab-content">
+            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.5rem; max-width: 860px; margin: 0 auto;">
+                <h2 class="titulo-seccion">🛵 Tarifas de Delivery</h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem; text-align: center; line-height:1.5;">
+                    El precio se calcula según la distancia entre tu local y la ubicación que comparte el cliente, y el cliente lo ve <b>antes</b> de enviar su pedido. La pestaña "Calculando delivery" de Cocina sigue funcionando para los pedidos que lo necesiten.
+                </p>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:0.6rem; margin-bottom:1rem;">
+                    <label style="display:flex; gap:0.6rem; align-items:flex-start; cursor:pointer; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.8rem 1rem; text-transform:none; color:white; margin:0;">
+                        <input type="radio" name="dl-modo" value="automatico" style="width:auto; margin:4px 0 0;">
+                        <span><b>⚡ Automático (por tabla)</b><span style="display:block; font-weight:normal; font-size:0.78rem; color:var(--text-muted);">Con ubicación del cliente, el pedido pasa directo a "Pago pendiente" con el delivery ya sumado.</span></span>
+                    </label>
+                    <label style="display:flex; gap:0.6rem; align-items:flex-start; cursor:pointer; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.8rem 1rem; text-transform:none; color:white; margin:0;">
+                        <input type="radio" name="dl-modo" value="manual" style="width:auto; margin:4px 0 0;">
+                        <span><b>✋ Manual</b><span style="display:block; font-weight:normal; font-size:0.78rem; color:var(--text-muted);">El cajero pone el precio en Cocina, como antes. La tabla solo le sugiere el monto.</span></span>
+                    </label>
+                </div>
+                <div id="dl-aviso-coords" style="display:none; background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.5); color:#fcd34d; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.85rem; margin-bottom:1rem;"></div>
+
+                <h3 style="margin:0.5rem 0 0.4rem; font-size:0.95rem;">Tabla de precios por distancia</h3>
+                <div id="dl-tramos" style="display:flex; flex-direction:column; gap:0.45rem;"></div>
+                <button type="button" onclick="agregarTramoDelivery()" style="margin-top:0.6rem; background:#4a5b94; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">+ Agregar tramo</button>
+
+                <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; margin-top:0.9rem; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.9rem;">
+                    <span>Más allá del último tramo:</span> <b>$</b>
+                    <input type="number" id="dl-extra-base" step="0.5" min="0" style="width:90px; margin:0;" oninput="simularDelivery()">
+                    <span>base + $</span>
+                    <input type="number" id="dl-extra-km" step="0.1" min="0" style="width:90px; margin:0;" oninput="simularDelivery()">
+                    <span>por cada km adicional</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:0.8rem; margin-top:1rem;">
+                    <div><label style="font-size:0.75rem; font-weight:bold; color:var(--text-muted);">FACTOR DE RUTA</label>
+                        <input type="number" id="dl-factor" step="0.05" min="1" max="3" oninput="simularDelivery()" style="width:100%; margin-top:0; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+                        <p style="font-size:0.7rem; color:var(--text-muted); margin:4px 0 0;">Las calles no son rectas: la distancia en línea recta se multiplica por esto (1.3 es lo normal en ciudad).</p></div>
+                    <div><label style="font-size:0.75rem; font-weight:bold; color:var(--text-muted);">PRECIO ESTÁNDAR ($) — botón del cajero</label>
+                        <input type="number" id="dl-estandar" step="0.5" min="0" style="width:100%; margin-top:0; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+                        <p style="font-size:0.7rem; color:var(--text-muted); margin:4px 0 0;">Se usa en Cocina cuando no hay ubicación del cliente.</p></div>
+                    <div><label style="font-size:0.75rem; font-weight:bold; color:var(--text-muted);">DISTANCIA MÁXIMA (km)</label>
+                        <input type="number" id="dl-max" step="1" min="0" style="width:100%; margin-top:0; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+                        <p style="font-size:0.7rem; color:var(--text-muted); margin:4px 0 0;">0 = sin límite. Más lejos de esto no se acepta delivery.</p></div>
+                </div>
+
+                <h3 style="margin:1.4rem 0 0.4rem; font-size:0.95rem;">Opciones extra (todas apagadas por defecto)</h3>
+                <div style="display:flex; flex-direction:column; gap:0.6rem;">
+                    <div class="dl-extra-caja">
+                        <label class="dl-chk"><input type="checkbox" id="dl-noc-activo"> <b>🌙 Recargo nocturno</b></label>
+                        <div class="dl-fila">desde <input type="time" id="dl-noc-desde"> hasta <input type="time" id="dl-noc-hasta"> suma $ <input type="number" id="dl-noc-monto" step="0.5" min="0"></div>
+                    </div>
+                    <div class="dl-extra-caja">
+                        <label class="dl-chk"><input type="checkbox" id="dl-lluvia-activo"> <b>🌧️ Recargo por lluvia</b> <span style="font-weight:normal; color:var(--text-muted);">(enciéndelo cuando llueva y apágalo después)</span></label>
+                        <div class="dl-fila">suma $ <input type="number" id="dl-lluvia-monto" step="0.5" min="0"></div>
+                    </div>
+                    <div class="dl-extra-caja">
+                        <label class="dl-chk"><input type="checkbox" id="dl-min-activo"> <b>📦 Pedido mínimo en zonas lejanas</b></label>
+                        <div class="dl-fila">a más de <input type="number" id="dl-min-km" step="0.5" min="0"> km, el pedido mínimo es $ <input type="number" id="dl-min-monto" step="0.5" min="0"></div>
+                    </div>
+                    <div class="dl-extra-caja">
+                        <label class="dl-chk"><input type="checkbox" id="dl-gratis-activo"> <b>🎁 Delivery gratis cerca</b></label>
+                        <div class="dl-fila">hasta <input type="number" id="dl-gratis-km" step="0.5" min="0"> km, gratis si el pedido es de $ <input type="number" id="dl-gratis-monto" step="0.5" min="0"> o más</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:1.2rem; background:#222c57; border:1px dashed #4a5b94; border-radius:8px; padding:0.8rem 1rem;">
+                    <b style="font-size:0.9rem;">🧮 Simulador</b>
+                    <div class="dl-fila" style="margin-top:0.4rem;">Si el cliente está a <input type="number" id="dl-sim-km" step="0.5" min="0" value="3" oninput="simularDelivery()"> km (por calle) cobras: <b id="dl-sim-res" style="color:#34d399; font-size:1.05rem;"></b></div>
+                </div>
+
+                <button type="button" class="btn-submit" id="btn-save-delivery" onclick="guardarDeliveryAdmin()" style="margin-top:1.25rem; max-width:320px;">💾 Guardar tarifas de delivery</button>
             </div>
         </div>
 

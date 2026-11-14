@@ -38,6 +38,62 @@ async function cargarMotorizadosDesdeDB() {
     } catch (error) { console.error("Error obteniendo motorizados:", error); }
 }
 
+// ---- Tasa BCV automática: etiqueta, aviso al abrir y respaldo ----
+function hoyCaracasTexto() { return new Date(Date.now() - 4 * 3600e3).toISOString().slice(0, 10); }
+function formatoBsTasa(n) { return new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n); }
+
+function pintarOrigenTasa(info) {
+    const el = document.getElementById('tasaOrigen');
+    if (!el || !info) return;
+    const auto = info.fuente === 'bcv' || info.fuente === 'dolarapi';
+    el.textContent = auto ? '🏦 BCV' : '✍️ Manual';
+    el.className = 'ml-2 text-[10px] font-bold whitespace-nowrap ' + (auto ? 'text-emerald-400' : 'text-amber-400');
+    el.title = (auto ? 'Tomada automáticamente del Banco Central de Venezuela' : 'Escrita a mano') + (info.actualizado ? ' · ' + String(info.actualizado).replace('T', ' ').slice(0, 16) : '') + (info.auto ? '' : ' · Actualización automática apagada');
+}
+
+function mostrarAvisoTasa(html, clase, ms) {
+    let el = document.getElementById('avisoTasaBcv');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'avisoTasaBcv';
+        const cab = document.querySelector('header');
+        if (cab) cab.insertAdjacentElement('afterend', el); else document.body.prepend(el);
+    }
+    el.className = 'mx-6 mt-3 px-4 py-2.5 rounded-lg border text-sm font-semibold flex items-center justify-between gap-3 ' + clase;
+    el.innerHTML = '<span>' + html + '</span><button type="button" class="opacity-70 hover:opacity-100 text-lg leading-none" onclick="this.parentElement.remove()" title="Cerrar">&times;</button>';
+    if (ms) setTimeout(() => { if (el.isConnected) el.remove(); }, ms);
+}
+
+// Al abrir la página: si la tasa se actualizó sola, se avisa una vez (por equipo); si falló, se advierte.
+function avisarTasaBcv(info) {
+    const hoy = hoyCaracasTexto();
+    const auto = info.fuente === 'bcv' || info.fuente === 'dolarapi';
+    if (info.error && info.fecha !== hoy) {
+        mostrarAvisoTasa('⚠️ No se pudo actualizar la tasa del BCV automáticamente. Se mantiene <b>Bs ' + formatoBsTasa(info.tasa) + '</b> (del ' + escapeHtml(String(info.fecha || '?')) + '). Escríbela a mano en la casilla "Tasa BCV".', 'bg-amber-500/10 border-amber-500/40 text-amber-200', 0);
+        return;
+    }
+    if (auto && info.fecha === hoy && info.actualizado) {
+        let visto = '';
+        try { visto = localStorage.getItem('tasaBcvAvisada') || ''; } catch (e) {}
+        if (visto === info.actualizado) return;
+        try { localStorage.setItem('tasaBcvAvisada', info.actualizado); } catch (e) {}
+        const antes = (info.anterior && info.anterior !== info.tasa) ? ' (antes Bs ' + formatoBsTasa(info.anterior) + ')' : '';
+        mostrarAvisoTasa('✅ La tasa BCV de hoy se actualizó: <b>Bs ' + formatoBsTasa(info.tasa) + '</b>' + antes + '.', 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200', 20000);
+    }
+}
+
+// Respaldo por si el cron de la mañana no corrió: al abrir el tablero con la tasa de otro día, se pide actualizarla una vez.
+async function sincronizarTasaSiHaceFalta(info) {
+    if (window.__sincTasaIntentada || !info || !info.auto || info.fecha === hoyCaracasTexto()) return;
+    window.__sincTasaIntentada = true;
+    try {
+        const r = await fetch(API_BASE + '/api/bcv/sincronizar', { method: 'POST', headers: authHeaders(), body: '{}' });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d && d.info && d.info.fecha === hoyCaracasTexto()) actualizarTasaBCV(); else if (d && d.info) { pintarOrigenTasa(d.info); avisarTasaBcv(d.info); }
+    } catch (e) { console.error('No se pudo sincronizar la tasa BCV:', e); }
+}
+
 async function actualizarTasaBCV() {
     const inputTasa = document.getElementById('tasaBCV');
     if (!inputTasa) return;
@@ -53,6 +109,11 @@ async function actualizarTasaBCV() {
             // Destello verde al cargar
             inputTasa.classList.add('text-emerald-400');
             setTimeout(() => inputTasa.classList.remove('text-emerald-400'), 2000);
+            if (data.info) {
+                pintarOrigenTasa(data.info);
+                avisarTasaBcv(data.info);
+                sincronizarTasaSiHaceFalta(data.info);
+            }
         }
     } catch (error) {
         console.error("Falló la conexión con la base de datos para la tasa:", error);
@@ -116,6 +177,7 @@ if (document.getElementById('tasaBCV')) {
                 }, 2000);
 
                 inputTasa.blur();
+                pintarOrigenTasa({ fuente: 'manual', auto: true, actualizado: null });
 
                 // Los montos en bolívares de las tarjetas se calculan con este
                 // número cuando el pedido no trae su propia tasa guardada.
@@ -754,7 +816,7 @@ function renderizarTablero() {
                         </div>
                         <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock"></i> ${hora}</span>
                     </div>
-                    <div><h4 class="font-bold text-white text-sm truncate">${clienteSeguro} ${etiquetaEntrega}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${escapeHtml(art)}</p></div>
+                    <div><h4 class="font-bold text-white text-sm truncate">${clienteSeguro} ${etiquetaEntrega}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${escapeHtml(art)}</p>${pedido.distancia_km != null ? `<p class="text-[11px] font-semibold text-emerald-300 mt-1">📍 ~${pedido.distancia_km} km${pedido.delivery_sugerido != null ? ` · tarifa sugerida $${Number(pedido.delivery_sugerido).toFixed(2)}` : ''}</p>` : '<p class="text-[11px] text-slate-500 mt-1">📍 Sin ubicación del cliente: pon el precio a mano</p>'}</div>
                     <div class="flex justify-between items-center pt-2 border-t border-slate-600/50">
                         ${htmlMonto}
                         <button onclick="procesarPrecioDelivery('${idReal}')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-md transition flex items-center gap-1 cursor-pointer">Poner precio delivery <i class="fa-solid fa-motorcycle"></i></button>
@@ -960,6 +1022,20 @@ function obtenerEmojiPlato() {
 // Precio que se cobra por casi todos los deliveries. Cambiarlo aqui cambia
 // el boton del modal y lo que se cobra al tocarlo.
 const PRECIO_DELIVERY_ESTANDAR = 2;
+let DELIVERY_CFG = null;
+// El panel (pestaña Delivery) puede cambiar el precio estándar y el modo; se lee una vez.
+async function cargarConfigDelivery() {
+    if (DELIVERY_CFG) return DELIVERY_CFG;
+    try {
+        const r = await fetch(API_BASE + '/api/delivery/config', { headers: authHeaders() });
+        if (r.ok) { const d = await r.json(); if (d && d.config) DELIVERY_CFG = d.config; }
+    } catch (e) { console.error('No se pudo leer la configuración de delivery:', e); }
+    return DELIVERY_CFG;
+}
+function precioEstandarDelivery() {
+    const n = DELIVERY_CFG ? Number(DELIVERY_CFG.precio_estandar) : NaN;
+    return Number.isFinite(n) && n >= 0 ? n : PRECIO_DELIVERY_ESTANDAR;
+}
 
 // Devuelve { precio }, o null si el cajero cancela.
 // Hay dos caminos: el boton del precio estandar ($2), que es el de todos los
@@ -967,7 +1043,7 @@ const PRECIO_DELIVERY_ESTANDAR = 2;
 // El "¿con cuánto paga?" ya no se pregunta aquí: vive en el modal de
 // Validar Pago (pedirComprobantePago), porque el cliente recién responde con
 // qué billete viene después de recibir el cobro, que sale de este paso.
-function pedirPrecioDelivery(cliente) {
+function pedirPrecioDelivery(cliente, pedido) {
     return new Promise((resolve) => {
         const modal = document.getElementById('modalPrecioDelivery');
         const inputPrecio = document.getElementById('inputPrecioDelivery');
@@ -976,7 +1052,18 @@ function pedirPrecioDelivery(cliente) {
 
         txtCliente.innerText = `Cliente: ${cliente}`;
         inputPrecio.value = '';
-        if (btnEstandar) btnEstandar.innerText = `Delivery estándar · $${PRECIO_DELIVERY_ESTANDAR}`;
+        if (btnEstandar) btnEstandar.innerText = `Delivery estándar · $${precioEstandarDelivery()}`;
+
+        // Tarifa por distancia: si el cliente compartió su ubicación, la tabla del panel ya calculó el precio.
+        const btnSug = document.getElementById('btnDeliverySugerido');
+        const sugerido = pedido && pedido.delivery_sugerido != null ? Number(pedido.delivery_sugerido) : NaN;
+        if (btnSug) {
+            if (Number.isFinite(sugerido)) {
+                btnSug.classList.remove('hidden');
+                btnSug.innerText = `📍 Tarifa por distancia · $${sugerido.toFixed(2)}` + (pedido.distancia_km ? ` (${pedido.distancia_km} km)` : '');
+                btnSug.onclick = () => confirmar(String(sugerido));
+            } else { btnSug.classList.add('hidden'); btnSug.onclick = null; }
+        }
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -988,7 +1075,7 @@ function pedirPrecioDelivery(cliente) {
             resolve({ precio: valor });
         };
 
-        if (btnEstandar) btnEstandar.onclick = () => confirmar(String(PRECIO_DELIVERY_ESTANDAR));
+        if (btnEstandar) btnEstandar.onclick = () => confirmar(String(precioEstandarDelivery()));
 
         document.getElementById('btnAceptarDelivery').onclick = () => {
             const valor = inputPrecio.value.trim();
@@ -1013,7 +1100,8 @@ async function procesarPrecioDelivery(idPedido) {
     const pedido = pedidosEnMemoria.find(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idPedido));
     if (!pedido) return;
 
-    const respuestaDelivery = await pedirPrecioDelivery(pedido.cliente);
+    await cargarConfigDelivery();
+    const respuestaDelivery = await pedirPrecioDelivery(pedido.cliente, pedido);
     if (respuestaDelivery === null) return;
 
     const costoDelivery = parseFloat(String(respuestaDelivery.precio).replace(',', '.'));

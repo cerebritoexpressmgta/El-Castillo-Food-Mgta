@@ -13,7 +13,8 @@
   "vars": {
     "SUPABASE_URL": "https://cncrupyxesbzinvjunqm.supabase.co"
   },
-  // Solicitud diaria a Supabase (12:00 UTC = 8:00 a. m. Venezuela)
-  "triggers": { "crons": ["0 12 * * *"] },
+  // 12:00 UTC = 8:00 a. m. Venezuela: despierta Supabase y actualiza la tasa BCV.
+  // Las otras dos (10:00 a. m. y 1:00 p. m.) solo reintentan la tasa si la de la mañana falló.
+  "triggers": { "crons": ["0 12 * * *", "0 14 * * *", "0 17 * * *"] },
   "observability": { "enabled": true }
 }
