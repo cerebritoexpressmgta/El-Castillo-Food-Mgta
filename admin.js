@@ -265,6 +265,8 @@ async function cargarMensajesWP() {
             if(m.id === 'aprobado') document.getElementById('msg-aprobado').value = m.texto;
             if(m.id === 'final_delivery') document.getElementById('msg-final-delivery').value = m.texto;
             if(m.id === 'final_pickup') document.getElementById('msg-final-pickup').value = m.texto;
+            if(m.id === 'en_camino') document.getElementById('msg-en-camino').value = m.texto;
+            if(m.id === 'entregado') document.getElementById('msg-entregado').value = m.texto;
             if(m.id === 'modificado') document.getElementById('msg-modificado').value = m.texto;
             if(m.id === 'aviso_grupo_delivery') document.getElementById('msg-grupo-delivery').value = m.texto;
         });
@@ -285,6 +287,8 @@ if(formMensajes) {
             aprobado: document.getElementById('msg-aprobado').value,
             final_delivery: document.getElementById('msg-final-delivery').value,
             final_pickup: document.getElementById('msg-final-pickup').value,
+            en_camino: document.getElementById('msg-en-camino').value,
+            entregado: document.getElementById('msg-entregado').value,
             modificado: document.getElementById('msg-modificado').value,
             aviso_grupo_delivery: document.getElementById('msg-grupo-delivery').value
         };
@@ -1028,10 +1032,57 @@ function renderTasaBcv(info, hist) {
     const err = document.getElementById('tasa-error');
     if (info.error) { err.style.display = 'block'; err.textContent = '⚠️ ' + info.error; } else { err.style.display = 'none'; }
     document.getElementById('tasa-auto').checked = !!info.auto;
+    document.getElementById('tasa-anticipar').checked = !!info.anticipar;
+    const prox = document.getElementById('tasa-proxima');
+    if (info.proxima && info.proxima.fecha_valor > (info.fecha || '')) {
+        prox.style.display = 'block';
+        prox.innerHTML = `ℹ️ El BCV ya publicó <b>Bs ${fmtBs(info.proxima.tasa)}</b>, pero rige desde el <b>${escapeHtml(fmtFechaValor(info.proxima.fecha_valor))}</b>. Hasta entonces se mantiene <b>Bs ${fmtBs(info.tasa)}</b>, la tasa oficial vigente. La nueva entrará sola ese día a las 8:00 a. m.
+            <div style="margin-top:6px;"><button type="button" onclick="usarTasaNuevaYa()" style="background:#0284c7; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold; font-size:0.8rem;">Usar la nueva desde ya</button></div>`;
+    } else prox.style.display = 'none';
+    const dg = document.getElementById('tasa-diag');
+    dg.innerHTML = (info.diagnostico && info.diagnostico.length)
+        ? 'Última consulta (' + escapeHtml(fmtFechaHora(info.ultimo_intento)) + '): ' + info.diagnostico.map(d => d.ok ? `✅ ${escapeHtml(d.nombre)}: Bs ${fmtBs(d.tasa)}` : `❌ ${escapeHtml(d.nombre)}: ${escapeHtml(d.error || 'sin respuesta')}`).join(' · ')
+        : '';
     document.getElementById('tasa-historial').innerHTML = hist.length
         ? `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">` + hist.slice(0, 15).map(x =>
             `<tr style="border-bottom:1px solid #4a5b94;"><td style="padding:6px 10px;">${escapeHtml(x.fecha)} ${escapeHtml(x.hora || '')}</td><td style="padding:6px 10px; font-weight:bold; color:#34d399;">Bs ${fmtBs(x.tasa)}</td><td style="padding:6px 10px; color:var(--text-muted);">${x.fuente === 'manual' ? '✍️ Manual' : '🏦 BCV'}</td></tr>`).join('') + `</table>`
         : '<p style="padding:10px; color:var(--text-muted); font-size:0.85rem; margin:0;">Todavía no hay cambios registrados.</p>';
+}
+
+function fmtFechaValor(iso) {
+    const d = new Date(String(iso) + 'T12:00:00');
+    return isNaN(d) ? String(iso) : d.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+async function cambiarAnticiparTasa() {
+    const anticipar = document.getElementById('tasa-anticipar').checked;
+    try {
+        const res = await fetch(API_BASE + "/api/bcv/config", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ anticipar }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.detail || data.error);
+        if (anticipar) await sincronizarTasaAdmin(true);
+        else await cargarTasaBcv();
+    } catch (e) { alert('No se pudo cambiar la opción: ' + e.message); await cargarTasaBcv(); }
+}
+
+async function usarTasaNuevaYa() {
+    if (!confirm('¿Usar desde ahora la tasa que el BCV publicó para el lunes? Hasta el lunes la vigente oficial es la anterior.')) return;
+    await sincronizarTasaAdmin(false, true);
+}
+
+// Prueba cada fuente por separado (no cambia nada): sirve para saber por qué no se actualiza
+async function probarConexionBcv() {
+    const btn = document.getElementById('btn-probar-tasa'), box = document.getElementById('tasa-prueba');
+    btn.disabled = true; btn.innerText = 'Probando...'; box.style.display = 'block'; box.textContent = 'Consultando las fuentes...';
+    try {
+        const res = await fetch(API_BASE + "/api/bcv/probar", { method: 'POST', headers: authHeaders(), body: '{}' });
+        const d = await res.json();
+        if (!d.success) throw new Error(d.detail || 'error');
+        box.innerHTML = d.fuentes.map(f => f.ok
+            ? `✅ <b>${escapeHtml(f.nombre)}</b>: Bs ${fmtBs(f.tasa)}${f.fechaValor ? ' · rige desde ' + escapeHtml(f.fechaValor) : ''}`
+            : `❌ <b>${escapeHtml(f.nombre)}</b>: no respondió (${escapeHtml(f.error || 'sin detalle')})`).join('<br>');
+    } catch (e) { box.textContent = 'No se pudo probar: ' + e.message; }
+    finally { btn.disabled = false; btn.innerText = '🔎 Probar conexión'; }
 }
 
 async function cambiarModoTasa() {
@@ -1044,16 +1095,16 @@ async function cambiarModoTasa() {
     } catch (e) { alert('No se pudo cambiar el modo: ' + e.message); await cargarTasaBcv(); }
 }
 
-async function sincronizarTasaAdmin() {
+async function sincronizarTasaAdmin(silencioso, adelantar) {
     const btn = document.getElementById('btn-sync-tasa');
     btn.disabled = true; btn.innerText = 'Consultando al BCV...';
     try {
-        const res = await fetch(API_BASE + "/api/bcv/sincronizar", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ forzar: true }) });
+        const res = await fetch(API_BASE + "/api/bcv/sincronizar", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ forzar: true, adelantar: !!adelantar }) });
         const d = await res.json();
-        if (d.success === false) alert('⚠️ ' + (d.error || 'No se pudo consultar al BCV.') + '\nSe mantiene la última tasa; puedes escribirla a mano.');
-        else if (d.motivo === 'rige_despues') alert('El BCV ya publicó una tasa nueva, pero rige desde el ' + d.fecha_valor + '. Hasta entonces se mantiene la actual.');
+        if (d.success === false) alert('⚠️ ' + (d.error || 'No se pudo consultar al BCV.') + '\nUsa "Probar conexión" para ver qué fuente falla. Se mantiene la última tasa; puedes escribirla a mano.');
+        else if (d.motivo === 'rige_despues') { if (!silencioso) alert(`El BCV publicó Bs ${fmtBs(d.tasa)}, que rige desde el ${fmtFechaValor(d.fecha_valor)}.\nHasta entonces se mantiene la tasa vigente. Si prefieres usar la nueva desde ya, toca "Usar la nueva desde ya".`); }
         else if (d.motivo === 'fuera_de_rango') alert('La tasa leída se aleja demasiado de la actual y no se aplicó. Revísala y escríbela a mano si hace falta.');
-        else if (d.info) alert(d.cambio ? `✅ Tasa actualizada: Bs ${fmtBs(d.info.tasa)}` : `✅ La tasa del BCV sigue igual: Bs ${fmtBs(d.info.tasa)}`);
+        else if (d.info && !silencioso) alert(d.cambio ? `✅ Tasa actualizada: Bs ${fmtBs(d.info.tasa)}` : `✅ La tasa del BCV sigue igual: Bs ${fmtBs(d.info.tasa)}`);
         await cargarTasaBcv();
     } catch (e) { alert('Error de red al consultar la tasa.'); }
     finally { btn.disabled = false; btn.innerText = '🔄 Actualizar ahora desde el BCV'; }

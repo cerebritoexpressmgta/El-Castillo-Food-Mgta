@@ -3,7 +3,7 @@
 import { DEMO_CONFIG as CFG } from './demo-config.mjs';
 import { crearToken, hashClave, verificarClave, firmarObjeto, leerObjeto } from './auth.mjs';
 import { registrarResenas } from './resenas.mjs';
-import { consultarBcv, aplicarTasaBcv, aplicarTasaManual, anotarFalloBcv, infoTasa, configTasa } from './bcv.mjs';
+import { consultarBcvDetallado, probarFuentesBcv, aplicarTasaBcv, aplicarTasaManual, anotarFalloBcv, anotarIntentosBcv, infoTasa, configTasa } from './bcv.mjs';
 import { configDelivery, validarConfigDelivery, parsearCoords, coordenadasValidas, distanciaKm, cotizarDelivery, resolverEnlaceUbicacion } from './delivery.mjs';
 import { anotarHito, armarSeguimiento, minutosDeFrase } from './seguimiento.mjs';
 import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
@@ -103,6 +103,8 @@ export function usarLimiteSucursales(n) { LIMITE_SUCURSALES = n; }
         aprobado: '✅ ¡Hola [CLIENTE]! Tu pago del pedido #[PEDIDO] fue aprobado. Estará listo en [TIEMPO_ESTIMADO] aproximadamente.',
         final_delivery: '🛵 ¡[CLIENTE], tu pedido #[PEDIDO] ya va en camino! Buen provecho 🍟',
         final_pickup: '🛍️ ¡[CLIENTE], tu pedido #[PEDIDO] está listo para retirar! Buen provecho 🍟',
+        en_camino: '🛵 ¡[CLIENTE], el motorizado ya salió con tu pedido #[PEDIDO]! Síguelo aquí: [SEGUIMIENTO]',
+        entregado: '✅ ¡[CLIENTE], tu pedido #[PEDIDO] fue entregado! Gracias por pedir en El Castillo, que lo disfrutes 🍟',
         aviso_grupo_delivery:
             '🛵 *PEDIDO N° [PEDIDO]*\n\n👤 *NOMBRE:* [NOMBRE]\n\n📍 *DIRECCIÓN:* [DIRECCION]\n\n🥤 *REFRESCO:* [REFRESCOS]\n\n🍱 *BANDEJAS:* [BANDEJAS]\n\n📦 *CAJAS DE PIZZA:* [CAJAS_PIZZA]\n\n💵 *PAGO:* [PAGO]\n\n🏍️ *PRECIO DEL DELIVERY:* [PRECIO_DELIVERY]'
     };
@@ -632,24 +634,35 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     ruta('POST', '/api/bcv/sincronizar', async (ctx, db) => {
         const ses = requiereStaff(ctx);
         const esAdm = ['admin', 'superadmin'].includes(String(ses.rol || '').toLowerCase());
-        const forzar = !!(ctx.body && ctx.body.forzar) && esAdm;
+        const b = ctx.body || {};
+        const forzar = !!b.forzar && esAdm, adelantar = !!b.adelantar && esAdm;
         const hoy = hoyCaracas(), ahora = ahoraCaracas();
         if (!forzar && !configTasa(db).auto) return { success: true, motivo: 'modo_manual', info: infoTasa(db) };
         if (!forzar && db.tasa.fecha === hoy) return { success: true, motivo: 'al_dia', info: infoTasa(db) };
-        try {
-            const r = await consultarBcv();
-            const res = aplicarTasaBcv(db, r, { hoy, ahora, forzar });
-            ctx.tras.push(() => emitirTablero('actualizacion', null));
-            return Object.assign({ success: true }, res, { info: infoTasa(db) });
-        } catch (e) {
-            anotarFalloBcv(db, e && e.message || e, ahora);
+        // Cada vez que alguien abre Cocina se llega aquí: si ya se consultó hace poco, no se vuelve a molestar al BCV
+        if (!forzar && db.tasa.ultimo_intento && (Date.parse(ahora) - Date.parse(db.tasa.ultimo_intento)) < 20 * 60000) return { success: true, motivo: 'reciente', info: infoTasa(db) };
+        const { resultado, intentos } = await consultarBcvDetallado();
+        anotarIntentosBcv(db, intentos, ahora);
+        if (!resultado) {
+            anotarFalloBcv(db, 'No se pudo leer ninguna fuente: ' + intentos.map(i => i.nombre + ' (' + i.error + ')').join(' · '), ahora);
             return { success: false, motivo: 'sin_conexion', error: 'No se pudo consultar el BCV. Se mantiene la última tasa.', info: infoTasa(db) };
         }
+        const res = aplicarTasaBcv(db, resultado, { hoy, ahora, forzar, adelantar });
+        ctx.tras.push(() => emitirTablero('actualizacion', null));
+        return Object.assign({ success: true }, res, { info: infoTasa(db) });
     });
     ruta('POST', '/api/bcv/config', (ctx, db) => {
         requiereAdmin(ctx);
-        db.tasa_config = { auto: !!(ctx.body && ctx.body.auto) };
+        const b = ctx.body || {};
+        const act = configTasa(db);
+        db.tasa_config = { auto: 'auto' in b ? !!b.auto : act.auto, anticipar: 'anticipar' in b ? !!b.anticipar : act.anticipar };
         return { success: true, info: infoTasa(db) };
+    });
+    // Prueba cada fuente por separado (sin aplicar nada): sirve para saber por qué no se actualiza
+    ruta('POST', '/api/bcv/probar', async (ctx, db) => {
+        requiereAdmin(ctx);
+        const fuentes = await probarFuentesBcv();
+        return { success: true, fuentes, hoy: hoyCaracas() };
     });
     ruta('GET', '/api/bcv/historial', (ctx, db) => { requiereStaff(ctx); return { success: true, historial: db.tasa_historial || [] }; });
 
@@ -661,9 +674,38 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         return { success: true, lat: c.lat, lng: c.lng };
     });
 
+    // ---- "En camino" / "Entregado": los marca Cocina o el repartidor; el cliente recibe su aviso ----
+    async function avisarEntrega(ctx, db, p, evento) {
+        if (!/delivery/i.test(String(p.tipo_entrega || '')) || !/\d{7}/.test(String(p.telefono || ''))) return;
+        const id = String(contarNumeroDiario(db, p));
+        const tok = await firmarObjeto({ fase: 'seguimiento', pid: p.id }, 4 * 24 * 3600e3);
+        const enlace = (ctx.origen || '') + '/seguimiento.html?t=' + encodeURIComponent(tok);
+        const pl = db.mensajes.find(x => x.id === evento);
+        enviarWhatsappSimulado(db, p.telefono, aplicarPlaceholders(pl ? pl.texto : PLANTILLAS[evento], { '[CLIENTE]': p.cliente, '[PEDIDO]': id, '[SEGUIMIENTO]': enlace }), evento === 'en_camino' ? 'en camino' : 'entregado');
+    }
+    async function registrarEventoEntrega(ctx, db, p, evento, ahoraMs, quien) {
+        if (evento === 'en_camino' && !p.en_camino_ms) {
+            p.en_camino_ms = ahoraMs; anotarHito(p, 'En camino', ahoraMs);
+            if (quien) p.entrega_por = quien;
+            await avisarEntrega(ctx, db, p, 'en_camino');
+        }
+        if (evento === 'entregado' && !p.entregado_ms) {
+            if (!p.en_camino_ms) { p.en_camino_ms = ahoraMs; anotarHito(p, 'En camino', ahoraMs); } // se marcó entregado sin "en camino": no se manda el aviso de salida
+            p.entregado_ms = ahoraMs; anotarHito(p, 'Entregado', ahoraMs);
+            if (quien) p.entrega_por = quien;
+            await avisarEntrega(ctx, db, p, 'entregado');
+        }
+    }
+
     // ---- Seguimiento del pedido (público: por enlace firmado o por número de pedido + teléfono) ----
     const ultimos9 = t => String(t || '').replace(/\D/g, '').slice(-9);
     const diaCaracas = atras => new Date(Date.now() - 4 * 3600e3 - atras * 86400e3).toISOString().slice(0, 10);
+    // Un pedido de los últimos 3 días, por su número visible y el teléfono con el que se pidió
+    function pedidoPublico(db, numero, tel) {
+        const dias = [diaCaracas(0), diaCaracas(1), diaCaracas(2)];
+        return db.pedidos.filter(x => ultimos9(x.telefono) === tel && dias.includes(x.fecha || String(x.timestamp || '').slice(0, 10)) && String(contarNumeroDiario(db, x)) === numero)
+            .sort((a, c) => c.id - a.id)[0] || null;
+    }
     ruta('GET', '/api/seguimiento', async (ctx, db) => {
         const o = await leerObjeto(ctx.query.t);
         const p = o && o.fase === 'seguimiento' ? db.pedidos.find(x => x.id === Number(o.pid)) : null;
@@ -676,12 +718,43 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const tel = ultimos9(b.telefono);
         const noEsta = { success: false, error: 'No encontramos un pedido con esos datos. Revisa el número que te enviamos y el teléfono con el que pediste.' };
         if (!numero || tel.length < 7) return noEsta;
-        const dias = [diaCaracas(0), diaCaracas(1), diaCaracas(2)];
-        const p = db.pedidos.filter(x => ultimos9(x.telefono) === tel && dias.includes(x.fecha || String(x.timestamp || '').slice(0, 10)) && String(contarNumeroDiario(db, x)) === numero)
-            .sort((a, c) => c.id - a.id)[0];
+        const p = pedidoPublico(db, numero, tel);
         if (!p) return noEsta;
         const token = await firmarObjeto({ fase: 'seguimiento', pid: p.id }, 4 * 24 * 3600e3);
         return { success: true, token, seguimiento: armarSeguimiento(p, String(contarNumeroDiario(db, p))) };
+    });
+
+    // El repartidor (página principal): número de pedido + teléfono del cliente -> marca "en camino" / "entregado".
+    // Solo deja marcar pedidos de delivery que ya salieron de cocina. Intentos fallidos limitados por número de pedido.
+    ruta('POST', '/api/seguimiento/entrega', async (ctx, db) => {
+        const b = ctx.body || {};
+        const numero = String(b.numero || '').replace(/\D/g, '');
+        const tel = ultimos9(b.telefono);
+        const evento = ['en_camino', 'entregado'].includes(b.evento) ? b.evento : 'consultar';
+        const noEsta = { success: false, error: 'No encontramos un pedido con esos datos. Revisa el número y el teléfono del cliente.' };
+        const clave = 'entrega:' + numero;
+        if (cupoAgotado(clave, 8, 900)) throw new HttpError(429, 'Demasiados intentos con ese número. Espera unos minutos.');
+        if (!numero || tel.length < 7) return noEsta;
+        const p = pedidoPublico(db, numero, tel);
+        if (!p) { anotarFallo(clave); return noEsta; }
+        if (!/delivery/i.test(String(p.tipo_entrega || ''))) return { success: false, error: 'Ese pedido no es de delivery.' };
+        const seg = armarSeguimiento(p, String(contarNumeroDiario(db, p)));
+        let aviso = null;
+        if (evento !== 'consultar') {
+            if (String(p.estado) !== 'Finalizado') return { success: false, error: 'Ese pedido todavía no ha salido de cocina. ' + seg.mensaje };
+            if (evento === 'en_camino' && p.en_camino_ms) aviso = 'Ya estaba marcado como "en camino".';
+            else if (evento === 'entregado' && p.entregado_ms) aviso = 'Ya estaba marcado como entregado.';
+            else {
+                await registrarEventoEntrega(ctx, db, p, evento, Date.now(), 'repartidor (página principal)');
+                ctx.tras.push(() => emitirTablero('actualizacion', p.sucursal_id || null));
+                aviso = evento === 'en_camino' ? '✅ Listo: el pedido quedó "en camino" y el cliente fue avisado.' : '✅ Listo: el pedido quedó entregado. ¡Gracias!';
+            }
+        }
+        const s2 = armarSeguimiento(p, String(contarNumeroDiario(db, p)));
+        return { success: true, aviso, pedido: {
+            numero: s2.numero, cliente: s2.cliente, estado: s2.estado, mensaje: s2.mensaje,
+            despachado: String(p.estado) === 'Finalizado', en_camino: !!p.en_camino_ms, entregado: !!p.entregado_ms
+        } };
     });
 
     // ---- Delivery por distancia ----
@@ -720,7 +793,13 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     });
 
     // ---- Mensajes ----
-    ruta('GET', '/api/mensajes', (ctx, db) => { requiereStaff(ctx); return db.mensajes.map(m => ({ id: m.id, texto: m.texto })); });
+    ruta('GET', '/api/mensajes', (ctx, db) => {
+        requiereStaff(ctx);
+        const lista = db.mensajes.map(m => ({ id: m.id, texto: m.texto }));
+        // Plantillas nuevas que una base ya creada todavía no tiene: se ofrecen con su texto de fábrica
+        ['en_camino', 'entregado'].forEach(id => { if (!lista.some(m => m.id === id)) lista.push({ id, texto: PLANTILLAS[id] }); });
+        return lista;
+    });
     ruta('POST', '/api/mensajes/guardar', (ctx, db) => {
         requiereAdmin(ctx);
         Object.keys(ctx.body || {}).forEach(clave => {
@@ -1032,7 +1111,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     }
     ruta('GET', '/api/pedidos', (ctx, db) => { requiereStaff(ctx); const sid = sucursalDelPersonal(ctx, db) || parseInt(ctx.query.sucursal, 10) || 0; return filtrarFecha(db, ctx.query, sid ? (x => Number(x.sucursal_id) === sid) : null).map(p => Object.assign({}, p, { id_pedido: p.id })); });
 
-    ruta('POST', '/api/pedidos/actualizar-estado', (ctx, db) => {
+    ruta('POST', '/api/pedidos/actualizar-estado', async (ctx, db) => {
         requiereStaff(ctx); const d = ctx.body || {};
         const id = d.id || d.id_pedido;
         const p = db.pedidos.find(x => x.id === Number(id));
@@ -1052,11 +1131,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
                 if (!(p.tiempo_prep_min > 0) && p.tiempo_estimado) p.tiempo_prep_min = minutosDeFrase(p.tiempo_estimado);
             }
         }
-        if (d.evento === 'en_camino' && p.estado === 'Finalizado' && !p.en_camino_ms) { p.en_camino_ms = ahoraMs; anotarHito(p, 'En camino', ahoraMs); }
-        if (d.evento === 'entregado' && p.estado === 'Finalizado' && !p.entregado_ms) {
-            if (!p.en_camino_ms) { p.en_camino_ms = ahoraMs; anotarHito(p, 'En camino', ahoraMs); }
-            p.entregado_ms = ahoraMs; anotarHito(p, 'Entregado', ahoraMs);
-        }
+        if ((d.evento === 'en_camino' || d.evento === 'entregado') && p.estado === 'Finalizado') await registrarEventoEntrega(ctx, db, p, d.evento, ahoraMs, null);
         if (d.articulos && d.articulos.length) {
             const emp = calcularEmpaque(db, d.articulos);
             p.total_bandejas = emp.bandejas; p.total_cajas_pizza = emp.cajas_pizza; p.total_refrescos = emp.refrescos;

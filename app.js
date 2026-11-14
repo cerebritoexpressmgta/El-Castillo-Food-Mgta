@@ -48,7 +48,8 @@ function pintarOrigenTasa(info) {
     const auto = info.fuente === 'bcv' || info.fuente === 'dolarapi';
     el.textContent = auto ? '🏦 BCV' : '✍️ Manual';
     el.className = 'ml-2 text-[10px] font-bold whitespace-nowrap ' + (auto ? 'text-emerald-400' : 'text-amber-400');
-    el.title = (auto ? 'Tomada automáticamente del Banco Central de Venezuela' : 'Escrita a mano') + (info.actualizado ? ' · ' + String(info.actualizado).replace('T', ' ').slice(0, 16) : '') + (info.auto ? '' : ' · Actualización automática apagada');
+    el.title = (auto ? 'Tomada automáticamente del Banco Central de Venezuela' : 'Escrita a mano') + (info.actualizado ? ' · ' + String(info.actualizado).replace('T', ' ').slice(0, 16) : '') + (info.auto ? '' : ' · Actualización automática apagada')
+        + (info.proxima && info.proxima.fecha_valor > hoyCaracasTexto() ? ' · Próxima: Bs ' + formatoBsTasa(info.proxima.tasa) + ' desde el ' + fechaCortaTasa(info.proxima.fecha_valor) : '');
 }
 
 function mostrarAvisoTasa(html, clase, ms) {
@@ -65,8 +66,23 @@ function mostrarAvisoTasa(html, clase, ms) {
 }
 
 // Al abrir la página: si la tasa se actualizó sola, se avisa una vez (por equipo); si falló, se advierte.
+function fechaCortaTasa(iso) {
+    const d = new Date(String(iso) + 'T12:00:00');
+    return isNaN(d) ? String(iso) : d.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
+}
 function avisarTasaBcv(info) {
     const hoy = hoyCaracasTexto();
+    // El BCV publica la tasa del lunes el viernes: hasta ese día sigue vigente la anterior. Se explica una vez por equipo.
+    if (info.proxima && info.proxima.fecha_valor > hoy) {
+        const clave = info.proxima.tasa + '|' + info.proxima.fecha_valor;
+        let visto = '';
+        try { visto = localStorage.getItem('tasaProximaAvisada') || ''; } catch (e) {}
+        if (visto !== clave) {
+            try { localStorage.setItem('tasaProximaAvisada', clave); } catch (e) {}
+            mostrarAvisoTasa('ℹ️ El BCV ya publicó <b>Bs ' + formatoBsTasa(info.proxima.tasa) + '</b>, pero rige desde el <b>' + escapeHtml(fechaCortaTasa(info.proxima.fecha_valor)) + '</b>. Hoy se mantiene <b>Bs ' + formatoBsTasa(info.tasa) + '</b>, la tasa oficial vigente; la nueva entra sola ese día.', 'bg-sky-500/10 border-sky-500/40 text-sky-200', 0);
+        }
+        return;
+    }
     const auto = info.fuente === 'bcv' || info.fuente === 'dolarapi';
     if (info.error && info.fecha !== hoy) {
         mostrarAvisoTasa('⚠️ No se pudo actualizar la tasa del BCV automáticamente. Se mantiene <b>Bs ' + formatoBsTasa(info.tasa) + '</b> (del ' + escapeHtml(String(info.fecha || '?')) + '). Escríbela a mano en la casilla "Tasa BCV".', 'bg-amber-500/10 border-amber-500/40 text-amber-200', 0);

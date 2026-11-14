@@ -245,6 +245,26 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
   #galeria,#sucursales.alt,#mapa,#resenas.alt,#nosotros,#contacto.alt,.cab-in,.suc,.res,.res .est,.gal figure,#mapa-frame,.nos p,#contacto-btn>.btn,.toldo .neon,.toldo .faldon,.suc .estado::before{animation:none!important}
   html.anim section.rv *{opacity:1!important;translate:none!important;transition:none!important}
 }
+
+/* Rastrear pedido / repartidores */
+#rastrear .rast-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;max-width:820px;margin:0 auto}
+#rastrear .rast-card{background:var(--bg);border:1px solid var(--bd);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px;text-align:left}
+#rastrear .rast-card h3{margin:0;font-size:19px}
+#rastrear .r-nota{margin:0;color:var(--mu);font-size:13px;line-height:1.45}
+#rastrear label{font-size:13px;font-weight:700;color:var(--mu);display:flex;flex-direction:column;gap:4px}
+#rastrear input{font:inherit;font-size:16px;padding:11px 12px;border-radius:12px;border:2px solid var(--bd);background:var(--card);color:var(--tx)}
+#rastrear input:focus{outline:none;border-color:var(--ac)}
+#rastrear .r-err{margin:0;color:var(--ac);font-weight:700;font-size:13px;min-height:0}
+#rastrear .r-err:empty{display:none}
+#rastrear .btn{width:100%;text-align:center}
+#rastrear .btn[disabled]{opacity:.6;cursor:wait}
+#rep-res{border-top:1px dashed var(--bd);padding-top:12px;display:flex;flex-direction:column;gap:9px}
+#rep-res[hidden]{display:none}
+#rep-res .r-ped{font-weight:800;font-size:17px}
+#rep-res .r-msg{color:var(--mu);font-size:14px;margin:0}
+#rep-res .r-ok{background:rgba(37,162,68,.14);border:1px solid rgba(37,162,68,.45);color:var(--tx);border-radius:12px;padding:9px 12px;font-weight:700;font-size:14px}
+#rep-res .btn.verde{background:#25a244}
+#rep-res .btn.naranja{background:linear-gradient(135deg,#ffb703,#f0541e)}
 </style>
     <!-- PWA: app de clientes -->
     <link rel="manifest" href="/manifest.webmanifest">
@@ -262,7 +282,7 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
 <body>
 <header><div class="wrap bar">
   <a class="logo" href="#inicio"><span id="logo-em">🏰</span> <span id="logo-nom">El Castillo Food Mgta</span></a>
-  <nav><a class="h" href="#menu">Menú</a><a class="h" href="#galeria" id="nav-gal" style="display:none">Galería</a><a class="h" href="#sucursales">Sucursales</a><a class="h" href="#mapa" id="nav-mapa" style="display:none">Cómo llegar</a><a class="h" href="#resenas" id="nav-res" style="display:none">Reseñas</a><a class="h" href="#nosotros" id="nav-nos" style="display:none">Nosotros</a><a class="h" href="#contacto">Contacto</a><a class="btn sm" href="menu.html">Pedir ahora</a></nav>
+  <nav><a class="h" href="#menu">Menú</a><a class="h" href="#galeria" id="nav-gal" style="display:none">Galería</a><a class="h" href="#sucursales">Sucursales</a><a class="h" href="#mapa" id="nav-mapa" style="display:none">Cómo llegar</a><a class="h" href="#resenas" id="nav-res" style="display:none">Reseñas</a><a class="h" href="#nosotros" id="nav-nos" style="display:none">Nosotros</a><a class="h" href="#contacto">Contacto</a><a class="h" href="#rastrear">Rastrear pedido</a><a class="btn sm" href="menu.html">Pedir ahora</a></nav>
 </div></header>
 
 <div class="hero" id="inicio"><div class="wrap">
@@ -315,6 +335,29 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
 <section id="contacto" class="alt"><div class="wrap" style="text-align:center">
   <div class="cab"><div class="cab-in"><h2>¿Hablamos?</h2><p class="sub">Escríbenos y te respondemos</p></div></div>
   <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap" id="contacto-btn"></div>
+</div></section>
+
+<section id="rastrear" class="alt"><div class="wrap">
+  <div class="cab" style="margin-bottom:22px"><h2>Rastrea tu pedido</h2><p class="sub">Con tu número de pedido y tu teléfono</p></div>
+  <div class="rast-grid">
+    <form class="rast-card" id="form-rast" autocomplete="off">
+      <h3>📦 Seguir mi pedido</h3>
+      <p class="r-nota">Mira en qué paso va: realizado, pago, cocina, despachado y en camino.</p>
+      <label>Número de pedido<input id="r-num" inputmode="numeric" placeholder="Ej: 12" maxlength="6" required></label>
+      <label>Teléfono con el que pediste<input id="r-tel" inputmode="tel" placeholder="Ej: 0412-1234567" maxlength="20" required></label>
+      <p class="r-err" id="r-err" role="alert"></p>
+      <button class="btn" type="submit" id="r-btn">Ver mi pedido</button>
+    </form>
+    <form class="rast-card" id="form-rep" autocomplete="off">
+      <h3>🛵 Soy repartidor</h3>
+      <p class="r-nota">Escribe el número del pedido y el teléfono del cliente para marcarlo como “en camino” o “entregado”. El cliente recibe el aviso.</p>
+      <label>Número de pedido<input id="d-num" inputmode="numeric" placeholder="Ej: 12" maxlength="6" required></label>
+      <label>Teléfono del cliente<input id="d-tel" inputmode="tel" placeholder="Ej: 0412-1234567" maxlength="20" required></label>
+      <p class="r-err" id="d-err" role="alert"></p>
+      <button class="btn out" type="submit" id="d-btn">Buscar pedido</button>
+      <div id="rep-res" hidden></div>
+    </form>
+  </div>
 </div></section>
 
 <footer><div class="wrap">
@@ -612,6 +655,63 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
     $('foot-links').innerHTML = links.join('');
   }
   cargarSitio(); cargarMenu();
+})();
+</script>
+<script>
+// Rastrear pedido (clientes) y confirmar entrega (repartidores)
+(function(){
+  function $(i){return document.getElementById(i);}
+  function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  async function post(url,body){
+    var r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var d={}; try{d=await r.json();}catch(e){}
+    if(!r.ok&&!d.error) d.error=d.detail||'No se pudo completar. Intenta de nuevo en un momento.';
+    return d;
+  }
+  // --- Clientes: abre la pantalla de seguimiento ---
+  $('form-rast').addEventListener('submit',async function(e){
+    e.preventDefault(); var b=$('r-btn'),er=$('r-err'); er.textContent=''; b.disabled=true; b.textContent='Buscando…';
+    try{
+      var d=await post('/api/seguimiento/buscar',{numero:$('r-num').value,telefono:$('r-tel').value});
+      if(d.success&&d.token){ location.href='seguimiento.html?t='+encodeURIComponent(d.token); return; }
+      er.textContent=d.error||'No encontramos ese pedido.';
+    }catch(x){er.textContent='Sin conexión. Intenta de nuevo.';}
+    b.disabled=false; b.textContent='Ver mi pedido';
+  });
+  // --- Repartidores: ver el pedido y marcar en camino / entregado ---
+  var datos=null;
+  function pintar(d,aviso){
+    var res=$('rep-res'),p=d.pedido; res.hidden=false;
+    var h='<div class="r-ped">Pedido #'+esc(p.numero)+(p.cliente?' · '+esc(p.cliente):'')+'</div>';
+    if(aviso) h+='<div class="r-ok">'+esc(aviso)+'</div>';
+    h+='<p class="r-msg">'+esc(p.mensaje)+'</p>';
+    if(p.entregado) h+='<div class="r-ok">✅ Este pedido ya está entregado.</div>';
+    else if(!p.despachado) h+='<p class="r-msg"><b>Aún no ha salido de cocina.</b> Cuando lo despachen podrás marcarlo aquí.</p>';
+    else {
+      if(!p.en_camino) h+='<button type="button" class="btn naranja" data-ev="en_camino">🛵 Salí con el pedido (en camino)</button>';
+      h+='<button type="button" class="btn verde" data-ev="entregado">✅ Marcar como entregado</button>';
+    }
+    res.innerHTML=h;
+  }
+  async function accion(ev){
+    var er=$('d-err'); er.textContent='';
+    if(ev==='entregado'&&!confirm('¿Confirmas que ya entregaste el pedido al cliente?')) return;
+    var bs=$('rep-res').querySelectorAll('button'); bs.forEach(function(x){x.disabled=true;});
+    try{
+      var d=await post('/api/seguimiento/entrega',{numero:datos.numero,telefono:datos.telefono,evento:ev});
+      if(d.success){ pintar(d,d.aviso); } else { er.textContent=d.error||'No se pudo marcar.'; bs.forEach(function(x){x.disabled=false;}); }
+    }catch(x){ er.textContent='Sin conexión. Intenta de nuevo.'; bs.forEach(function(x){x.disabled=false;}); }
+  }
+  $('rep-res').addEventListener('click',function(e){ var b=e.target.closest('button[data-ev]'); if(b&&datos) accion(b.getAttribute('data-ev')); });
+  $('form-rep').addEventListener('submit',async function(e){
+    e.preventDefault(); var b=$('d-btn'),er=$('d-err'); er.textContent=''; $('rep-res').hidden=true; b.disabled=true; b.textContent='Buscando…';
+    try{
+      datos={numero:$('d-num').value,telefono:$('d-tel').value};
+      var d=await post('/api/seguimiento/entrega',{numero:datos.numero,telefono:datos.telefono,evento:'consultar'});
+      if(d.success) pintar(d,null); else { er.textContent=d.error||'No encontramos ese pedido.'; datos=null; }
+    }catch(x){er.textContent='Sin conexión. Intenta de nuevo.';}
+    b.disabled=false; b.textContent='Buscar pedido';
+  });
 })();
 </script>
 <script>

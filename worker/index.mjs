@@ -1,7 +1,7 @@
 // Worker de El Castillo Food Mgta: API (/api/*) + solicitud diaria a Supabase.
 // Los archivos de la web los sirve Cloudflare directamente (binding ASSETS).
 import { rutas, HttpError, crearDbInicial, usarFallos, tomarEvento, usarLimiteSucursales, ahoraCaracas } from './rutas.mjs';
-import { consultarBcv, aplicarTasaBcv, anotarFalloBcv } from './bcv.mjs';
+import { consultarBcvDetallado, aplicarTasaBcv, anotarFalloBcv, anotarIntentosBcv } from './bcv.mjs';
 import { configurarSecreto, verificarToken, hashClave } from './auth.mjs';
 import { leerEstado, crearEstado, guardarEstado, leerVersion, mantenerActivo, subirImagen } from './supabase.mjs';
 
@@ -116,13 +116,15 @@ async function sincronizarTasa(env) {
         if (db.tasa_config && db.tasa_config.auto === false) return 'modo manual: no se toca';
         if (db.tasa && db.tasa.fecha === hoy) return 'ya estaba al día';
         let resumen;
-        try {
-            const r = await consultarBcv();
-            const res = aplicarTasaBcv(db, r, { hoy, ahora, forzar: false });
-            resumen = res.aplicada ? `actualizada a ${db.tasa.tasa} (${db.tasa.fuente})` : `no aplicada (${res.motivo})`;
-        } catch (e) {
-            anotarFalloBcv(db, e.message, ahora);
-            resumen = 'no se pudo consultar: ' + e.message;
+        const { resultado, intentos } = await consultarBcvDetallado();
+        anotarIntentosBcv(db, intentos, ahora);
+        if (resultado) {
+            const res = aplicarTasaBcv(db, resultado, { hoy, ahora, forzar: false });
+            resumen = res.aplicada ? `actualizada a ${db.tasa.tasa} (${db.tasa.fuente})` : `no aplicada (${res.motivo}${res.fecha_valor ? ' ' + res.fecha_valor : ''})`;
+        } else {
+            const detalle = intentos.map(x => x.nombre + ' (' + x.error + ')').join(' · ');
+            anotarFalloBcv(db, 'No se pudo leer ninguna fuente: ' + detalle, ahora);
+            resumen = 'no se pudo consultar: ' + detalle;
         }
         const guardado = await guardarEstado(env, est.version, db, { mensaje: 'actualizacion', sucursal_id: null, ts: Date.now() });
         if (guardado) return resumen;

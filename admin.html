@@ -267,6 +267,12 @@
                         
                         <label style="color: #0ea5e9;">4B. Finalizado (Pick-Up Listo)</label>
                         <textarea id="msg-final-pickup" rows="2"></textarea>
+
+                        <label style="color: #0ea5e9;">4C. Delivery: el motorizado salió (botón "En camino"). Usa [SEGUIMIENTO] para el enlace de rastreo</label>
+                        <textarea id="msg-en-camino" rows="2"></textarea>
+
+                        <label style="color: #0ea5e9;">4D. Delivery: entregado (botón "Entregado")</label>
+                        <textarea id="msg-entregado" rows="2"></textarea>
                     </div>
                     
                     <div style="border-left: 3px solid #8b5cf6; padding-left: 15px; margin-bottom: 20px;">
@@ -638,6 +644,7 @@
                     Es la tasa que usa Cocina para calcular los bolívares de cada pedido. Con la actualización automática encendida, el sistema consulta al Banco Central de Venezuela <b>cada mañana a las 8:00 a. m.</b> y Cocina avisa al abrir que el precio se actualizó.
                 </p>
                 <div id="tasa-actual" style="background:#222c57; border:1px solid #4a5b94; border-radius:10px; padding:1.1rem; text-align:center; margin-bottom:1rem;"></div>
+                <div id="tasa-proxima" style="display:none; background:rgba(56,189,248,.10); border:1px solid rgba(56,189,248,.5); color:#bae6fd; border-radius:8px; padding:0.8rem 0.9rem; font-size:0.85rem; margin-bottom:1rem; line-height:1.5;"></div>
                 <div id="tasa-error" style="display:none; background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.5); color:#fcd34d; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.85rem; margin-bottom:1rem;"></div>
 
                 <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.8rem 1rem; text-transform:none; font-weight:bold; color:white; margin:0 0 1rem;">
@@ -647,9 +654,19 @@
                     </span>
                 </label>
 
+                <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.8rem 1rem; text-transform:none; font-weight:bold; color:white; margin:0 0 1rem;">
+                    <input type="checkbox" id="tasa-anticipar" onchange="cambiarAnticiparTasa()" style="width:auto; margin:0; transform:scale(1.2);">
+                    <span>Usar la tasa nueva apenas el BCV la publique
+                        <span style="display:block; font-weight:normal; font-size:0.78rem; color:var(--text-muted); margin-top:2px;">El BCV publica el viernes la tasa que rige desde el lunes. Apagado (recomendado): el fin de semana se usa la del viernes y la nueva entra sola el lunes. Encendido: se usa la nueva desde que se publica.</span>
+                    </span>
+                </label>
+
                 <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.5rem;">
                     <button type="button" class="btn-submit" id="btn-sync-tasa" onclick="sincronizarTasaAdmin()" style="width:auto; margin:0; padding:0.75rem 1.3rem;">🔄 Actualizar ahora desde el BCV</button>
+                    <button type="button" class="btn-submit" id="btn-probar-tasa" onclick="probarConexionBcv()" style="width:auto; margin:0; padding:0.75rem 1.3rem; background:#4a5b94;">🔎 Probar conexión</button>
                 </div>
+                <div id="tasa-prueba" style="display:none; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.82rem; margin:0.5rem 0; line-height:1.6;"></div>
+                <div id="tasa-diag" style="font-size:0.75rem; color:var(--text-muted); margin:0.3rem 0 0.5rem; line-height:1.5;"></div>
                 <p style="font-size:0.75rem; color:var(--text-muted); margin:0 0 1.25rem;">Si el BCV publicó la tasa del lunes un viernes, se aplica a partir del lunes (el fin de semana rige la del viernes).</p>
 
                 <label style="font-size:0.8rem; font-weight:bold; color:var(--text-muted);">O ESCRIBIR LA TASA A MANO (Bs por $1)</label>
