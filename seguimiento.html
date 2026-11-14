@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seguir mi pedido</title>
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#b4231a">
+    <script src="tema.js"></script>
+    <style>
+        :root { --verde: #16a34a; --naranja: #f59e0b; --rojo: #b4231a; --gris: #cbd5e1; --texto: #1f2937; --suave: #6b7280; --fondo: #f8fafc; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--fondo); color: var(--texto); min-height: 100vh; }
+        header { background: var(--rojo); color: #fff; padding: 14px 16px; text-align: center; }
+        header h1 { margin: 0; font-size: 1.05rem; letter-spacing: .3px; }
+        header small { opacity: .85; font-size: .78rem; }
+        main { max-width: 480px; margin: 0 auto; padding: 16px; }
+        .tarjeta { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+        h2 { margin: 0 0 4px; font-size: 1.25rem; }
+        label { display: block; font-size: .8rem; font-weight: 700; color: var(--suave); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .4px; }
+        input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 12px; font-size: 1rem; }
+        input:focus { outline: 2px solid var(--verde); border-color: var(--verde); }
+        button, .boton { display: inline-block; width: 100%; margin-top: 14px; padding: 13px; border: 0; border-radius: 12px; background: var(--verde); color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer; text-align: center; text-decoration: none; }
+        .boton.suave { background: #e5e7eb; color: #374151; }
+        button:disabled { opacity: .6; cursor: default; }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 12px; padding: 10px 12px; font-size: .9rem; margin-top: 12px; }
+        .estado-titulo { font-size: 1.35rem; font-weight: 800; margin: 2px 0 6px; }
+        .estado-msg { color: var(--suave); line-height: 1.45; margin: 0; }
+        .numero { display: inline-block; background: #fee2e2; color: var(--rojo); font-weight: 800; border-radius: 8px; padding: 2px 10px; margin-bottom: 8px; }
+        .eta { margin-top: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 12px; padding: 10px 12px; font-size: .92rem; }
+        /* línea de tiempo vertical */
+        .pasos { list-style: none; margin: 0; padding: 0; }
+        .paso { position: relative; display: flex; gap: 14px; padding-bottom: 22px; }
+        .paso:last-child { padding-bottom: 0; }
+        .paso::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: -2px; width: 3px; background: var(--gris); border-radius: 2px; }
+        .paso:last-child::before { display: none; }
+        .paso.hecho::before { background: var(--verde); }
+        .punto { flex: 0 0 28px; height: 28px; border-radius: 50%; background: #fff; border: 3px solid var(--gris); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 800; color: #fff; z-index: 1; }
+        .paso.hecho .punto { background: var(--verde); border-color: var(--verde); }
+        .paso.actual .punto { background: var(--naranja); border-color: var(--naranja); animation: latido 1.4s infinite; }
+        @keyframes latido { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.55); } 70% { box-shadow: 0 0 0 10px rgba(245,158,11,0); } 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); } }
+        .paso-titulo { font-weight: 700; color: var(--suave); line-height: 28px; }
+        .paso.hecho .paso-titulo, .paso.actual .paso-titulo { color: var(--texto); }
+        .paso-hora { font-size: .78rem; color: var(--suave); margin-top: -3px; }
+        .cancelado .estado-titulo { color: #b91c1c; }
+        ul.articulos { list-style: none; margin: 8px 0 0; padding: 0; }
+        ul.articulos li { padding: 6px 0; border-bottom: 1px dashed #e5e7eb; font-size: .95rem; }
+        ul.articulos li:last-child { border-bottom: 0; }
+        .cant { display: inline-block; min-width: 26px; font-weight: 800; color: var(--rojo); }
+        .pie { text-align: center; color: var(--suave); font-size: .78rem; margin: 6px 0 24px; }
+        .oculto { display: none !important; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 id="marca">🔎 Seguir mi pedido</h1>
+        <small>Mira en qué paso va tu pedido</small>
+    </header>
+
+    <main>
+        <!-- Búsqueda por número de pedido + teléfono -->
+        <section id="vista-buscar" class="tarjeta oculto">
+            <h2>Rastrea tu pedido</h2>
+            <p class="estado-msg">Escribe el número de tu pedido (el que te enviamos al pedir) y el teléfono con el que lo hiciste.</p>
+            <form id="form-buscar" autocomplete="off">
+                <label for="inp-numero">Número de pedido</label>
+                <input id="inp-numero" inputmode="numeric" placeholder="Ej: 12" required>
+                <label for="inp-tel">Teléfono</label>
+                <input id="inp-tel" type="tel" inputmode="tel" placeholder="Ej: 0412 123 4567" required>
+                <button type="submit" id="btn-buscar">Ver mi pedido</button>
+            </form>
+            <div id="error-buscar" class="error oculto"></div>
+        </section>
+
+        <!-- Estado del pedido -->
+        <section id="vista-estado" class="oculto">
+            <div class="tarjeta" id="tarjeta-estado">
+                <span class="numero" id="est-numero"></span>
+                <div class="estado-titulo" id="est-titulo"></div>
+                <p class="estado-msg" id="est-msg"></p>
+                <div class="eta oculto" id="est-eta"></div>
+            </div>
+            <div class="tarjeta">
+                <ol class="pasos" id="lista-pasos"></ol>
+            </div>
+            <div class="tarjeta oculto" id="tarjeta-articulos">
+                <h2 style="font-size:1rem;">Tu pedido</h2>
+                <ul class="articulos" id="lista-articulos"></ul>
+            </div>
+            <p class="pie" id="pie-actualizado"></p>
+        </section>
+
+        <a class="boton suave" id="lnk-otro" href="#" onclick="mostrarBuscar(); return false;">Buscar otro pedido</a>
+        <a class="boton suave" href="menu.html">← Volver al menú</a>
+        <p class="pie" style="margin-top:14px;">Esta pantalla se actualiza sola.</p>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="demo-config.js"></script>
+    <script src="api-cliente.js"></script>
+    <script>
+    (function () {
+        var CLAVE = 'seguimientoActivo';              // { token, guardado } en este teléfono
+        var VIGENCIA_MS = 4 * 24 * 3600e3;            // igual que el enlace firmado
+        var token = null, temporizador = null, ultimoOk = 0;
+        var $ = function (id) { return document.getElementById(id); };
+        var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); };
+
+        try { var m = window.MARCA && window.MARCA.nombre; if (m) { $('marca').textContent = '🔎 ' + m; document.title = 'Seguir mi pedido · ' + m; } } catch (e) {}
+
+        function guardar(t) { try { localStorage.setItem(CLAVE, JSON.stringify({ token: t, guardado: Date.now() })); } catch (e) {} }
+        function leerGuardado() { try { var o = JSON.parse(localStorage.getItem(CLAVE) || 'null'); return o && Date.now() - o.guardado < VIGENCIA_MS ? o.token : null; } catch (e) { return null; } }
+        function olvidar() { try { localStorage.removeItem(CLAVE); } catch (e) {} }
+
+        function hora(ms) { return ms ? new Date(ms).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''; }
+
+        window.mostrarBuscar = function () {
+            clearInterval(temporizador); token = null; olvidar();
+            $('vista-estado').classList.add('oculto'); $('vista-buscar').classList.remove('oculto'); $('lnk-otro').classList.add('oculto');
+            $('error-buscar').classList.add('oculto');
+        };
+
+        var TITULOS = { pago: 'Esperando pago', cocina: 'En cocina', despachado: 'Despachado', camino: 'En camino', entregado: '¡Entregado!', realizado: 'Pedido realizado', cancelado: 'Pedido cancelado' };
+
+        function pintar(s) {
+            $('vista-buscar').classList.add('oculto'); $('vista-estado').classList.remove('oculto'); $('lnk-otro').classList.remove('oculto');
+            $('tarjeta-estado').classList.toggle('cancelado', !!s.cancelado);
+            $('est-numero').textContent = 'Pedido #' + s.numero;
+            var titulo = TITULOS[s.estado] || 'Pedido realizado';
+            if (s.estado === 'despachado' && s.tipo === 'pickup') titulo = 'Listo para retirar';
+            if (s.estado === 'despachado' && s.tipo === 'mesa') titulo = 'Servido';
+            $('est-titulo').textContent = (s.cliente ? s.cliente + ', ' : '') + titulo.charAt(0).toLowerCase() + titulo.slice(1);
+            $('est-msg').textContent = s.mensaje;
+            // Tiempo estimado (solo mientras se prepara)
+            var eta = $('est-eta');
+            if (s.estado === 'cocina' && (s.tiempo_estimado || s.listo_ms)) {
+                var t = '⏱ Tiempo estimado: <b>' + esc(s.tiempo_estimado || '') + '</b>';
+                if (s.listo_ms) t += (s.tiempo_estimado ? ' · ' : '') + 'listo aprox. a las <b>' + hora(s.listo_ms) + '</b>';
+                eta.innerHTML = t; eta.classList.remove('oculto');
+            } else eta.classList.add('oculto');
+            // Línea de tiempo
+            $('lista-pasos').innerHTML = s.pasos.map(function (p) {
+                var h = p.ms && (p.estado === 'hecho' || p.estado === 'actual') ? '<div class="paso-hora">' + hora(p.ms) + '</div>' : '';
+                return '<li class="paso ' + p.estado + '"><div class="punto">' + (p.estado === 'hecho' ? '✓' : '') + '</div><div><div class="paso-titulo">' + esc(p.titulo) + '</div>' + h + '</div></li>';
+            }).join('');
+            // Artículos
+            var arts = (s.articulos || []);
+            $('tarjeta-articulos').classList.toggle('oculto', !arts.length);
+            $('lista-articulos').innerHTML = arts.map(function (a) { return '<li><span class="cant">' + a.cant + '×</span> ' + esc(a.nombre) + '</li>'; }).join('');
+            ultimoOk = Date.now(); actualizarPie();
+            // Deja de consultar cuando ya terminó
+            if (s.cancelado || s.estado === 'entregado') clearInterval(temporizador);
+        }
+
+        function actualizarPie() {
+            if (!ultimoOk) return;
+            var seg = Math.max(0, Math.round((Date.now() - ultimoOk) / 1000));
+            $('pie-actualizado').textContent = 'Actualizado ' + (seg < 5 ? 'ahora mismo' : 'hace ' + seg + ' s');
+        }
+
+        function consultar() {
+            if (!token) return Promise.resolve();
+            return fetch(API_BASE + '/api/seguimiento?t=' + encodeURIComponent(token))
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d && d.success) pintar(d.seguimiento);
+                    else { olvidar(); mostrarBuscar(); mostrarError((d && d.error) || 'Este enlace ya no sirve.'); }
+                })
+                .catch(function () { $('pie-actualizado').textContent = 'Sin conexión: reintentando…'; });
+        }
+        function arrancar(t) {
+            token = t; guardar(t); clearInterval(temporizador);
+            consultar();
+            temporizador = setInterval(function () { if (!document.hidden) consultar(); actualizarPie(); }, 15000);
+            if (!window.__pieActivo) { window.__pieActivo = true; setInterval(actualizarPie, 5000); }
+        }
+        function mostrarError(msg) { var e = $('error-buscar'); e.textContent = msg; e.classList.remove('oculto'); }
+
+        $('form-buscar').addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            var btn = $('btn-buscar'); btn.disabled = true; btn.textContent = 'Buscando…'; $('error-buscar').classList.add('oculto');
+            fetch(API_BASE + '/api/seguimiento/buscar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ numero: $('inp-numero').value, telefono: $('inp-tel').value }) })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d && d.success) { arrancar(d.token); pintar(d.seguimiento); }
+                    else mostrarError((d && d.error) || 'No encontramos ese pedido.');
+                })
+                .catch(function () { mostrarError('No hay conexión. Intenta de nuevo.'); })
+                .then(function () { btn.disabled = false; btn.textContent = 'Ver mi pedido'; });
+        });
+
+        // Entrada: ?t=TOKEN (enlace de la confirmación) > último pedido guardado en este teléfono > formulario
+        var params = new URLSearchParams(location.search);
+        var t = params.get('t') || leerGuardado();
+        if (t) arrancar(t); else mostrarBuscar();
+        // Si vino con ?n=12 (de un mensaje), el número queda escrito
+        if (params.get('n')) $('inp-numero').value = String(params.get('n')).replace(/\D/g, '');
+    })();
+    </script>
+</body>
+</html>

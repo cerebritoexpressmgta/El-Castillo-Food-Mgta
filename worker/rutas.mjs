@@ -4,7 +4,8 @@ import { DEMO_CONFIG as CFG } from './demo-config.mjs';
 import { crearToken, hashClave, verificarClave, firmarObjeto, leerObjeto } from './auth.mjs';
 import { registrarResenas } from './resenas.mjs';
 import { consultarBcv, aplicarTasaBcv, aplicarTasaManual, anotarFalloBcv, infoTasa, configTasa } from './bcv.mjs';
-import { configDelivery, validarConfigDelivery, parsearCoords, coordenadasValidas, distanciaKm, cotizarDelivery } from './delivery.mjs';
+import { configDelivery, validarConfigDelivery, parsearCoords, coordenadasValidas, distanciaKm, cotizarDelivery, resolverEnlaceUbicacion } from './delivery.mjs';
+import { anotarHito, armarSeguimiento, minutosDeFrase } from './seguimiento.mjs';
 import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
 
 const VERSION_DATOS = 3;
@@ -652,6 +653,37 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     });
     ruta('GET', '/api/bcv/historial', (ctx, db) => { requiereStaff(ctx); return { success: true, historial: db.tasa_historial || [] }; });
 
+    // ---- Ubicación del cliente a partir de un enlace (pedidos que toma el personal) ----
+    ruta('POST', '/api/delivery/ubicacion-enlace', async (ctx) => {
+        requiereStaff(ctx);
+        const c = await resolverEnlaceUbicacion((ctx.body || {}).enlace);
+        if (!c) return { success: false, error: 'No pude leer la ubicación de ese enlace. Pídele al cliente que la comparta por WhatsApp (📎 → Ubicación) y pega el enlace, o escribe las coordenadas (ej. 10.9577,-63.8697).' };
+        return { success: true, lat: c.lat, lng: c.lng };
+    });
+
+    // ---- Seguimiento del pedido (público: por enlace firmado o por número de pedido + teléfono) ----
+    const ultimos9 = t => String(t || '').replace(/\D/g, '').slice(-9);
+    const diaCaracas = atras => new Date(Date.now() - 4 * 3600e3 - atras * 86400e3).toISOString().slice(0, 10);
+    ruta('GET', '/api/seguimiento', async (ctx, db) => {
+        const o = await leerObjeto(ctx.query.t);
+        const p = o && o.fase === 'seguimiento' ? db.pedidos.find(x => x.id === Number(o.pid)) : null;
+        if (!p) return { success: false, error: 'Este enlace ya no sirve. Búscalo con tu número de pedido y tu teléfono.' };
+        return { success: true, seguimiento: armarSeguimiento(p, String(contarNumeroDiario(db, p))) };
+    });
+    ruta('POST', '/api/seguimiento/buscar', async (ctx, db) => {
+        const b = ctx.body || {};
+        const numero = String(b.numero || '').replace(/\D/g, '');
+        const tel = ultimos9(b.telefono);
+        const noEsta = { success: false, error: 'No encontramos un pedido con esos datos. Revisa el número que te enviamos y el teléfono con el que pediste.' };
+        if (!numero || tel.length < 7) return noEsta;
+        const dias = [diaCaracas(0), diaCaracas(1), diaCaracas(2)];
+        const p = db.pedidos.filter(x => ultimos9(x.telefono) === tel && dias.includes(x.fecha || String(x.timestamp || '').slice(0, 10)) && String(contarNumeroDiario(db, x)) === numero)
+            .sort((a, c) => c.id - a.id)[0];
+        if (!p) return noEsta;
+        const token = await firmarObjeto({ fase: 'seguimiento', pid: p.id }, 4 * 24 * 3600e3);
+        return { success: true, token, seguimiento: armarSeguimiento(p, String(contarNumeroDiario(db, p))) };
+    });
+
     // ---- Delivery por distancia ----
     ruta('GET', '/api/delivery/config', (ctx, db) => {
         requiereStaff(ctx);
@@ -947,6 +979,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             referencia_pago: /efectivo|punto de venta/i.test(metodoPago) ? null : 'Pendiente',
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,
             precio_delivery: deliveryAuto ? delivery.precio : null, paga_con: null,
+            historial: [],
             delivery_auto: deliveryAuto, delivery_sugerido: delivery && !deliveryAuto ? delivery.precio : null, distancia_km: delivery ? delivery.km : null,
             lat: destinoCli ? destinoCli.lat : null, lng: destinoCli ? destinoCli.lng : null,
             total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos,
@@ -975,11 +1008,14 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
                 : `🍔 ¡Hola, ${cliente}! Hemos recibido tu pedido #${idVisual}. En breve calcularemos el delivery.`;
         }
         enviarWhatsappSimulado(db, telefono, mensaje, 'nuevo pedido');
+        const t0 = Date.now(); anotarHito(nuevo, 'Pedido realizado', t0);
+        if (nuevo.estado !== 'Calculando Delivery') anotarHito(nuevo, nuevo.estado, t0);
         ctx.tras.push(() => emitirTablero(cobroDirecto ? 'actualizacion' : 'nuevo_pedido', sid));
         if (esMesa) ctx.tras.push(() => emitirTablero('mesas', sid));
         // Pase para reseñar ESTE pedido cuando sea entregado (solo para clientes, no para pedidos tomados por el personal)
         const resenaToken = esPersonal ? null : await firmarObjeto({ fase: 'resena', pid: nuevo.id, tel: telefono }, 45 * 24 * 3600e3);
-        return { success: true, resena_token: resenaToken, pedido: { id: nuevo.id, id_visual: idVisual, total: totalFinal }, delivery: delivery ? { precio: delivery.precio, km: delivery.km, auto: deliveryAuto } : null, sucursal: suc ? { id: suc.id, nombre: suc.nombre, whatsapp: suc.whatsapp || '', telefono: suc.telefono || '' } : null };
+        const seguimientoToken = esPersonal ? null : await firmarObjeto({ fase: 'seguimiento', pid: nuevo.id }, 4 * 24 * 3600e3);
+        return { success: true, resena_token: resenaToken, seguimiento_token: seguimientoToken, pedido: { id: nuevo.id, id_visual: idVisual, total: totalFinal }, delivery: delivery ? { precio: delivery.precio, km: delivery.km, auto: deliveryAuto } : null, sucursal: suc ? { id: suc.id, nombre: suc.nombre, whatsapp: suc.whatsapp || '', telefono: suc.telefono || '' } : null };
     });
 
     function filtrarFecha(db, q, filtro) {
@@ -1002,7 +1038,25 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const p = db.pedidos.find(x => x.id === Number(id));
         if (!p) return { success: false, msg: 'Pedido no encontrado' };
         exigirSucursal(ctx, db, p);
+        const estadoAntes = p.estado;
         ['estado', 'procesado_por', 'referencia_pago', 'imagen_pago', 'repartidor', 'total_orden', 'pedido_detallado', 'tasa_bcv', 'precio_delivery', 'paga_con'].forEach(k => { if (k in d) p[k] = d[k]; });
+        // Tiempo de preparación prometido (lo elige el cajero al pasar el pedido a cocina): alimenta el reloj regresivo del tablero
+        const ahoraMs = Date.now();
+        if (typeof d.tiempo_estimado === 'string' && d.tiempo_estimado.trim()) p.tiempo_estimado = limpiarTexto(d.tiempo_estimado, 60);
+        if ('tiempo_prep_min' in d) { const m = parseInt(d.tiempo_prep_min, 10); if (m > 0 && m <= 720) p.tiempo_prep_min = m; }
+        // Hitos para el seguimiento del cliente: cada cambio de estado queda con su hora
+        if ('estado' in d && d.estado !== estadoAntes) {
+            anotarHito(p, d.estado, ahoraMs);
+            if (d.estado === 'En Cocina') {
+                p.en_cocina_ms = ahoraMs;
+                if (!(p.tiempo_prep_min > 0) && p.tiempo_estimado) p.tiempo_prep_min = minutosDeFrase(p.tiempo_estimado);
+            }
+        }
+        if (d.evento === 'en_camino' && p.estado === 'Finalizado' && !p.en_camino_ms) { p.en_camino_ms = ahoraMs; anotarHito(p, 'En camino', ahoraMs); }
+        if (d.evento === 'entregado' && p.estado === 'Finalizado' && !p.entregado_ms) {
+            if (!p.en_camino_ms) { p.en_camino_ms = ahoraMs; anotarHito(p, 'En camino', ahoraMs); }
+            p.entregado_ms = ahoraMs; anotarHito(p, 'Entregado', ahoraMs);
+        }
         if (d.articulos && d.articulos.length) {
             const emp = calcularEmpaque(db, d.articulos);
             p.total_bandejas = emp.bandejas; p.total_cajas_pizza = emp.cajas_pizza; p.total_refrescos = emp.refrescos;

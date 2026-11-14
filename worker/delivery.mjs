@@ -115,3 +115,68 @@ export function cotizarDelivery(cfg, { km, subtotal, hora }) {
     const precio = r2(base + recargos.reduce((s, x) => s + x.monto, 0));
     return { ok: true, precio, km: kmR, base: r2(base), recargos, gratis: false };
 }
+
+// ---------------------------------------------------------------------------
+// Ubicación del cliente a partir de un enlace (para los pedidos que toma el personal).
+// El cliente manda por WhatsApp su ubicación o un enlace de Google Maps; el cajero lo pega.
+// ---------------------------------------------------------------------------
+const NUM = '(-?\\d{1,3}(?:\\.\\d+)?)';
+export function coordsDeTexto(texto) {
+    let t = String(texto || '');
+    try { t = decodeURIComponent(t); } catch (e) { /* queda como está */ }
+    const patrones = [
+        new RegExp('^\\s*' + NUM + '\\s*[,;\\s]\\s*' + NUM + '\\s*$'),                                  // "10.95,-63.86"
+        new RegExp('!3d' + NUM + '!4d' + NUM),                                                         // pin exacto de Google
+        new RegExp('[?&](?:q|ll|query|daddr|destination|sll)=(?:loc:)?\\+?' + NUM + '\\s*[,;]\\s*' + NUM),
+        new RegExp('[?&]center=' + NUM + '\\s*[,;]\\s*' + NUM),
+        new RegExp('@' + NUM + ',' + NUM)                                                              // centro del mapa
+    ];
+    for (const re of patrones) {
+        const m = re.exec(t);
+        if (m) { const c = coordenadasValidas(m[1], m[2]); if (c) return c; }
+    }
+    return null;
+}
+
+const HOST_GOOGLE = /(^|\.)(google\.(?:com(?:\.[a-z]{2})?|[a-z]{2})|goo\.gl|g\.page|apple\.com)$/i;
+export function hostPermitido(url) {
+    try { const u = new URL(url); return u.protocol === 'https:' && HOST_GOOGLE.test(u.hostname); } catch (e) { return false; }
+}
+
+// Devuelve { lat, lng } o null. Los enlaces largos traen las coordenadas dentro; los cortos
+// (maps.app.goo.gl) se siguen hasta su destino (solo hacia dominios de Google/Apple).
+export async function resolverEnlaceUbicacion(entrada, fetchFn) {
+    const f = fetchFn || fetch;
+    const texto = String(entrada || '').trim();
+    if (!texto) return null;
+    const directo = coordsDeTexto(texto);
+    if (directo) return directo;
+    const m = /https?:\/\/[^\s<>"']+/i.exec(texto);
+    if (!m) return null;
+    let url = m[0].replace(/[).,;]+$/, '');
+    for (let salto = 0; salto < 6; salto++) {
+        const c = coordsDeTexto(url);
+        if (c) return c;
+        // páginas de "consentimiento" de Google: el destino real viene en ?continue=
+        try { const cont = new URL(url).searchParams.get('continue'); if (cont) { const c2 = coordsDeTexto(cont); if (c2) return c2; if (hostPermitido(cont)) { url = cont; continue; } } } catch (e) {}
+        if (!hostPermitido(url)) return null;
+        const ctl = new AbortController(); const tmo = setTimeout(() => ctl.abort(), 8000);
+        let r;
+        try { r = await f(url, { redirect: 'manual', signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ElCastilloBot/1.0)', 'Accept-Language': 'es' } }); }
+        catch (e) { return null; } finally { clearTimeout(tmo); }
+        if (r.status >= 300 && r.status < 400) {
+            const loc = r.headers && r.headers.get ? r.headers.get('location') : null;
+            if (!loc) return null;
+            try { url = new URL(loc, url).toString(); } catch (e) { return null; }
+            if (!hostPermitido(url)) return null; // jamás se sigue ni se lee un destino fuera de Google/Apple
+            continue;
+        }
+        if (r.ok && r.text) {
+            const html = (await r.text()).slice(0, 300000);
+            const c3 = coordsDeTexto(html.replace(/&amp;/g, '&'));
+            if (c3) return c3;
+        }
+        return null;
+    }
+    return null;
+}

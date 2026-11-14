@@ -512,6 +512,14 @@ async function enviarPedidoTrabajador(event) {
 
     const tipoEntrega = document.getElementById('trab-entrega').value;
     const direccion = direccionDelPedido();
+
+    // Si pegó un enlace y no lo verificó, se verifica aquí. Si el enlace no sirve no se pierde el pedido:
+    // se avisa y se puede enviar igual (el precio del delivery se pone a mano en Cocina).
+    if (tipoEntrega === 'Delivery') {
+        const textoEnlace = (document.getElementById('trab-enlace') || {}).value || '';
+        if (textoEnlace.trim() && !UBICACION_TRAB) await verificarEnlaceUbicacion();
+        if (textoEnlace.trim() && !UBICACION_TRAB && !confirm('No se pudo leer la ubicación del enlace.\n\n¿Enviar el pedido igual? El precio del delivery se pondrá a mano en Cocina.')) return;
+    }
     if (tipoEntrega === 'Mesa' && !direccion) {
         alert('Elige la mesa del pedido.');
         document.getElementById('trab-mesa').focus();
@@ -532,6 +540,8 @@ async function enviarPedidoTrabajador(event) {
         articulos: articulos,
         sucursal_id: SUCURSAL_ACTUAL ? SUCURSAL_ACTUAL.id : undefined,
         estado_inicial: tipoEntrega === 'Delivery' ? 'Calculando Delivery' : 'Pago Pendiente',
+        lat: (tipoEntrega === 'Delivery' && UBICACION_TRAB) ? UBICACION_TRAB.lat : undefined,
+        lng: (tipoEntrega === 'Delivery' && UBICACION_TRAB) ? UBICACION_TRAB.lng : undefined,
         pedido_detallado: "Generado por Backend", // el backend arma el texto real
         metadata_titular: `Pedido registrado en caja por ${operador}`
     };
@@ -551,6 +561,7 @@ async function enviarPedidoTrabajador(event) {
         });
 
         if (res.ok) {
+            limpiarEnlaceUbicacion();
             goToStep(4);
         } else {
             alert(await motivoDelRechazo(res, 'El servidor rechazó el pedido. Revisa los datos e intenta de nuevo.'));
@@ -569,6 +580,7 @@ function reiniciarPedidoTrabajador() {
     pendientesPersonalizarCombo = {};
 
     document.getElementById('order-form').reset();
+    limpiarEnlaceUbicacion();
     _limpiarEstadoClienteTrab();
     limpiarBusqueda(false);
 
@@ -938,6 +950,12 @@ function alternarCamposEntrega() {
     const esMesa = document.getElementById('trab-entrega').value === 'Mesa';
     document.getElementById('trab-wrap-mesa').classList.toggle('hidden', !esMesa);
     document.getElementById('trab-wrap-direccion').classList.toggle('hidden', esMesa);
+    const wrapEnlace = document.getElementById('trab-wrap-enlace');
+    if (wrapEnlace) {
+        const esDelivery = document.getElementById('trab-entrega').value === 'Delivery';
+        wrapEnlace.classList.toggle('hidden', !esDelivery);
+        if (!esDelivery) limpiarEnlaceUbicacion();
+    }
     if (esMesa) pintarMesasCaja();
 }
 
@@ -971,3 +989,62 @@ window.addEventListener('load', () => {
     const mesa = new URLSearchParams(location.search).get('mesa');
     if (mesa && !sel.disabled) { window.__mesaPendiente = mesa; sel.value = 'Mesa'; alternarCamposEntrega(); }
 });
+
+
+// =====================================================================
+// UBICACIÓN DEL CLIENTE POR ENLACE: el cliente manda su ubicación por WhatsApp (o un enlace
+// de Google Maps), el cajero la pega y el delivery se calcula con la tabla del panel.
+// =====================================================================
+let UBICACION_TRAB = null; // { lat, lng } leída del enlace
+
+function _estadoEnlace(html, clase) {
+    const el = document.getElementById('trab-enlace-estado');
+    if (!el) return;
+    el.className = 'text-xs mt-1.5 ' + (clase || 'text-slate-500');
+    el.innerHTML = html;
+}
+function limpiarEnlaceUbicacion() {
+    UBICACION_TRAB = null;
+    const inp = document.getElementById('trab-enlace');
+    if (inp) inp.value = '';
+    _estadoEnlace('Si el cliente te manda su ubicación por WhatsApp, copia el enlace y pégalo aquí. Si no, deja esto vacío y pon el precio del delivery en Cocina como siempre.');
+}
+// Si cambia el texto, lo verificado deja de valer
+function alCambiarEnlaceUbicacion() {
+    UBICACION_TRAB = null;
+    const t = (document.getElementById('trab-enlace') || {}).value || '';
+    if (!t.trim()) limpiarEnlaceUbicacion(); else _estadoEnlace('Toca "Verificar" para leer la ubicación.');
+}
+
+async function verificarEnlaceUbicacion() {
+    const inp = document.getElementById('trab-enlace');
+    const btn = document.getElementById('trab-btn-enlace');
+    const texto = inp ? inp.value.trim() : '';
+    UBICACION_TRAB = null;
+    if (!texto) { _estadoEnlace('Pega primero el enlace de la ubicación.', 'text-amber-600'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Leyendo...'; }
+    _estadoEnlace('Leyendo la ubicación...');
+    try {
+        const r = await fetch(API_BASE + '/api/delivery/ubicacion-enlace', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ enlace: texto }) });
+        const d = await r.json();
+        if (!d.success) { _estadoEnlace('⚠️ ' + escapeHtml(d.error || 'No se pudo leer la ubicación.'), 'text-red-600'); return; }
+        UBICACION_TRAB = { lat: d.lat, lng: d.lng };
+        // ¿cuánto sale el delivery? (misma cuenta que usará el servidor al crear el pedido)
+        const sid = (typeof SUCURSAL_ACTUAL !== 'undefined' && SUCURSAL_ACTUAL) ? SUCURSAL_ACTUAL.id : undefined;
+        const rc = await fetch(API_BASE + '/api/delivery/cotizar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sucursal_id: sid, lat: d.lat, lng: d.lng, articulos: Object.values(cart) }) });
+        const c = rc.ok ? await rc.json() : null;
+        if (c && c.automatico && c.ok) {
+            _estadoEnlace('✅ Ubicación leída · unos ' + c.km + ' km · delivery <b>' + (c.gratis ? 'gratis' : '$' + Number(c.precio).toFixed(2)) + '</b>. Se suma solo al pedido.', 'text-emerald-700');
+        } else if (c && c.automatico && c.ok === false) {
+            UBICACION_TRAB = null;
+            _estadoEnlace('⚠️ ' + escapeHtml(c.mensaje), 'text-red-600');
+        } else {
+            _estadoEnlace('✅ Ubicación leída (' + d.lat.toFixed(4) + ', ' + d.lng.toFixed(4) + '). El delivery está en modo manual: el precio lo pones en Cocina' + (c && c.motivo === 'sin_origen' ? ' (falta cargar las coordenadas de la sucursal en el panel).' : ', con la tarifa por distancia como sugerencia.'), 'text-emerald-700');
+        }
+    } catch (e) {
+        _estadoEnlace('⚠️ No hay conexión con el servidor. Intenta de nuevo.', 'text-red-600');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Verificar'; }
+    }
+}

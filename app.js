@@ -522,6 +522,60 @@ function cancelarTiempoEstimado() {
     if (resolveTiempoEstimado) resolveTiempoEstimado(null);
 }
 
+// ---- Reloj regresivo de preparación (tarjetas "En cocina") ----
+// Cuenta hacia atrás desde que el pedido pasó a cocina, con el tiempo que eligió el cajero.
+// Verde mientras queda tiempo; al llegar a cero sigue corriendo en negativo y en rojo.
+// Se detiene solo cuando el pedido se despacha (la tarjeta sale de la columna).
+function minutosDeFrase(frase) {
+    const t = String(frase || '').toLowerCase();
+    if (!t.trim()) return 0;
+    const h = /(\d+)\s*horas?/.exec(t);
+    if (h) { const m = /(\d+)\s*min/.exec(t.replace(h[0], '')); return parseInt(h[1], 10) * 60 + (m ? parseInt(m[1], 10) : 0); }
+    const nums = (t.match(/\d+/g) || []).map(Number).filter(n => n > 0);
+    return nums.length ? Math.max(...nums) : 0; // "25 a 30 minutos" -> 30
+}
+function formatoReloj(seg) {
+    const h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
+    const dos = n => String(n).padStart(2, '0');
+    return (h > 0 ? h + ':' : '') + dos(m) + ':' + dos(s);
+}
+function relojCocinaHtml(p) {
+    const inicio = Number(p.en_cocina_ms), min = Number(p.tiempo_prep_min);
+    if (!(inicio > 0) || !(min > 0)) return '';
+    const fin = inicio + min * 60000;
+    const prometido = p.tiempo_estimado ? ` <span class="text-slate-500">(${escapeHtml(String(p.tiempo_estimado))})</span>` : '';
+    return `<div class="flex items-center justify-between pt-2 border-t border-slate-600/40">
+        <span class="text-[11px] text-slate-400"><i class="fa-regular fa-hourglass-half"></i> Preparación${prometido}</span>
+        <span class="reloj-cocina font-mono font-black text-xl tabular-nums text-emerald-400" data-fin="${fin}">--:--</span>
+    </div>`;
+}
+function actualizarRelojesCocina() {
+    const ahora = Date.now();
+    document.querySelectorAll('.reloj-cocina').forEach(el => {
+        const resta = Number(el.dataset.fin) - ahora;
+        if (resta >= 0) {
+            el.textContent = formatoReloj(Math.ceil(resta / 1000));
+            el.classList.add('text-emerald-400'); el.classList.remove('text-red-500');
+        } else {
+            el.textContent = '-' + formatoReloj(Math.ceil(-resta / 1000));
+            el.classList.add('text-red-500'); el.classList.remove('text-emerald-400');
+        }
+    });
+}
+if (!window.__relojCocinaActivo) { window.__relojCocinaActivo = true; setInterval(actualizarRelojesCocina, 1000); }
+
+// ---- Delivery despachado: "En camino" y "Entregado" (los ve el cliente en el seguimiento) ----
+function marcarEventoEntrega(idReal, evento, ev) {
+    if (ev) ev.stopPropagation();
+    const i = pedidosEnMemoria.findIndex(p => String(p.id_pedido || p['ID_Pedido'] || p.ID) === String(idReal));
+    if (i === -1) return;
+    const ahora = Date.now();
+    if (evento === 'en_camino') pedidosEnMemoria[i].en_camino_ms = ahora;
+    if (evento === 'entregado') { if (!pedidosEnMemoria[i].en_camino_ms) pedidosEnMemoria[i].en_camino_ms = ahora; pedidosEnMemoria[i].entregado_ms = ahora; }
+    renderizarTablero();
+    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ id: idReal, evento }) }).catch(e => console.error(e));
+}
+
 // --- FLUJO DE ESTADOS ---
 async function procesarPasoCocina(idPedido, idVisual) {
     const pedido = pedidosEnMemoria.find(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idPedido)); 
@@ -604,6 +658,10 @@ function ejecutarActualizacion(id, estado, telefono, cliente, tipoEntrega, datos
     const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;
 
     pedidosEnMemoria[index].estado = estado; pedidosEnMemoria[index].procesado_por = operadorFirma;
+    const minPrep = estado === 'En Cocina' ? minutosDeFrase(tiempoEstimado) : 0;
+    if (minPrep > 0) { // el reloj aparece al instante; el servidor guarda su propia hora de inicio
+        pedidosEnMemoria[index].en_cocina_ms = Date.now(); pedidosEnMemoria[index].tiempo_prep_min = minPrep; pedidosEnMemoria[index].tiempo_estimado = tiempoEstimado;
+    }
     pedidosEnMemoria[index].referencia_pago = nuevaRef; pedidosEnMemoria[index].imagen_pago = nuevaImg;
     pedidosEnMemoria[index].tasa_bcv = tasaActual; // Actualizamos memoria
     renderizarTablero();
@@ -617,6 +675,7 @@ function ejecutarActualizacion(id, estado, telefono, cliente, tipoEntrega, datos
         direccion: direccionGuardada,
         tasa_bcv: tasaActual // ENVIAMOS LA TASA A LA BASE DE DATOS
     };
+    if (minPrep > 0) payload.tiempo_prep_min = minPrep;
 
     // El billete con el que paga solo viaja cuando el modal de Validar Pago lo
     // preguntó. Mandarlo siempre lo borraría al despachar, que es justo cuando
@@ -858,6 +917,7 @@ function renderizarTablero() {
                         <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock"></i> ${hora}</span>
                     </div>
                     <div><h4 class="font-bold text-white text-sm truncate">${clienteSeguro} ${etiquetaEntrega}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${escapeHtml(art)}</p></div>
+                    ${relojCocinaHtml(pedido)}
                     <div class="flex justify-between items-center pt-2 border-t border-slate-600/50">
                         ${htmlMonto}
                         <button onclick="procesarPasoFinalizado('${idReal}')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-md transition flex items-center gap-1 cursor-pointer">Despachar <i class="fa-solid fa-check"></i></button>
@@ -901,6 +961,13 @@ function renderizarTablero() {
                 }
             }
 
+            let htmlRutaEntrega = '';
+            if (!esMesa && !esPickup) {
+                if (pedido.entregado_ms) htmlRutaEntrega = `<div class="mt-2 pt-2 border-t border-slate-700/50 text-[11px] font-bold text-emerald-400">✅ Entregado</div>`;
+                else if (pedido.en_camino_ms) htmlRutaEntrega = `<div class="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between gap-2"><span class="text-[11px] font-bold text-amber-300">🛵 En camino</span><button onclick="marcarEventoEntrega('${idReal}', 'entregado', event)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-md cursor-pointer">Marcar entregado</button></div>`;
+                else htmlRutaEntrega = `<div class="mt-2 pt-2 border-t border-slate-700/50 flex justify-end"><button onclick="marcarEventoEntrega('${idReal}', 'en_camino', event)" class="bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-md cursor-pointer">🛵 Salió (en camino)</button></div>`;
+            }
+
             colFinalizado.innerHTML += `
                 <div onclick="abrirModalDetalle('${idReal}')" class="bg-slate-700/20 hover:bg-slate-700/50 p-3 rounded-lg border border-emerald-500/10 hover:border-emerald-500/30 transition cursor-pointer mb-2 flex flex-col">
                     <div class="flex justify-between items-start w-full">
@@ -920,9 +987,11 @@ function renderizarTablero() {
                         ${htmlMontoFinalizado}
                     </div>
                     ${htmlReferencia}
+                    ${htmlRutaEntrega}
                 </div>`;
         }
     });
+    actualizarRelojesCocina();
 
     if (document.getElementById('cantCalculandoDelivery')) {
         document.getElementById('cantCalculandoDelivery').innerText = conteoCalculando;

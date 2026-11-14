@@ -1659,6 +1659,14 @@ async function sendOrder(event) {
             const msgOk = document.getElementById('msg-pedido-recibido');
             const hayWa = !!numeroWhatsAppPedido();
             if (tipoEntrega === 'Delivery' && UBICACION_ENTREGA) guardarUbicacionDeDireccion(direccionFinal, UBICACION_ENTREGA);
+            // Enlace para seguir el pedido (queda guardado en este teléfono para volver a verlo después)
+            const btnSeguir = document.getElementById('btn-seguir-pedido');
+            if (btnSeguir) {
+                if (datosOk && datosOk.seguimiento_token) {
+                    btnSeguir.href = 'seguimiento.html?t=' + encodeURIComponent(datosOk.seguimiento_token);
+                    try { localStorage.setItem('seguimientoActivo', JSON.stringify({ token: datosOk.seguimiento_token, guardado: Date.now() })); } catch (e) {}
+                } else btnSeguir.href = 'seguimiento.html?n=' + encodeURIComponent(String((datosOk && datosOk.pedido && datosOk.pedido.id_visual) || ''));
+            }
             const delAuto = datosOk && datosOk.delivery && datosOk.delivery.auto ? datosOk.delivery : null;
             if (msgOk) msgOk.textContent = delAuto
                 ? `Recibimos tu pedido. El delivery (${delAuto.precio > 0 ? '$' + Number(delAuto.precio).toFixed(2) : 'gratis'}) ya está incluido: total $${Number(datosOk.pedido.total).toFixed(2)}. ` + (hayWa ? 'Toca el botón verde para enviarlo por WhatsApp y coordinar el pago.' : 'La sucursal se comunicará contigo para coordinar el pago.')

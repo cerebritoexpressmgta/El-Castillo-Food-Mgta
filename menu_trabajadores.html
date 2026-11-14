@@ -205,6 +205,15 @@
                             <textarea id="trab-direccion" rows="2" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500" placeholder="Ej. Av. Principal, Res. Los Robles, apto 3-B"></textarea>
                         </div>
 
+                        <div id="trab-wrap-enlace" class="hidden">
+                            <label class="block text-slate-700 font-bold text-sm mb-1">Ubicación del cliente <span class="font-normal text-slate-400">(opcional: calcula el delivery solo)</span></label>
+                            <div class="flex gap-2">
+                                <input type="text" id="trab-enlace" autocomplete="off" class="flex-1 min-w-0 p-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-emerald-500" placeholder="Pega aquí el enlace de Google Maps o la ubicación de WhatsApp" oninput="alCambiarEnlaceUbicacion()">
+                                <button type="button" id="trab-btn-enlace" onclick="verificarEnlaceUbicacion()" class="px-4 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold cursor-pointer">Verificar</button>
+                            </div>
+                            <p id="trab-enlace-estado" class="text-xs mt-1.5 text-slate-500">Si el cliente te manda su ubicación por WhatsApp, copia el enlace y pégalo aquí. Si no, deja esto vacío y pon el precio del delivery en Cocina como siempre.</p>
+                        </div>
+
                         <button type="submit" id="btn-enviar-pedido" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg py-3.5 rounded-2xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2">
                             Procesar Pedido <i class="fa-solid fa-paper-plane"></i>
                         </button>

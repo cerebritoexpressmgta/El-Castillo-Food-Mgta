@@ -116,9 +116,12 @@ function construirHtmlComanda(datos) {
 <style>
     @page { size: ${ANCHO_TICKET_MM}mm auto; margin: 0; }
     * { box-sizing: border-box; }
+    html { margin: 0; padding: 0; width: 100%; }
+    /* El ticket va CENTRADO en el papel: margin auto reparte el espacio sobrante a ambos lados
+       (en rollo de 80 mm quedan 3 mm por lado; en una hoja carta o PDF queda en el medio). */
     body {
         width: ${anchoUtil}mm;
-        margin: 0; padding: 3mm 0 8mm 0;
+        margin: 0 auto; padding: 3mm 0 8mm 0;
         font-family: "Consolas", "Courier New", monospace;
         font-size: 12px; line-height: 1.35;
         color: #000; background: #fff;
