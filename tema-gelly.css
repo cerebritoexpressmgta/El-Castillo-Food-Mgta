@@ -1,0 +1,777 @@
+/* =====================================================================
+   Tema "Gelly": oscuro, neutro y sobrio (el de shadcn/ui en modo oscuro)
+   ---------------------------------------------------------------------
+   Es solo apariencia. Se carga DESPUÉS de los estilos propios de cada
+   pantalla y solo actúa dentro de <body class="tema-gelly">: no cambia
+   ningún id, ningún botón ni ninguna función.
+
+   Los colores fijos del tema azul anterior se cambiaron por estas
+   variables (--bg-color, --card-bg, --input-bg, --borde...), así que
+   cambiar el aspecto de toda la pantalla se hace desde aquí.
+   ===================================================================== */
+
+.tema-gelly {
+    /* Paleta (equivalentes en hex del modo oscuro de Gelly) */
+    --g-fondo: #0a0a0a;          /* --background */
+    --g-tarjeta: #171717;        /* --card / --sidebar */
+    --g-suave: #262626;          /* --muted / --secondary / --accent */
+    --g-texto: #fafafa;          /* --foreground */
+    --g-texto-suave: #a1a1a1;    /* --muted-foreground */
+    --g-borde: rgba(255, 255, 255, 0.10);
+    --g-borde-campo: rgba(255, 255, 255, 0.15);
+    --g-campo: rgba(255, 255, 255, 0.045);
+    --g-principal: #e5e5e5;      /* --primary */
+    --g-principal-texto: #171717;
+    --g-peligro: #ff6467;        /* --destructive */
+    --g-anillo: #737373;
+    --g-radio: 0.625rem;
+
+    /* Las variables que ya usaban las pantallas, llevadas a la paleta nueva */
+    --bg-color: var(--g-fondo);
+    --card-bg: var(--g-tarjeta);
+    --input-bg: #121212;
+    --text-main: var(--g-texto);
+    --text-muted: var(--g-texto-suave);
+    --primary: var(--g-principal);
+    --borde: var(--g-borde);
+
+    /* fondos.css: sin dibujos ni degradados de colores */
+    --fondo-patron: none !important;
+    --fondo-capas: var(--g-fondo) !important;
+    --glow: transparent !important;
+
+    background: var(--g-fondo) !important;
+    color: var(--g-texto);
+    font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    accent-color: var(--g-principal);
+}
+.tema-gelly::before, .tema-gelly::after { display: none !important; }
+
+/* ---------------------------------------------------------------------
+   Estructura: menú lateral a la izquierda, contenido a la derecha
+   --------------------------------------------------------------------- */
+.tema-gelly:has(> .admin-container) { padding: 0 !important; }
+.tema-gelly .admin-container {
+    display: grid;
+    grid-template-columns: 16rem minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    max-width: none;
+    min-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    overflow: visible;
+    background: var(--g-fondo);
+    box-shadow: none !important;
+}
+
+/* Barra de arriba del contenido */
+.tema-gelly .header {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 0;
+    padding: 0.85rem 2rem;
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--g-borde);
+}
+.tema-gelly .header-content { text-align: left; order: 1; }
+.tema-gelly .header-content h1 {
+    justify-content: flex-start;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+.tema-gelly .header-content p { margin-top: 2px; font-size: 0.8rem; color: var(--g-texto-suave); opacity: 1; }
+.tema-gelly .btn-estadisticas {
+    position: static;
+    order: 2;
+    background: transparent;
+    border: 1px solid var(--g-borde-campo);
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.85rem;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+.tema-gelly .btn-estadisticas:hover { background: var(--g-suave); }
+
+/* Menú lateral (las pestañas de siempre, en columna) */
+.tema-gelly .tabs {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding: 0.75rem;
+    background: var(--g-tarjeta);
+    border-right: 1px solid var(--g-borde);
+}
+.tema-gelly .nav-marca {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.5rem 0.9rem;
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid var(--g-borde);
+}
+.tema-gelly .nav-marca-emoji {
+    width: 2rem; height: 2rem;
+    display: grid; place-items: center;
+    border-radius: 0.5rem;
+    background: var(--g-suave);
+    font-size: 1.05rem;
+}
+.tema-gelly .nav-marca b { display: block; font-size: 0.875rem; font-weight: 600; line-height: 1.2; }
+.tema-gelly .nav-marca small { display: block; font-size: 0.72rem; color: var(--g-texto-suave); }
+.tema-gelly .nav-grupo {
+    margin: 0.9rem 0.5rem 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--g-texto-suave);
+}
+.tema-gelly .tab-btn,
+.tema-gelly .nav-enlace {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    border: none;
+    border-radius: 0.45rem;
+    background: transparent;
+    color: var(--g-texto-suave);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+.tema-gelly .tab-btn i,
+.tema-gelly .nav-enlace i { width: 1rem; text-align: center; font-size: 0.85rem; opacity: 0.9; }
+.tema-gelly .tab-btn:hover,
+.tema-gelly .nav-enlace:hover { background: var(--g-suave); color: var(--g-texto); }
+.tema-gelly .tab-btn.active {
+    background: var(--g-suave);
+    color: var(--g-texto);
+    border-bottom: none;
+}
+.tema-gelly .tab-btn:focus-visible,
+.tema-gelly .nav-enlace:focus-visible { outline: 2px solid var(--g-anillo); outline-offset: 1px; }
+
+/* Contenido de cada sección */
+.tema-gelly .tab-content {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 1.75rem 2rem 3rem;
+    max-width: 1200px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------------------
+   Títulos y textos
+   --------------------------------------------------------------------- */
+.tema-gelly .titulo-seccion {
+    color: var(--g-texto);
+    text-align: left;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 1rem;
+}
+.tema-gelly .titulo-seccion i { color: var(--g-texto-suave); margin-right: 0.35rem; }
+.tema-gelly .tab-content h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin-top: 0; }
+.tema-gelly .tab-content h3 { font-weight: 600; }
+.tema-gelly .admin-container label {
+    text-transform: none;
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--g-texto);
+    margin-top: 1rem;
+}
+.tema-gelly .ficha-sub,
+.tema-gelly .list-panel h3 {
+    color: var(--g-texto);
+    text-align: left;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--g-borde);
+}
+
+/* ---------------------------------------------------------------------
+   Tarjetas: el formulario y la lista de cada sección
+   --------------------------------------------------------------------- */
+.tema-gelly .grid-layout { gap: 1.25rem; align-items: start; }
+.tema-gelly .grid-layout > div:not(.list-panel) {
+    background: var(--g-tarjeta);
+    border: 1px solid var(--g-borde);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+}
+.tema-gelly .list-panel {
+    background: var(--g-tarjeta);
+    border: 1px solid var(--g-borde);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    max-height: 70vh;
+}
+.tema-gelly .list-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--g-borde);
+    border-radius: 0.5rem;
+    transition: background-color 0.15s;
+}
+.tema-gelly .list-item:hover { background: rgba(255, 255, 255, 0.05); }
+.tema-gelly .item-title { font-weight: 500; }
+.tema-gelly .ficha-card,
+.tema-gelly .hor-dia,
+.tema-gelly .dl-extra-caja,
+.tema-gelly .sem-celda { border-color: var(--g-borde); }
+.tema-gelly .ficha-foto { border-color: var(--g-borde-campo); }
+
+/* ---------------------------------------------------------------------
+   Campos
+   --------------------------------------------------------------------- */
+.tema-gelly :is(.admin-container, #modal-inventario) input,
+.tema-gelly :is(.admin-container, #modal-inventario) select,
+.tema-gelly :is(.admin-container, #modal-inventario) textarea {
+    background-color: var(--g-campo);
+    border: 1px solid var(--g-borde-campo);
+    border-radius: 0.5rem;
+    color: var(--g-texto);
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.75rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tema-gelly select option { background: var(--g-tarjeta); color: var(--g-texto); }
+.tema-gelly :is(.admin-container, #modal-inventario) input::placeholder,
+.tema-gelly :is(.admin-container, #modal-inventario) textarea::placeholder { color: #737373; }
+.tema-gelly :is(.admin-container, #modal-inventario) input:focus,
+.tema-gelly :is(.admin-container, #modal-inventario) select:focus,
+.tema-gelly :is(.admin-container, #modal-inventario) textarea:focus {
+    outline: none;
+    border-color: var(--g-anillo);
+    box-shadow: 0 0 0 3px rgba(115, 115, 115, 0.35);
+}
+.tema-gelly :is(.admin-container, #modal-inventario) input[type="checkbox"],
+.tema-gelly :is(.admin-container, #modal-inventario) input[type="radio"] { padding: 0; box-shadow: none; }
+.tema-gelly .ficha-card input[readonly] { background-color: rgba(255, 255, 255, 0.02); }
+.tema-gelly .dl-fila input { background-color: var(--g-campo); border-color: var(--g-borde-campo); }
+
+/* ---------------------------------------------------------------------
+   Botones
+   --------------------------------------------------------------------- */
+.tema-gelly .btn-submit {
+    background-color: var(--g-principal);
+    color: var(--g-principal-texto);
+    border-radius: 0.5rem;
+    padding: 0.7rem 1rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+.tema-gelly .btn-submit:hover { background-color: #d4d4d4; }
+.tema-gelly .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.tema-gelly .btn-cancel,
+.tema-gelly .btn-gris {
+    background-color: transparent;
+    color: var(--g-texto);
+    border: 1px solid var(--g-borde-campo);
+}
+.tema-gelly .btn-cancel:hover,
+.tema-gelly .btn-gris:hover { background-color: var(--g-suave); }
+.tema-gelly .btn-gris { border-radius: 0.5rem; font-weight: 500; }
+.tema-gelly .btn-peligro {
+    background-color: transparent;
+    color: var(--g-peligro);
+    border: 1px solid rgba(255, 100, 103, 0.4);
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+.tema-gelly .btn-peligro:hover { background-color: rgba(255, 100, 103, 0.1); }
+.tema-gelly .action-btn {
+    border-radius: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    font-weight: 500;
+    background: transparent;
+    border: 1px solid var(--g-borde);
+    color: var(--g-texto);
+}
+.tema-gelly .action-btn:hover { background: var(--g-suave); }
+.tema-gelly .btn-edit { color: var(--g-texto); }
+.tema-gelly .btn-delete { color: var(--g-peligro); border-color: rgba(255, 100, 103, 0.3); }
+.tema-gelly .btn-delete:hover { background: rgba(255, 100, 103, 0.1); }
+
+/* Fichas de categoría (filtros) */
+.tema-gelly .chip-categoria {
+    background-color: var(--g-principal);
+    border-color: var(--g-principal);
+    color: var(--g-principal-texto);
+    font-weight: 500;
+}
+.tema-gelly .chip-categoria-inactivo {
+    background-color: transparent;
+    color: var(--g-texto-suave);
+    border-color: var(--g-borde-campo);
+}
+.tema-gelly .chip-categoria-inactivo:hover { color: var(--g-texto); border-color: var(--g-anillo); }
+
+/* Barras de desplazamiento discretas */
+.tema-gelly ::-webkit-scrollbar { width: 10px; height: 10px; }
+.tema-gelly ::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 999px; border: 2px solid var(--g-fondo); }
+.tema-gelly ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------------------------------------------------------------------
+   Teléfono y tableta: el menú pasa arriba, en una fila que se desliza
+   --------------------------------------------------------------------- */
+@media (max-width: 900px) {
+    .tema-gelly .admin-container { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; }
+    .tema-gelly .header { grid-column: 1; grid-row: 1; padding: 0.75rem 1rem; flex-direction: row; }
+    .tema-gelly .tabs {
+        grid-column: 1;
+        grid-row: 2;
+        position: sticky;
+        top: 3.6rem;
+        z-index: 20;
+        height: auto;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.5rem 0.75rem;
+        border-right: none;
+        border-bottom: 1px solid var(--g-borde);
+        scrollbar-width: none;
+    }
+    .tema-gelly .tabs::-webkit-scrollbar { display: none; }
+    .tema-gelly .nav-marca,
+    .tema-gelly .nav-grupo { display: none; }
+    .tema-gelly .tab-btn,
+    .tema-gelly .nav-enlace { width: auto; white-space: nowrap; flex: none; padding: 0.45rem 0.7rem; }
+    .tema-gelly .tab-content { grid-column: 1; grid-row: 3; padding: 1.25rem 1rem 6rem; }
+}
+@media (max-width: 640px) {
+    .tema-gelly .header-content p { display: none; }
+    .tema-gelly .btn-estadisticas { padding: 0.4rem 0.6rem; }
+}
+
+/* ---------------------------------------------------------------------
+   Botones flotantes de otros scripts (menu-dueno.js y seguridad.js):
+   pintan sus colores en línea, por eso aquí van con !important
+   --------------------------------------------------------------------- */
+.tema-gelly #menu-dueno { font-family: 'Geist', ui-sans-serif, system-ui, sans-serif !important; }
+.tema-gelly #menu-dueno-btn {
+    background: var(--g-tarjeta) !important;
+    border: 1px solid var(--g-borde-campo) !important;
+    font-weight: 500 !important;
+}
+.tema-gelly #menu-dueno-btn:hover { background: var(--g-suave) !important; }
+.tema-gelly #menu-dueno-panel {
+    background: var(--g-tarjeta) !important;
+    border-color: var(--g-borde) !important;
+    border-radius: 0.75rem !important;
+}
+.tema-gelly #menu-dueno-panel > div { color: var(--g-texto-suave) !important; border-color: var(--g-borde) !important; letter-spacing: 0 !important; text-transform: none !important; }
+.tema-gelly #menu-dueno-panel a[style*="#4f46e5"] { background: var(--g-suave) !important; }
+.tema-gelly #menu-dueno-panel a:hover { background: var(--g-suave) !important; color: var(--g-texto) !important; }
+.tema-gelly .sg-flot {
+    background: var(--g-tarjeta);
+    border: 1px solid var(--g-borde-campo);
+    opacity: 1;
+}
+.tema-gelly .sg-flot:hover { background: var(--g-suave); }
+.tema-gelly .sg-link { color: var(--g-texto-suave); }
+
+/* =====================================================================
+   Pantallas hechas con Tailwind 4 (cocina, mesas, caja): su paleta
+   "slate" (gris azulado) pasa a la neutra de Gelly. Tailwind 4 pinta
+   con variables (--color-slate-800...), así que basta redefinirlas.
+   La escala se corre un paso hacia lo oscuro para que bg-slate-900 sea
+   el fondo de Gelly (#0a0a0a) y bg-slate-800 sus tarjetas (#171717).
+   Los colores con significado (verde libre, ámbar ocupada...) no cambian.
+   ===================================================================== */
+.tema-gelly {
+    --color-slate-50: #fafafa;
+    --color-slate-100: #f5f5f5;
+    --color-slate-200: #e5e5e5;
+    --color-slate-300: #d4d4d4;
+    --color-slate-400: #a1a1a1;
+    --color-slate-500: #737373;
+    --color-slate-600: #404040;
+    --color-slate-700: #262626;
+    --color-slate-800: #171717;
+    --color-slate-900: #0a0a0a;
+    --color-slate-950: #050505;
+    --color-gray-50: #fafafa;
+    --color-gray-100: #f5f5f5;
+    --color-gray-200: #e5e5e5;
+    --color-gray-300: #d4d4d4;
+    --color-gray-400: #a1a1a1;
+    --color-gray-500: #737373;
+    --color-gray-600: #525252;
+    --color-gray-700: #404040;
+    --color-gray-800: #262626;
+    --color-gray-900: #171717;
+    --color-gray-950: #0a0a0a;
+    --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* ---------------------------------------------------------------------
+   Cocina: columnas como tarjetas neutras; el color queda en el punto
+   de cada estado (fondos.css les ponía color y marca de agua)
+   --------------------------------------------------------------------- */
+.tema-gelly[data-fondo="cocina"] main .grid > div {
+    background: var(--g-tarjeta) !important;
+    background-image: none !important;
+    border: 1px solid var(--g-borde) !important;
+    border-radius: 0.75rem !important;
+    box-shadow: none !important;
+}
+.tema-gelly[data-fondo="cocina"] main .grid > div > div:first-child {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-color: var(--g-borde) !important;
+}
+.tema-gelly[data-fondo="cocina"] main .grid > div h2,
+.tema-gelly[data-fondo="cocina"] main .grid > div h3 {
+    color: var(--g-texto) !important;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.tema-gelly[data-fondo="cocina"] main .grid > div:nth-child(4) > div.border-t {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: var(--g-borde) !important;
+    box-shadow: none !important;
+}
+.tema-gelly[data-fondo="cocina"] > #vistaDashboard > header,
+.tema-gelly[data-fondo="mesas"] > header {
+    background: rgba(10, 10, 10, 0.85) !important;
+    border-color: var(--g-borde) !important;
+    box-shadow: none !important;
+    backdrop-filter: blur(8px);
+}
+
+/* ---------------------------------------------------------------------
+   Mesas: tarjetas neutras con el borde del color de su estado
+   --------------------------------------------------------------------- */
+.tema-gelly[data-fondo="mesas"] #grid-mesas > button {
+    background: var(--g-tarjeta) !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-width: 1px !important;
+}
+.tema-gelly[data-fondo="mesas"] #grid-mesas > button:hover { background: #1c1c1c !important; }
+.tema-gelly[data-fondo="mesas"] #grid-mesas > button[class*="amber"] { background: color-mix(in oklab, #f59e0b 9%, var(--g-tarjeta)) !important; }
+.tema-gelly[data-fondo="mesas"] #grid-mesas > button[class*="fuchsia"] { background: color-mix(in oklab, #d946ef 9%, var(--g-tarjeta)) !important; }
+.tema-gelly[data-fondo="mesas"] main > .mt-6 { background: transparent !important; padding: 0 !important; }
+.tema-gelly[data-fondo="mesas"] #plano-mesas section > div { background: var(--g-tarjeta) !important; border-color: var(--g-borde) !important; }
+.tema-gelly #modal-mesa > div { background: var(--g-tarjeta) !important; border-color: var(--g-borde) !important; }
+
+/* Botón y ventana de "Mi horario" (mi-horario.js, colores en línea) */
+.tema-gelly #mi-horario-btn {
+    background: var(--g-tarjeta) !important;
+    border: 1px solid var(--g-borde-campo) !important;
+    font-family: 'Geist', ui-sans-serif, system-ui, sans-serif !important;
+    font-weight: 500 !important;
+}
+.tema-gelly #mi-horario-btn:hover { background: var(--g-suave) !important; }
+.tema-gelly #mi-horario-modal > div {
+    background: var(--g-tarjeta) !important;
+    border-color: var(--g-borde) !important;
+    font-family: 'Geist', ui-sans-serif, system-ui, sans-serif !important;
+}
+.tema-gelly #mi-horario-modal button[style*="#2e3a68"] {
+    background: transparent !important;
+    border-color: var(--g-borde-campo) !important;
+    font-weight: 500 !important;
+}
+
+/* ---------------------------------------------------------------------
+   Panel del dueño (panel.html): usa sus propias variables
+   --------------------------------------------------------------------- */
+.tema-gelly[data-fondo="dueno"] {
+    --bg: var(--g-fondo);
+    --card: var(--g-tarjeta);
+    --bd: var(--g-borde);
+    --tx: var(--g-texto);
+    --mu: var(--g-texto-suave);
+    --ac: var(--g-principal);
+}
+.tema-gelly[data-fondo="dueno"] h1 { font-weight: 600; letter-spacing: -0.01em; }
+.tema-gelly[data-fondo="dueno"] h2 {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--g-texto-suave);
+}
+.tema-gelly[data-fondo="dueno"] .card,
+.tema-gelly[data-fondo="dueno"] .tile { border-radius: 0.75rem; }
+.tema-gelly[data-fondo="dueno"] .tile {
+    background-image: none !important;
+    background-color: var(--g-tarjeta) !important;
+    border-color: var(--g-borde) !important;
+}
+.tema-gelly[data-fondo="dueno"] .tile:hover { border-color: var(--g-anillo) !important; transform: none; background-color: #1c1c1c !important; }
+.tema-gelly[data-fondo="dueno"] .tile b { font-weight: 600; font-size: 15px; }
+.tema-gelly[data-fondo="dueno"] button,
+.tema-gelly[data-fondo="dueno"] .btn {
+    background: var(--g-principal);
+    color: var(--g-principal-texto);
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+.tema-gelly[data-fondo="dueno"] button:hover,
+.tema-gelly[data-fondo="dueno"] .btn:hover { background: #d4d4d4; }
+.tema-gelly[data-fondo="dueno"] button.sec,
+.tema-gelly[data-fondo="dueno"] .dias button {
+    background: transparent;
+    color: var(--g-texto);
+    border: 1px solid var(--g-borde-campo);
+}
+.tema-gelly[data-fondo="dueno"] button.sec:hover,
+.tema-gelly[data-fondo="dueno"] .dias button:hover { background: var(--g-suave); }
+.tema-gelly[data-fondo="dueno"] input:not([type="color"]):not([type="checkbox"]):not([type="radio"]),
+.tema-gelly[data-fondo="dueno"] textarea,
+.tema-gelly[data-fondo="dueno"] select {
+    background: var(--g-campo) !important;
+    border: 1px solid var(--g-borde-campo) !important;
+    border-radius: 0.5rem !important;
+    color: var(--g-texto);
+    font-family: inherit;
+}
+.tema-gelly[data-fondo="dueno"] input:focus,
+.tema-gelly[data-fondo="dueno"] textarea:focus,
+.tema-gelly[data-fondo="dueno"] select:focus {
+    outline: none;
+    border-color: var(--g-anillo) !important;
+    box-shadow: 0 0 0 3px rgba(115, 115, 115, 0.35);
+}
+.tema-gelly[data-fondo="dueno"] .hor { background: rgba(255, 255, 255, 0.02); }
+.tema-gelly[data-fondo="dueno"] input[type="color"] {
+    background: transparent !important;
+    border: 1px solid var(--g-borde-campo) !important;
+    border-radius: 0.5rem !important;
+}
+
+/* ---------------------------------------------------------------------
+   Caja (menu_trabajadores.html): era clara. Su contenido y sus ventanas
+   los pinta menu.js, el mismo código del menú del cliente; aquí se
+   oscurecen SOLO en esta pantalla (el menú del cliente no carga el tema).
+   --------------------------------------------------------------------- */
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .bg-white { background-color: var(--g-tarjeta) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.bg-gray-50, .bg-slate-50) { background-color: #1c1c1c !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.bg-gray-100, .bg-slate-100) { background-color: var(--g-suave) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.bg-gray-200, .bg-slate-200) { background-color: #2e2e2e !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-gray-900, .text-slate-900) { color: var(--g-texto) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-gray-800, .text-slate-800) { color: #ededed !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-gray-700, .text-slate-700) { color: #d4d4d4 !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-gray-600, .text-slate-600) { color: #b5b5b5 !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-gray-500, .text-slate-500) { color: var(--g-texto-suave) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-gray-400, .text-slate-400) { color: #8a8a8a !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.border-gray-100, .border-gray-200, .border-slate-200) { border-color: var(--g-borde) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.border-gray-300, .border-slate-300) { border-color: var(--g-borde-campo) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.divide-gray-100, .divide-gray-200) > * { border-color: var(--g-borde) !important; }
+/* Tintes de color claros -> tintes translúcidos sobre oscuro */
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .bg-red-50 { background-color: rgba(239, 68, 68, 0.10) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .bg-red-100 { background-color: rgba(239, 68, 68, 0.18) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .bg-amber-50 { background-color: rgba(245, 158, 11, 0.10) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .bg-amber-100 { background-color: rgba(245, 158, 11, 0.18) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.10) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.18) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-amber-900, .text-amber-800) { color: #fcd34d !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-red-600, .text-red-700, .text-red-800) { color: #f87171 !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-emerald-700, .text-emerald-800, .text-green-700, .text-green-800) { color: #34d399 !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) .text-orange-700 { color: #fb923c !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.text-indigo-600, .text-indigo-500) { color: #a5b4fc !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.border-amber-200, .border-amber-300) { border-color: rgba(245, 158, 11, 0.35) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.border-red-200, .border-red-300) { border-color: rgba(239, 68, 68, 0.35) !important; }
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(.border-emerald-200) { border-color: rgba(16, 185, 129, 0.35) !important; }
+/* Campos sin clase de fondo (los del navegador son blancos) */
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    background-color: var(--g-campo);
+    color: var(--g-texto);
+    border-color: var(--g-borde-campo);
+    color-scheme: dark;
+}
+.tema-gelly[data-fondo="caja"] :is(main, [id^="modal-"]) :is(input, textarea)::placeholder { color: #737373 !important; }
+.tema-gelly[data-fondo="caja"] > header { background: rgba(10, 10, 10, 0.9) !important; border-color: var(--g-borde) !important; box-shadow: none !important; }
+.tema-gelly[data-fondo="caja"] #sticky-cart-bar {
+    background: rgba(23, 23, 23, 0.96) !important;
+    border-top: 1px solid var(--g-borde) !important;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+/* Con la barra del pedido visible, los botones flotantes ("Menú", "Mi horario",
+   el candado) suben: antes tapaban el botón "Continuar al cierre". Vale en los dos modos. */
+body[data-fondo="caja"]:has(#sticky-cart-bar:not(.hidden)) :is(#mi-horario-btn, #menu-dueno, .sg-flot) { bottom: 96px !important; }
+
+/* ---------------------------------------------------------------------
+   Ventanas de "Mi seguridad" y del acceso (seguridad.js): eran blancas.
+   Llevan sus propios botones para que las reglas de cada pantalla
+   (p. ej. button.sec del Panel) no los dejen invisibles.
+   --------------------------------------------------------------------- */
+.tema-gelly .sg-caja {
+    background: var(--g-tarjeta);
+    color: var(--g-texto);
+    border: 1px solid var(--g-borde);
+    border-radius: 0.875rem;
+    font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
+}
+.tema-gelly .sg-caja :is(h2, h3) { color: var(--g-texto); font-weight: 600; }
+.tema-gelly .sg-caja p,
+.tema-gelly .sg-caja small { color: var(--g-texto-suave); }
+.tema-gelly .sg-caja label { color: var(--g-texto); font-weight: 500; }
+.tema-gelly .sg-caja input {
+    background: var(--g-campo) !important;
+    border: 1px solid var(--g-borde-campo) !important;
+    border-radius: 0.5rem !important;
+    color: var(--g-texto) !important;
+}
+.tema-gelly .sg-caja input:focus { border-color: var(--g-anillo) !important; box-shadow: 0 0 0 3px rgba(115, 115, 115, 0.35); }
+.tema-gelly .sg-caja button.sg-b {
+    background: var(--g-principal);
+    color: var(--g-principal-texto);
+    border: 0;
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+.tema-gelly .sg-caja button.sg-b:hover { background: #d4d4d4; }
+.tema-gelly .sg-caja button.sg-b.sec {
+    background: transparent;
+    color: var(--g-texto);
+    border: 1px solid var(--g-borde-campo);
+}
+.tema-gelly .sg-caja button.sg-b.sec:hover { background: var(--g-suave); }
+.tema-gelly .sg-caja button.sg-b.rojo { background: #dc2626; color: #fff; }
+.tema-gelly .sg-caja button.sg-b.rojo:hover { background: #b91c1c; }
+.tema-gelly .sg-caja button.sg-b.verde { background: #059669; color: #fff; }
+.tema-gelly .sg-caja button.sg-link { background: none; border: 0; color: var(--g-texto-suave); }
+.tema-gelly .sg-caja .sg-sec { background: rgba(255, 255, 255, 0.02); border-color: var(--g-borde); }
+.tema-gelly .sg-caja .sg-err { background: rgba(239, 68, 68, 0.10); border-color: rgba(239, 68, 68, 0.30); color: #fca5a5; }
+.tema-gelly .sg-caja .sg-ok { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.30); color: #6ee7b7; }
+.tema-gelly .sg-caja .sg-on { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+.tema-gelly .sg-caja .sg-off { background: var(--g-suave); color: var(--g-texto-suave); }
+.tema-gelly .sg-caja .sg-clave { background: var(--g-suave); color: var(--g-texto); }
+.tema-gelly .sg-caja .sg-dev { border-color: var(--g-borde); }
+.tema-gelly .sg-fondo { background: rgba(0, 0, 0, 0.72); }
+
+/* =====================================================================
+   MODO DE SIEMPRE vs MODO OSCURO
+   ---------------------------------------------------------------------
+   El modo oscuro es opcional (botón 🌙, modo-oscuro.js). Estas reglas
+   valen SIEMPRE: sin la clase tema-gelly la pantalla se ve exactamente
+   como antes.
+   ===================================================================== */
+.modo-gelly { display: none; }
+.tema-gelly .modo-gelly { display: inline; }
+.tema-gelly .modo-clasico { display: none; }
+.tema-gelly .tab-btn .modo-gelly { display: inline-flex; align-items: center; gap: 0.6rem; }
+body:not(.tema-gelly) :is(.nav-marca, .nav-grupo, .nav-enlace) { display: none; }
+/* Administración, modo de siempre: las pestañas en su orden original */
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'categorias'"] { order: 1; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'productos'"] { order: 2; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'combos'"] { order: 3; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'motorizados'"] { order: 4; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'mesas'"] { order: 5; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'usuarios'"] { order: 6; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'mensajes'"] { order: 7; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'horarios'"] { order: 8; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'pagos'"] { order: 9; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'anuncios'"] { order: 10; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'tasa'"] { order: 11; }
+body:not(.tema-gelly) .tabs .tab-btn[onclick*="'delivery'"] { order: 12; }
+
+/* ---------------------------------------------------------------------
+   Modo oscuro: lo que en el HTML conserva los colores de siempre
+   --------------------------------------------------------------------- */
+/* Botón del modo oscuro */
+.tema-gelly #modo-oscuro-btn { background: var(--g-tarjeta); border: 1px solid var(--g-borde-campo); opacity: 1; }
+.tema-gelly #modo-oscuro-btn:hover { background: var(--g-suave); }
+body[data-fondo="caja"]:has(#sticky-cart-bar:not(.hidden)) #modo-oscuro-btn { bottom: 150px !important; }
+
+/* Administración: pantalla de acceso neutra */
+.tema-gelly #pantalla-bloqueo-admin { background: rgba(0, 0, 0, 0.8) !important; }
+.tema-gelly #pantalla-bloqueo-admin > div {
+    background: var(--g-tarjeta) !important;
+    border-color: var(--g-borde) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+}
+.tema-gelly #pantalla-bloqueo-admin > div > div:first-child {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--g-borde) !important;
+    box-shadow: none !important;
+}
+.tema-gelly #pantalla-bloqueo-admin .fa-lock { color: #e5e5e5 !important; }
+.tema-gelly #pantalla-bloqueo-admin :is(#input-user-admin, #input-pin-admin) {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid var(--g-borde-campo) !important;
+    border-radius: 0.5rem !important;
+}
+.tema-gelly #pantalla-bloqueo-admin :is(#input-user-admin, #input-pin-admin):focus {
+    border-color: var(--g-anillo) !important;
+    box-shadow: 0 0 0 4px rgba(115, 115, 115, 0.3) !important;
+}
+.tema-gelly #btn-desbloquear-admin {
+    background: var(--g-principal) !important;
+    color: var(--g-principal-texto) !important;
+    box-shadow: none !important;
+    border-radius: 0.5rem !important;
+}
+.tema-gelly #btn-desbloquear-admin:hover { background: #d4d4d4 !important; }
+
+/* Botones de acción de Cocina y Mesas: el principal claro, los demás con contorno */
+.tema-gelly #vistaLogin button[type="submit"],
+.tema-gelly #vistaDashboard header button[onclick="irAMenuTrabajadores()"],
+.tema-gelly[data-fondo="mesas"] > header a[href="menu_trabajadores.html"] {
+    background: var(--g-principal) !important;
+    color: var(--g-principal-texto) !important;
+    box-shadow: none !important;
+    font-weight: 600;
+}
+.tema-gelly #vistaLogin button[type="submit"]:hover,
+.tema-gelly #vistaDashboard header button[onclick="irAMenuTrabajadores()"]:hover,
+.tema-gelly[data-fondo="mesas"] > header a[href="menu_trabajadores.html"]:hover { background: #d4d4d4 !important; }
+.tema-gelly #vistaDashboard header a[href="mesas.html"],
+.tema-gelly #vistaDashboard header button[onclick*="cargarPedidos"],
+.tema-gelly[data-fondo="mesas"] > header a[href="cocina.html"],
+.tema-gelly[data-fondo="mesas"] #btn-editar-plano {
+    background: transparent !important;
+    color: var(--g-texto) !important;
+    border: 1px solid var(--g-borde-campo) !important;
+    box-shadow: none !important;
+}
+.tema-gelly #vistaDashboard header a[href="mesas.html"]:hover,
+.tema-gelly #vistaDashboard header button[onclick*="cargarPedidos"]:hover,
+.tema-gelly[data-fondo="mesas"] > header a[href="cocina.html"]:hover,
+.tema-gelly[data-fondo="mesas"] #btn-editar-plano:hover { background: rgba(255, 255, 255, 0.05) !important; }
+.tema-gelly #tasaBCV:focus { border-color: var(--g-anillo) !important; }
+
+/* Mesas: la vista y la zona elegidas en gris claro (en el modo de siempre, celeste) */
+.tema-gelly[data-fondo="mesas"] :is(#btn-vista-cuadricula, #btn-vista-plano).bg-sky-600,
+.tema-gelly[data-fondo="mesas"] #filtro-zonas button.bg-sky-600 {
+    background: var(--g-principal) !important;
+    color: var(--g-principal-texto) !important;
+    border-color: var(--g-principal) !important;
+}
+/* Administración en modo oscuro: los botones flotantes de la izquierda no tapan el menú lateral */
+@media (min-width: 901px) {
+    .tema-gelly:has(> .admin-container) :is(#modo-oscuro-btn, .sg-flot) { left: calc(16rem + 12px); }
+}
