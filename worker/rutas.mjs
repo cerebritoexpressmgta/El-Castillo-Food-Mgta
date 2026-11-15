@@ -9,6 +9,7 @@ import { anotarHito, armarSeguimiento, minutosDeFrase } from './seguimiento.mjs'
 import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
 import { registrarPlano } from './plano.mjs';
 import { registrarServicioPorMesa, servicioQuitado } from './servicio-por-mesa.mjs';
+import { leerPrecioDelivery, aplicarPrecioDelivery, lineasConPrecio } from './precio-delivery.mjs';
 
 const VERSION_DATOS = 3;
 function marca() { return { nombre: CFG.nombreNegocio || 'Mi Restaurante', emoji: CFG.emoji || '🍔', eslogan: CFG.eslogan || '' }; }
@@ -283,7 +284,10 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         return cupos;
     }
 
-    function construirResumenPedido(db, articulos, esPersonal, sid) {
+    // preciosAMano: true = acepta cualquier línea fuera de la carta con el precio que trae (solo un
+    // administrador). Un Map nombre -> precio = acepta solo esas líneas, ya presentes en el pedido
+    // que se edita (así un cajero puede editar un pedido que trae una línea manual sin inventar otras).
+    function construirResumenPedido(db, articulos, esPersonal, sid, preciosAMano = esPersonal) {
         articulos = Array.isArray(articulos) ? articulos : [];
         if (articulos.length > MAX_LINEAS_POR_PEDIDO) throw new HttpError(400, 'El pedido tiene demasiadas líneas.');
         const cupos = cuposDeRegalo(db, articulos);
@@ -324,6 +328,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
                 continue;
             } else if (!fila) {
                 if (!esPersonal) throw new HttpError(400, 'Uno de los platos del carrito ya no está disponible. Recarga el menú e intenta de nuevo.');
+                const yaEstaba = preciosAMano instanceof Map && preciosAMano.has(nombre) && Math.abs(preciosAMano.get(nombre) - precioCliente) < 0.005;
+                if (preciosAMano !== true && !yaEstaba) throw new HttpError(403, 'Solo un administrador puede agregar líneas con un precio escrito a mano.');
                 precio = precioCliente;
             }
 
@@ -1050,7 +1056,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 
         const tasa = tasaVigente(db);
         const cli = db.clientes.find(c => c.telefono === telefono);
-        const { texto, total } = construirResumenPedido(db, p.articulos, esPersonal, sid);
+        const { texto, total } = construirResumenPedido(db, p.articulos, esPersonal, sid, esAdminSesion(ctx));
         revisarInventario(db, p.articulos, esPersonal);
         const emp = calcularEmpaque(db, p.articulos);
         const esPickup = esEntregaPickup(tipo);
@@ -1150,7 +1156,19 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!p) return { success: false, msg: 'Pedido no encontrado' };
         exigirSucursal(ctx, db, p);
         const estadoAntes = p.estado;
-        ['estado', 'procesado_por', 'referencia_pago', 'imagen_pago', 'repartidor', 'total_orden', 'pedido_detallado', 'tasa_bcv', 'precio_delivery', 'paga_con'].forEach(k => { if (k in d) p[k] = d[k]; });
+        // El total y el detalle los escribe solo el servidor (worker/precio-delivery.mjs): lo que mande
+        // el navegador en total_orden / pedido_detallado se ignora. El delivery se suma aquí.
+        const precioDelivery = 'precio_delivery' in d && d.precio_delivery !== null ? leerPrecioDelivery(d.precio_delivery) : undefined;
+        if (precioDelivery === null) throw new HttpError(400, 'El precio del delivery no es válido.');
+        ['estado', 'procesado_por', 'referencia_pago', 'imagen_pago', 'repartidor'].forEach(k => { if (k in d) p[k] = d[k]; });
+        // La tasa del pedido (la de la pantalla del cajero) solo se acepta si es un número cercano a la vigente:
+        // con una tasa de 1 el monto en bolívares que se le cobra al cliente quedaría en casi nada.
+        if ('tasa_bcv' in d) {
+            const t = Number(d.tasa_bcv), vigente = Number(tasaVigente(db)) || 0;
+            if (Number.isFinite(t) && t > 0 && (!vigente || (t >= vigente * 0.5 && t <= vigente * 2))) p.tasa_bcv = t;
+        }
+        if ('paga_con' in d) p.paga_con = d.paga_con == null ? null : limpiarTexto(d.paga_con, 40);
+        if (precioDelivery !== undefined) aplicarPrecioDelivery(p, precioDelivery);
         // Tiempo de preparación prometido (lo elige el cajero al pasar el pedido a cocina): alimenta el reloj regresivo del tablero
         const ahoraMs = Date.now();
         if (typeof d.tiempo_estimado === 'string' && d.tiempo_estimado.trim()) p.tiempo_estimado = limpiarTexto(d.tiempo_estimado, 60);
@@ -1178,7 +1196,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!p) throw new HttpError(404, 'Pedido no encontrado');
         exigirSucursal(ctx, db, p);
         if (!d.articulos || !d.articulos.length) throw new HttpError(400, 'El pedido editado llego sin articulos');
-        const resumen = construirResumenPedido(db, d.articulos, true, p.sucursal_id);
+        // Un cajero solo puede conservar las líneas fuera de carta que el pedido ya tenía (mismo nombre y precio).
+        const resumen = construirResumenPedido(db, d.articulos, true, p.sucursal_id, esAdminSesion(ctx) || lineasConPrecio(p.pedido_detallado));
         let texto = resumen.texto, total = resumen.total;
         // El servicio en mesa no viaja como artículo: se vuelve a calcular con el porcentaje que ese pedido ya tenía
         if (p.servicio_mesa && p.servicio_mesa.pct > 0) {
@@ -1291,7 +1310,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const staff = staffOpcional(ctx);
         const sidM = (staff && sucursalDelPersonal(ctx, db)) || parseInt(ctx.query.sucursal, 10) || 0;
         return db.mesas.filter(m => mesaEnSucursal(m, sidM)).sort((a, b) => a.id - b.id).map(m => {
-            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, sucursal_id: m.sucursal_id || null };
+            // sin_servicio: un administrador le quitó el servicio en mesa (el menú no lo muestra al pedir)
+            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, sucursal_id: m.sucursal_id || null, sin_servicio: servicioQuitado(m) };
             if (!staff) return base;
             const ped = pedidosDeMesa(db, m);
             return Object.assign(base, { ocupada_desde: m.ocupada_desde, pedidos: ped.length, consumo: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100 });
