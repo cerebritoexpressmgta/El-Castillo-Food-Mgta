@@ -224,11 +224,11 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     }
     function esRefresco(categoria) { const t = String(categoria || '').toLowerCase(); return t.includes('bebida') || t.includes('refresco'); }
 
+    // Número de pedido que ven el cliente, la cocina, el ticket y el seguimiento: ÚNICO y consecutivo
+    // (el mismo número interno del pedido). Antes cada tipo de entrega reiniciaba en 1 cada día y se repetían.
+    // El nombre se conserva porque lo usan otras partes del sistema.
     function contarNumeroDiario(db, pedido) {
-        if (!pedido.fecha && !pedido.timestamp) return pedido.id;
-        const dia = pedido.fecha || String(pedido.timestamp).slice(0, 10);
-        const buscado = claveEntrega(pedido.tipo_entrega);
-        return db.pedidos.filter(p => (p.fecha || String(p.timestamp || '').slice(0, 10)) === dia && p.id <= pedido.id && claveEntrega(p.tipo_entrega) === buscado).length;
+        return pedido.id;
     }
     function obtenerIdDiario(db, idStr) {
         const p = db.pedidos.find(x => String(x.id) === String(idStr));
@@ -702,9 +702,9 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     const diaCaracas = atras => new Date(Date.now() - 4 * 3600e3 - atras * 86400e3).toISOString().slice(0, 10);
     // Un pedido de los últimos 3 días, por su número visible y el teléfono con el que se pidió
     function pedidoPublico(db, numero, tel) {
-        const dias = [diaCaracas(0), diaCaracas(1), diaCaracas(2)];
-        return db.pedidos.filter(x => ultimos9(x.telefono) === tel && dias.includes(x.fecha || String(x.timestamp || '').slice(0, 10)) && String(contarNumeroDiario(db, x)) === numero)
-            .sort((a, c) => c.id - a.id)[0] || null;
+        // El número es único, así que basta con coincidir con el teléfono; se limita a los últimos 30 días
+        const desde = diaCaracas(30);
+        return db.pedidos.filter(x => String(x.id) === numero && ultimos9(x.telefono) === tel && (x.fecha || String(x.timestamp || '').slice(0, 10)) >= desde)[0] || null;
     }
     ruta('GET', '/api/seguimiento', async (ctx, db) => {
         const o = await leerObjeto(ctx.query.t);
@@ -755,6 +755,27 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             numero: s2.numero, cliente: s2.cliente, estado: s2.estado, mensaje: s2.mensaje,
             despachado: String(p.estado) === 'Finalizado', en_camino: !!p.en_camino_ms, entregado: !!p.entregado_ms
         } };
+    });
+
+    // ---- Servicio en mesa (cargo opcional, solo para pedidos de mesa) ----
+    function configServicioMesa(db) {
+        const g = db.servicio_mesa || {};
+        let pct = parseFloat(g.porcentaje);
+        if (!Number.isFinite(pct) || pct < 0) pct = 10;
+        return { activo: !!g.activo, porcentaje: Math.min(100, Math.round(pct * 100) / 100) };
+    }
+    ruta('GET', '/api/servicio-mesa', (ctx, db) => {
+        const c = configServicioMesa(db);
+        return { success: true, activo: c.activo && c.porcentaje > 0, habilitado: c.activo, porcentaje: c.porcentaje };
+    });
+    ruta('POST', '/api/servicio-mesa/guardar', (ctx, db) => {
+        requiereAdmin(ctx);
+        const b = ctx.body || {};
+        const pct = parseFloat(String(b.porcentaje).replace(',', '.'));
+        if (!Number.isFinite(pct) || pct < 0 || pct > 100) return { success: false, error: 'Escribe un porcentaje entre 0 y 100.' };
+        if (b.activo && !(pct > 0)) return { success: false, error: 'Para activar el servicio escribe un porcentaje mayor a 0.' };
+        db.servicio_mesa = { activo: !!b.activo, porcentaje: Math.round(pct * 100) / 100 };
+        return Object.assign({ success: true }, configServicioMesa(db));
     });
 
     // ---- Delivery por distancia ----
@@ -1047,8 +1068,16 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             delivery = Object.assign({}, c, { auto: cfgD.modo === 'automatico' });
         }
         const deliveryAuto = !!(delivery && delivery.auto);
-        const totalFinal = deliveryAuto ? Math.round((total + delivery.precio) * 100) / 100 : total;
-        const textoFinal = deliveryAuto ? texto + `\n1x Servicio de Delivery ($${delivery.precio})` : texto;
+        let totalFinal = deliveryAuto ? Math.round((total + delivery.precio) * 100) / 100 : total;
+        let textoFinal = deliveryAuto ? texto + `\n1x Servicio de Delivery ($${delivery.precio})` : texto;
+        // Servicio en mesa (si el local lo habilitó en el panel): se suma al final de la cuenta, solo a pedidos de mesa
+        const cfgSM = configServicioMesa(db);
+        let servicioMesa = null;
+        if (esMesa && cfgSM.activo && cfgSM.porcentaje > 0) {
+            servicioMesa = { pct: cfgSM.porcentaje, monto: Math.round(total * cfgSM.porcentaje) / 100 };
+            totalFinal = Math.round((totalFinal + servicioMesa.monto) * 100) / 100;
+            textoFinal += `\n1x Servicio en mesa (${servicioMesa.pct}%) ($${servicioMesa.monto.toFixed(2)})`;
+        }
         const cobroDirecto = esPickup || deliveryAuto;
 
         const nuevo = {
@@ -1059,7 +1088,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,
             precio_delivery: deliveryAuto ? delivery.precio : null, paga_con: null,
             historial: [],
-            delivery_auto: deliveryAuto, delivery_sugerido: delivery && !deliveryAuto ? delivery.precio : null, distancia_km: delivery ? delivery.km : null,
+            servicio_mesa: servicioMesa, delivery_auto: deliveryAuto, delivery_sugerido: delivery && !deliveryAuto ? delivery.precio : null, distancia_km: delivery ? delivery.km : null,
             lat: destinoCli ? destinoCli.lat : null, lng: destinoCli ? destinoCli.lng : null,
             total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos,
             sucursal_id: sid, sucursal_nombre: suc ? suc.nombre : null
@@ -1146,7 +1175,15 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!p) throw new HttpError(404, 'Pedido no encontrado');
         exigirSucursal(ctx, db, p);
         if (!d.articulos || !d.articulos.length) throw new HttpError(400, 'El pedido editado llego sin articulos');
-        const { texto, total } = construirResumenPedido(db, d.articulos, true, p.sucursal_id);
+        const resumen = construirResumenPedido(db, d.articulos, true, p.sucursal_id);
+        let texto = resumen.texto, total = resumen.total;
+        // El servicio en mesa no viaja como artículo: se vuelve a calcular con el porcentaje que ese pedido ya tenía
+        if (p.servicio_mesa && p.servicio_mesa.pct > 0) {
+            const monto = Math.round(total * p.servicio_mesa.pct) / 100;
+            p.servicio_mesa = { pct: p.servicio_mesa.pct, monto };
+            total = Math.round((total + monto) * 100) / 100;
+            texto += `\n1x Servicio en mesa (${p.servicio_mesa.pct}%) ($${monto.toFixed(2)})`;
+        }
         const emp = calcularEmpaque(db, d.articulos);
         p.pedido_detallado = texto; p.total_orden = total;
         p.total_bandejas = emp.bandejas; p.total_cajas_pizza = emp.cajas_pizza; p.total_refrescos = emp.refrescos;

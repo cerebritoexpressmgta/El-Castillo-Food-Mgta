@@ -202,7 +202,12 @@
                 <div>
                     <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Costo del delivery</label>
                     <button id="btnDeliverySugerido" class="hidden w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg shadow-md transition cursor-pointer mb-2"></button>
-                    <button id="btnDeliveryEstandar" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg shadow-md transition cursor-pointer">Delivery estándar · $2</button>
+                    <div id="wrapTarifasDelivery" class="space-y-2">
+                        <select id="selTarifaDelivery" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-white text-sm font-semibold cursor-pointer focus:border-purple-500"></select>
+                        <p id="notaRecargoDelivery" class="hidden text-[11px] text-amber-300"></p>
+                        <button id="btnAplicarTarifaDelivery" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg shadow-md transition cursor-pointer">Aplicar tarifa elegida</button>
+                    </div>
+                    <button id="btnDeliveryEstandar" class="hidden w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg shadow-md transition cursor-pointer">Delivery estándar · $2</button>
                 </div>
                 <div>
                     <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-1">Otro monto</label>

@@ -560,6 +560,20 @@
         </div>
 
         <div id="tab-mesas" class="tab-content">
+            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.1rem 1.25rem; margin-bottom: 1.25rem;">
+                <h3 style="margin: 0 0 0.4rem;">🧾 Servicio en mesa</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0 0 0.8rem; line-height: 1.5;">Si lo activas, los pedidos de <b>mesa</b> suman este porcentaje al final de la cuenta, con la leyenda “Servicio en mesa”. No aplica a delivery ni pickup. Apagado, todo sale igual que siempre. Se aplica a los pedidos nuevos.</p>
+                <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; text-transform:none; font-weight:bold; color:white; margin:0 0 0.8rem;">
+                    <input type="checkbox" id="sm-activo" onchange="actualizarEjemploServicioMesa()" style="width:auto; margin:0; transform:scale(1.2);"> Cobrar servicio en mesa
+                </label>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span>Porcentaje:</span>
+                    <input type="number" id="sm-pct" min="0" max="100" step="0.5" value="10" oninput="actualizarEjemploServicioMesa()" style="width:100px; margin:0;">
+                    <span>%</span>
+                    <button type="button" class="btn-submit" id="btn-save-sm" onclick="guardarServicioMesa()" style="width:auto; margin:0 0 0 0.5rem; padding:0.6rem 1.2rem;">💾 Guardar</button>
+                </div>
+                <p id="sm-ejemplo" style="font-size:0.8rem; color:var(--text-muted); margin:0.7rem 0 0;"></p>
+            </div>
             <div class="grid-layout">
                 <div>
                     <h2 id="titulo-form-mesa">Agregar Mesa</h2>

@@ -793,24 +793,13 @@ function renderizarTablero() {
 
     const pedidosHoy = pedidosEnMemoria.filter(p => esPedidoDeLaFecha(JSON.stringify(p)));
     pedidosHoy.sort((a, b) => parseInt(String(a.id_pedido || a.ID || 0).replace(/\D/g,'')) - parseInt(String(b.id_pedido || b.ID || 0).replace(/\D/g,'')));
-    // Delivery y pickup llevan cuadernos separados: cada uno arranca en 1 cada
-    // día. Tiene que coincidir con lo que numera el backend, porque ese es el
-    // número que el cliente ve en su WhatsApp.
-    const mapaIdsDiarios = {};
-    const contadoresDiarios = { delivery: 0, pickup: 0, mesa: 0 };
-    pedidosHoy.forEach((p) => {
-        const id = p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID';
-        const tipo = String(p.tipo_entrega || '').toLowerCase();
-        const llave = tipo.includes('mesa') ? 'mesa' : ((tipo.includes('pickup') || tipo.includes('retiro')) ? 'pickup' : 'delivery');
-        contadoresDiarios[llave] += 1;
-        mapaIdsDiarios[id] = contadoresDiarios[llave];
-    });
+    // El número del pedido es único y consecutivo (ya no se reinicia por día ni por tipo de entrega).
 
     pedidosEnMemoria.forEach(pedido => {
         if (!esPedidoDeLaFecha(JSON.stringify(pedido))) return;
 
         const idReal = pedido.id_pedido || pedido['ID_Pedido'] || pedido.ID || 'S/ID';
-        const idVisual = mapaIdsDiarios[idReal] || idReal;
+        const idVisual = idReal;
 
         const cliente = pedido.cliente || 'Desconocido';
         const telefonoRaw = pedido.telefono || '';
@@ -1117,6 +1106,37 @@ async function cargarConfigDelivery() {
     } catch (e) { console.error('No se pudo leer la configuración de delivery:', e); }
     return DELIVERY_CFG;
 }
+// Recargos de la tabla (lluvia / nocturno) que hoy estarían activos: se suman a cada tarifa del menú desplegable.
+function recargoDeliveryAhora(cfg) {
+    if (!cfg) return { monto: 0, motivos: [] };
+    let monto = 0; const motivos = [];
+    const lluvia = cfg.recargo_lluvia;
+    if (lluvia && lluvia.activo) { monto += Number(lluvia.monto) || 0; motivos.push('lluvia'); }
+    const noc = cfg.recargo_nocturno;
+    if (noc && noc.activo) {
+        const ahora = new Date(Date.now() - 4 * 3600e3); // hora de Venezuela
+        const hhmm = String(ahora.getUTCHours()).padStart(2, '0') + ':' + String(ahora.getUTCMinutes()).padStart(2, '0');
+        const d = noc.desde, h = noc.hasta;
+        const dentro = d === h ? false : (d < h ? (hhmm >= d && hhmm < h) : (hhmm >= d || hhmm < h));
+        if (dentro) { monto += Number(noc.monto) || 0; motivos.push('nocturno'); }
+    }
+    return { monto, motivos };
+}
+
+// Todas las tarifas de la tabla para el menú desplegable del cajero (cuando no hay ubicación del cliente).
+function opcionesTarifaDelivery() {
+    const cfg = DELIVERY_CFG;
+    if (!cfg || !Array.isArray(cfg.tramos) || !cfg.tramos.length) return [];
+    const rec = recargoDeliveryAhora(cfg).monto;
+    const money = n => Number(n).toFixed(2);
+    const out = [];
+    let desde = 0;
+    cfg.tramos.forEach(t => { out.push({ valor: money(Number(t.precio) + rec), etiqueta: `De ${desde} a ${t.hasta_km} km  ·  $${money(Number(t.precio) + rec)}` }); desde = t.hasta_km; });
+    if (cfg.extra) out.push({ valor: money(Number(cfg.extra.base) + rec), etiqueta: `Más de ${desde} km  ·  desde $${money(Number(cfg.extra.base) + rec)} (+$${money(cfg.extra.por_km)} por km adicional)` });
+    out.push({ valor: money(precioEstandarDelivery()), etiqueta: `Delivery estándar  ·  $${money(precioEstandarDelivery())}` });
+    return out;
+}
+
 function precioEstandarDelivery() {
     const n = DELIVERY_CFG ? Number(DELIVERY_CFG.precio_estandar) : NaN;
     return Number.isFinite(n) && n >= 0 ? n : PRECIO_DELIVERY_ESTANDAR;
@@ -1138,6 +1158,28 @@ function pedirPrecioDelivery(cliente, pedido) {
         txtCliente.innerText = `Cliente: ${cliente}`;
         inputPrecio.value = '';
         if (btnEstandar) btnEstandar.innerText = `Delivery estándar · $${precioEstandarDelivery()}`;
+
+        // Menú desplegable con TODAS las tarifas de la tabla (si la configuración no se pudo leer, queda el botón estándar)
+        const wrapTarifas = document.getElementById('wrapTarifasDelivery');
+        const selTarifa = document.getElementById('selTarifaDelivery');
+        const notaRec = document.getElementById('notaRecargoDelivery');
+        const opciones = opcionesTarifaDelivery();
+        if (wrapTarifas && selTarifa) {
+            if (opciones.length) {
+                wrapTarifas.classList.remove('hidden');
+                if (btnEstandar) btnEstandar.classList.add('hidden');
+                selTarifa.innerHTML = '<option value="">Elige una tarifa…</option>' + opciones.map(o => `<option value="${o.valor}">${escapeHtml(o.etiqueta)}</option>`).join('');
+                selTarifa.value = '';
+                const rec = recargoDeliveryAhora(DELIVERY_CFG);
+                if (notaRec) {
+                    if (rec.monto > 0) { notaRec.classList.remove('hidden'); notaRec.textContent = `Incluye recargo de $${rec.monto.toFixed(2)} (${rec.motivos.join(' y ')}). El "Delivery estándar" no lo lleva.`; }
+                    else notaRec.classList.add('hidden');
+                }
+            } else {
+                wrapTarifas.classList.add('hidden');
+                if (btnEstandar) btnEstandar.classList.remove('hidden');
+            }
+        }
 
         // Tarifa por distancia: si el cliente compartió su ubicación, la tabla del panel ya calculó el precio.
         const btnSug = document.getElementById('btnDeliverySugerido');
@@ -1161,10 +1203,16 @@ function pedirPrecioDelivery(cliente, pedido) {
         };
 
         if (btnEstandar) btnEstandar.onclick = () => confirmar(String(precioEstandarDelivery()));
+        const btnTarifa = document.getElementById('btnAplicarTarifaDelivery');
+        if (btnTarifa) btnTarifa.onclick = () => {
+            const v = selTarifa ? selTarifa.value : '';
+            if (v === '') { alert('Elige una tarifa del menú, o escribe otro monto abajo.'); return; }
+            confirmar(v);
+        };
 
         document.getElementById('btnAceptarDelivery').onclick = () => {
             const valor = inputPrecio.value.trim();
-            if (valor === '') { alert("Escribe el otro monto, o usa el botón del precio estándar."); return; }
+            if (valor === '') { alert("Escribe el otro monto, o elige una tarifa del menú."); return; }
             confirmar(valor);
         };
 

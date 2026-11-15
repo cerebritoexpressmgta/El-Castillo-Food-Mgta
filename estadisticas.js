@@ -164,29 +164,9 @@ async function restablecerClaveCliente(telefono, boton) {
     }
 }
 
-// 🟢 LÓGICA: Calculadora de IDs Diarios
+// El número visible del pedido es único y consecutivo: es el mismo número interno (ya no se reinicia por día ni por tipo).
 function preprocesarIDsVisuales(pedidos) {
-    const ordenados = [...pedidos].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    const contadores = {};
-
-    ordenados.forEach(p => {
-        if (p.timestamp) {
-            // Cortamos por la 'T' y también por el espacio ' ' para asegurar que solo quede la fecha
-            const fecha = p.timestamp.split('T')[0].split(' ')[0];
-
-            // Delivery y pickup se numeran por separado, igual que en el tablero
-            // y en el mensaje que recibe el cliente.
-            const tipo = String(p.tipo_entrega || '').toLowerCase();
-            const llave = fecha + (tipo.includes('mesa') ? '|mesa' : ((tipo.includes('pickup') || tipo.includes('retiro')) ? '|pickup' : '|delivery'));
-
-            if (!contadores[llave]) contadores[llave] = 1;
-            else contadores[llave]++;
-
-            p.id_visual = contadores[llave];
-        } else {
-            p.id_visual = p.id_pedido || 'S/N';
-        }
-    });
+    pedidos.forEach(p => { p.id_visual = p.id_pedido || 'S/N'; });
 }
 
 // Calcula el rango de fecha a pedirle al backend según el filtro activo,

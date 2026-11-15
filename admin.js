@@ -161,6 +161,7 @@ async function desbloquearAdmin() {
             cargarHorarios();
             cargarMetodosPago();
             cargarTasaBcv();
+            cargarServicioMesa();
             cargarDeliveryAdmin();
             cargarAnuncios();
         } else {
@@ -1001,6 +1002,39 @@ async function guardarMetodosPago() {
         else alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
     } catch (e) { alert('Error de red al guardar.'); }
     finally { btn.disabled = false; btn.innerText = "💾 Guardar métodos de pago"; }
+}
+
+// ==========================================
+// SERVICIO EN MESA (cargo opcional, solo pedidos de mesa)
+// ==========================================
+async function cargarServicioMesa() {
+    try {
+        const res = await fetch(API_BASE + "/api/servicio-mesa?t=" + Date.now());
+        const d = await res.json();
+        if (!d.success) return;
+        document.getElementById('sm-activo').checked = !!d.habilitado;
+        document.getElementById('sm-pct').value = d.porcentaje;
+        actualizarEjemploServicioMesa();
+    } catch (e) { console.error("Error obteniendo el servicio en mesa:", e); }
+}
+function actualizarEjemploServicioMesa() {
+    const on = document.getElementById('sm-activo').checked, pct = parseFloat(document.getElementById('sm-pct').value) || 0;
+    const el = document.getElementById('sm-ejemplo');
+    el.textContent = (on && pct > 0)
+        ? `Ejemplo: una cuenta de $20.00 → Servicio en mesa (${pct}%): $${(Math.round(20 * pct) / 100).toFixed(2)} → total $${(20 + Math.round(20 * pct) / 100).toFixed(2)}.`
+        : 'Desactivado: las cuentas de mesa salen sin cargo adicional.';
+}
+async function guardarServicioMesa() {
+    const btn = document.getElementById('btn-save-sm');
+    const body = { activo: document.getElementById('sm-activo').checked, porcentaje: document.getElementById('sm-pct').value };
+    btn.disabled = true;
+    try {
+        const res = await fetch(API_BASE + "/api/servicio-mesa/guardar", { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+        const d = await res.json();
+        if (d.success) { alert(body.activo ? `✅ Servicio en mesa activado: ${d.porcentaje}% en los pedidos de mesa nuevos.` : '✅ Servicio en mesa desactivado.'); await cargarServicioMesa(); }
+        else alert('No se pudo guardar: ' + (d.error || d.detail || 'error desconocido'));
+    } catch (e) { alert('Error de red al guardar.'); }
+    finally { btn.disabled = false; }
 }
 
 // ==========================================

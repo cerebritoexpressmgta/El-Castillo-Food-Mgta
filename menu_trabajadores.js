@@ -697,6 +697,7 @@ function precargarCarritoDesdePedido(textoDetallado) {
     cart = {};
     pendientesPersonalizarCombo = {};
     contadorLineaPrecargada = 0;
+    window.__servicioMesaFijo = 0; // al editar manda el servicio que el pedido ya tenía (si no tenía, no se agrega)
 
     String(textoDetallado || '').split('\n').forEach(linea => {
         const match = linea.trim().match(/^(\d+)[xX]\s+(.+)$/);
@@ -731,6 +732,10 @@ function precargarCarritoDesdePedido(textoDetallado) {
         // lo vuelve a poner solo si el pedido editado sigue calificando, y así no
         // quedan dos regalos si el cajero quita combos.
         if (nombre.startsWith('🎁')) return;
+
+        // El servicio en mesa no es un plato: no entra al carrito, el servidor lo recalcula con el mismo porcentaje.
+        const matchServ = nombre.match(/^Servicio en mesa\s*\((\d+(?:\.\d+)?)%\)/i);
+        if (matchServ) { window.__servicioMesaFijo = parseFloat(matchServ[1]) || 0; return; }
 
         const itemMenu = buscarItemPorNombreExacto(nombre);
         if (itemMenu) {
@@ -957,6 +962,7 @@ function alternarCamposEntrega() {
         if (!esDelivery) limpiarEnlaceUbicacion();
     }
     if (esMesa) pintarMesasCaja();
+    if (typeof pintarServicioMesa === 'function') { asegurarServicioMesa().then(pintarServicioMesa); }
 }
 
 let MESAS_CAJA = [];

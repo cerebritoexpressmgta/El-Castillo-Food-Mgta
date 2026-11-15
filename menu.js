@@ -1407,6 +1407,7 @@ function renderizarResumenCarrito() {
     document.getElementById('checkout-total-price').innerText = `$${total.toFixed(2)}`;
     window.__totalCarritoCheckout = total;
     refrescarCotizacionDelivery();
+    asegurarServicioMesa().then(pintarServicioMesa);
 
     return true;
 }
@@ -1505,6 +1506,7 @@ function manejarSeleccionDireccion() {
     }
     restaurarUbicacionDeDireccion();
     refrescarCotizacionDelivery();
+    pintarServicioMesa();
 }
 
 function toggleAddress() {
@@ -1525,6 +1527,7 @@ function toggleAddress() {
         container.style.display = 'block'; select.setAttribute('required', 'required'); manejarSeleccionDireccion();
     }
     refrescarCotizacionDelivery();
+    pintarServicioMesa();
 }
 
 // --- Mesas (pedir comiendo en el local) ---
@@ -2588,4 +2591,39 @@ function pintarCotizacionDelivery() {
     fila.classList.remove('hidden'); filaTot.classList.remove('hidden');
     document.getElementById('checkout-delivery-price').innerText = c.gratis ? 'Gratis' : '$' + Number(c.precio).toFixed(2);
     document.getElementById('checkout-total-con-delivery').innerText = '$' + (sub + Number(c.precio)).toFixed(2);
+}
+
+// ==========================================
+// SERVICIO EN MESA: se muestra al final de la cuenta cuando el local lo tiene activado (solo pedidos de mesa)
+// ==========================================
+let SERVICIO_MESA = null;   // { activo, porcentaje } (lo decide el panel; el servidor es quien lo aplica de verdad)
+let _servicioMesaPromesa = null;
+function asegurarServicioMesa() {
+    if (SERVICIO_MESA) return Promise.resolve(SERVICIO_MESA);
+    if (!_servicioMesaPromesa) {
+        _servicioMesaPromesa = fetch(API_BASE + '/api/servicio-mesa').then(r => r.ok ? r.json() : null)
+            .then(d => { SERVICIO_MESA = d && d.success ? { activo: !!d.activo, porcentaje: Number(d.porcentaje) || 0 } : { activo: false, porcentaje: 0 }; return SERVICIO_MESA; })
+            .catch(() => { SERVICIO_MESA = { activo: false, porcentaje: 0 }; return SERVICIO_MESA; });
+    }
+    return _servicioMesaPromesa;
+}
+function tipoEntregaParaServicio() {
+    const staff = document.getElementById('trab-entrega'), cli = document.getElementById('delivery-type');
+    return String((staff && staff.value) || (cli && cli.value) || '');
+}
+// Porcentaje que aplica a esta cuenta: al editar un pedido manda el que ya tenía; si no, el del panel.
+function porcentajeServicioMesa() {
+    if (window.__servicioMesaFijo != null) return Number(window.__servicioMesaFijo) || 0;
+    return SERVICIO_MESA && SERVICIO_MESA.activo ? SERVICIO_MESA.porcentaje : 0;
+}
+function pintarServicioMesa() {
+    const fila = document.getElementById('checkout-servicio-row'), filaTot = document.getElementById('checkout-total-servicio-row');
+    if (!fila || !filaTot) return;
+    const sub = Number(window.__totalCarritoCheckout) || 0, pct = porcentajeServicioMesa();
+    if (!/mesa/i.test(tipoEntregaParaServicio()) || !(pct > 0) || !(sub > 0)) { fila.classList.add('hidden'); filaTot.classList.add('hidden'); return; }
+    const monto = Math.round(sub * pct) / 100;
+    document.getElementById('checkout-servicio-label').innerText = 'Servicio en mesa (' + pct + '%):';
+    document.getElementById('checkout-servicio-price').innerText = '$' + monto.toFixed(2);
+    document.getElementById('checkout-total-servicio').innerText = '$' + (sub + monto).toFixed(2);
+    fila.classList.remove('hidden'); filaTot.classList.remove('hidden');
 }

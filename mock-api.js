@@ -375,11 +375,9 @@
     }
     function esRefresco(categoria) { const t = String(categoria || '').toLowerCase(); return t.includes('bebida') || t.includes('refresco'); }
 
+    // Número de pedido único y consecutivo (el mismo número interno); ya no se reinicia por día ni por tipo.
     function contarNumeroDiario(db, pedido) {
-        if (!pedido.fecha && !pedido.timestamp) return pedido.id;
-        const dia = pedido.fecha || String(pedido.timestamp).slice(0, 10);
-        const buscado = claveEntrega(pedido.tipo_entrega);
-        return db.pedidos.filter(p => (p.fecha || String(p.timestamp || '').slice(0, 10)) === dia && p.id <= pedido.id && claveEntrega(p.tipo_entrega) === buscado).length;
+        return pedido.id;
     }
     function obtenerIdDiario(db, idStr) {
         const p = db.pedidos.find(x => String(x.id) === String(idStr));
