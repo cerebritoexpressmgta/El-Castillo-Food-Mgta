@@ -51,7 +51,9 @@ export async function mantenerActivo(env) {
 }
 export async function subirImagen(env, nombre, bytes, tipo) {
     const r = await fetch(`${base(env)}/storage/v1/object/imagenes/${nombre}`, {
-        method: 'POST', headers: Object.assign({ 'Content-Type': tipo, 'x-upsert': 'true' }, auth(env)), body: bytes
+        // Cada imagen lleva un nombre único que nunca cambia: se puede guardar en caché un año
+        // (sin esto Supabase la sirve con caché de 1 hora y se vuelve a descargar).
+        method: 'POST', headers: Object.assign({ 'Content-Type': tipo, 'x-upsert': 'true', 'cache-control': 'max-age=31536000' }, auth(env)), body: bytes
     });
     if (!r.ok) throw new Error(`Storage ${r.status}: ${(await r.text()).slice(0, 200)}`);
     return `${base(env)}/storage/v1/object/public/imagenes/${nombre}`;

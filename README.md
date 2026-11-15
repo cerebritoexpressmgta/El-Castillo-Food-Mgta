@@ -44,6 +44,17 @@ Es un sitio estático: sube la carpeta tal cual a Vercel, Netlify o cualquier ho
 - Se crean, editan y eliminan en **Administración → Mesas** (con botón para copiar el enlace del QR).
 - Desde la caja también se puede tomar un pedido para una mesa.
 
+### Plano del local
+- En **Mesas**, el botón **Plano** muestra las mesas dibujadas como están en el local (con sus sillas, paredes, barra y rótulos), con los mismos colores y la misma cuenta al tocarlas. **Cuadrícula** vuelve a la vista de tarjetas; cada equipo recuerda la que eligió.
+- Un administrador lo dibuja en **`/plano/`** (botón «Editar plano» en Mesas, o «Dibujar el plano del local» en Administración → Mesas): arrastrar, estirar desde la esquina, girar, zonas, paredes, áreas y rótulos. Las mesas que agrega o quita ahí son las mismas de Administración → Mesas. Una mesa en uso no se puede quitar.
+- Con varias sucursales, cada una tiene su plano.
+- Se guarda en el mismo estado de Supabase: cada mesa lleva su `plano` (posición, tamaño, forma, giro) y cada zona su decoración en `plano_zonas`. Rutas: `GET /api/mesas/plano` y `POST /api/mesas/plano/guardar` (`worker/plano.mjs`).
+- **`/plano/` es código compilado.** Su fuente está en `plano-de-mesas/` (React; no se publica en la web, ver `.assetsignore`). Después de cambiarla: `cd plano-de-mesas && npm install && npm run build:castillo`, y subir la carpeta `plano/` que sale. Detalles en `plano-de-mesas/README.md`.
+- «Cobrar y liberar» se confirma dentro de la misma ventana de la mesa (antes usaba la ventana nativa del navegador, que algunos navegadores y la app instalada no muestran). Mientras se guarda un cambio, los botones dicen «Guardando…».
+
+## Probar en tu PC sin tocar la base real
+`cd plano-de-mesas && npm install && npm run probar` levanta el Worker real con una base de prueba en memoria (el `SUPABASE_URL` de `wrangler.jsonc` se reemplaza por la local, así que producción no recibe nada) y muestra la dirección, el usuario y la clave de prueba. Ctrl+C lo apaga; `npm run probar -- --de-cero` empieza con datos limpios. Los datos de prueba se guardan en la carpeta temporal del sistema, fuera del repo.
+
 ## Datos de prueba
 | Quién | Usuario / teléfono | PIN / clave |
 |---|---|---|

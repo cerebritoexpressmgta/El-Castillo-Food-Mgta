@@ -7,6 +7,7 @@ import { consultarBcvDetallado, probarFuentesBcv, aplicarTasaBcv, aplicarTasaMan
 import { configDelivery, validarConfigDelivery, parsearCoords, coordenadasValidas, distanciaKm, cotizarDelivery, resolverEnlaceUbicacion } from './delivery.mjs';
 import { anotarHito, armarSeguimiento, minutosDeFrase } from './seguimiento.mjs';
 import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
+import { registrarPlano } from './plano.mjs';
 
 const VERSION_DATOS = 3;
 function marca() { return { nombre: CFG.nombreNegocio || 'Mi Restaurante', emoji: CFG.emoji || '🍔', eslogan: CFG.eslogan || '' }; }
@@ -1422,5 +1423,7 @@ ruta('GET', '/api/salud', () => ({ status: 'ok', base_de_datos: 'supabase' }));
 const seg = { ruta, ok, HttpError, sesionDe, requiereAdmin, cupoAgotado, anotarFallo, olvidarFallos };
 registrarSeguridad(seg);
 registrarResenas({ ruta, ok, HttpError, requiereAdmin, limpiarTexto, siguienteId, contarNumeroDiario });
+// Plano del local: dibujo de las mesas por sucursal y zona (worker/plano.mjs)
+registrarPlano({ ruta, ok, HttpError, requiereStaff, requiereAdmin, limpiarTexto, siguienteId, sucursalDelPersonal, idSucursalValido, sucursalesActivas, esEntregaMesa, emitirTablero });
 
 export { rutas, HttpError, ahoraCaracas };

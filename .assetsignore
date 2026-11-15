@@ -2,3 +2,5 @@ wrangler.jsonc
 .assetsignore
 README.md
 LEEME-DESPLIEGUE.md
+plano-de-mesas
+.wrangler
