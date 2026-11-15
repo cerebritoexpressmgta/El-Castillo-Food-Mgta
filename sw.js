@@ -2,12 +2,14 @@
 // - Los datos (/api/*) NUNCA se guardan: siempre van a internet para ver pedidos y menú al día.
 // - Páginas y scripts: primero internet; si no hay conexión, la última copia guardada.
 // - Imágenes, íconos y librerías externas: copia guardada y se actualiza en segundo plano.
-const VERSION = 'v15';
+const VERSION = 'v16';
 const SHELL = 'castillo-shell-' + VERSION;
 const RUNTIME = 'castillo-runtime-' + VERSION;
 const MAX_RUNTIME = 120;
 const PRECACHE = ['/offline.html', '/favicon.ico', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/favicon-32.png', '/manifest.webmanifest', '/manifest-personal.webmanifest'];
-const HOSTS_EXTERNOS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'cdn.tailwindcss.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com'];
+// wsrv.nl: el proxy que achica las fotos del menú (config.js: urlImagen). Guardar
+// su copia evita volver a pedir cada foto en cada visita.
+const HOSTS_EXTERNOS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'cdn.tailwindcss.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com', 'wsrv.nl'];
 
 self.addEventListener('install', e => {
     e.waitUntil(caches.open(SHELL).then(c => Promise.all(PRECACHE.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));

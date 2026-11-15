@@ -984,6 +984,8 @@ async function cargarMesasCaja() {
         MESAS_CAJA = Array.isArray(datos) ? datos : [];
     } catch (e) { MESAS_CAJA = []; }
     pintarMesasCaja();
+    // Ya se sabe qué mesas tienen el servicio quitado: se vuelve a calcular lo que muestra el cierre.
+    if (typeof pintarServicioMesa === 'function') pintarServicioMesa();
 }
 
 window.addEventListener('load', () => {

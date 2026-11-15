@@ -1538,6 +1538,7 @@ async function cargarMesasCliente() {
     try {
         const res = await fetch(API_BASE + "/api/mesas/?t=" + Date.now() + (SUCURSAL_ACTUAL ? "&" + sucursalParam() : ""));
         const mesas = await res.json();
+        MESAS_SIN_SERVICIO = new Set((Array.isArray(mesas) ? mesas : []).filter(m => m.sin_servicio).map(m => m.nombre));
         const porZona = {};
         (Array.isArray(mesas) ? mesas : []).forEach(m => { (porZona[m.zona || 'Salón'] = porZona[m.zona || 'Salón'] || []).push(m); });
         sel.innerHTML = '<option value="">Elige tu mesa...</option>' + Object.keys(porZona).map(z =>
@@ -2611,11 +2612,30 @@ function tipoEntregaParaServicio() {
     const staff = document.getElementById('trab-entrega'), cli = document.getElementById('delivery-type');
     return String((staff && staff.value) || (cli && cli.value) || '');
 }
-// Porcentaje que aplica a esta cuenta: al editar un pedido manda el que ya tenía; si no, el del panel.
+// Mesas a las que un administrador les quitó el servicio (vienen de /api/mesas con sin_servicio).
+// El cliente las carga en cargarMesasCliente; la caja tiene las suyas en MESAS_CAJA.
+let MESAS_SIN_SERVICIO = new Set();
+function mesaElegidaSinServicio() {
+    const sel = document.getElementById('trab-mesa') || document.getElementById('sel-mesa');
+    const nombre = sel ? sel.value : '';
+    if (!nombre) return false;
+    if (typeof MESAS_CAJA !== 'undefined' && Array.isArray(MESAS_CAJA) && MESAS_CAJA.length) {
+        const m = MESAS_CAJA.find(x => x.nombre === nombre);
+        return !!(m && m.sin_servicio);
+    }
+    return MESAS_SIN_SERVICIO.has(nombre);
+}
+// Porcentaje que aplica a esta cuenta: al editar un pedido manda el que ya tenía; si no, el del panel
+// (salvo que esa mesa tenga el servicio quitado: el servidor tampoco lo suma).
 function porcentajeServicioMesa() {
     if (window.__servicioMesaFijo != null) return Number(window.__servicioMesaFijo) || 0;
+    if (mesaElegidaSinServicio()) return 0;
     return SERVICIO_MESA && SERVICIO_MESA.activo ? SERVICIO_MESA.porcentaje : 0;
 }
+// Al cambiar de mesa se vuelve a calcular lo que se muestra.
+document.addEventListener('change', (e) => {
+    if (e.target && (e.target.id === 'sel-mesa' || e.target.id === 'trab-mesa')) pintarServicioMesa();
+});
 function pintarServicioMesa() {
     const fila = document.getElementById('checkout-servicio-row'), filaTot = document.getElementById('checkout-total-servicio-row');
     if (!fila || !filaTot) return;

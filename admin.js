@@ -1079,7 +1079,7 @@ function renderTasaBcv(info, hist) {
         : '';
     document.getElementById('tasa-historial').innerHTML = hist.length
         ? `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">` + hist.slice(0, 15).map(x =>
-            `<tr style="border-bottom:1px solid #4a5b94;"><td style="padding:6px 10px;">${escapeHtml(x.fecha)} ${escapeHtml(x.hora || '')}</td><td style="padding:6px 10px; font-weight:bold; color:#34d399;">Bs ${fmtBs(x.tasa)}</td><td style="padding:6px 10px; color:var(--text-muted);">${x.fuente === 'manual' ? '✍️ Manual' : '🏦 BCV'}</td></tr>`).join('') + `</table>`
+            `<tr style="border-bottom:1px solid var(--borde, #4a5b94);"><td style="padding:6px 10px;">${escapeHtml(x.fecha)} ${escapeHtml(x.hora || '')}</td><td style="padding:6px 10px; font-weight:bold; color:#34d399;">Bs ${fmtBs(x.tasa)}</td><td style="padding:6px 10px; color:var(--text-muted);">${x.fuente === 'manual' ? '✍️ Manual' : '🏦 BCV'}</td></tr>`).join('') + `</table>`
         : '<p style="padding:10px; color:var(--text-muted); font-size:0.85rem; margin:0;">Todavía no hay cambios registrados.</p>';
 }
 
@@ -1205,7 +1205,7 @@ function renderTramosDelivery(tramos) {
     let prev = 0;
     cont.innerHTML = tramos.map((t, i) => {
         const desde = prev; prev = t.hasta_km;
-        return `<div class="dl-fila" style="margin:0; background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:0.5rem 0.7rem;">
+        return `<div class="dl-fila" style="margin:0; background:var(--input-bg); border:1px solid var(--borde, #4a5b94); border-radius:8px; padding:0.5rem 0.7rem;">
             <span style="min-width:62px; color:var(--text-muted);">De ${desde} a</span>
             <input type="number" class="dl-t-km" value="${t.hasta_km}" step="0.5" min="0.5" oninput="actualizarTramosDelivery()"> <span>km  →  $</span>
             <input type="number" class="dl-t-precio" value="${t.precio}" step="0.25" min="0" oninput="simularDelivery()">
@@ -1322,17 +1322,17 @@ function buscarItemAnuncio(inputElement) {
     const comboFiltrados = adminCombos.filter(c => c.nombre.toLowerCase().includes(texto));
     const prodFiltrados = adminProductos.filter(p => p.nombre.toLowerCase().includes(texto));
 
-    let html = `<div data-ref="" data-nombre="" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">Ninguno (anuncio solo informativo)</div>`;
+    let html = `<div data-ref="" data-nombre="" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid var(--borde, #4a5b94);" onmouseover="this.style.background='var(--borde, #4a5b94)'" onmouseout="this.style.background='transparent'">Ninguno (anuncio solo informativo)</div>`;
     if (comboFiltrados.length > 0) {
         comboFiltrados.forEach(c => {
             const nombreLegible = `🍱 ${c.nombre} ($${c.precio.toFixed(2)})`;
-            html += `<div data-ref="c_${c.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
+            html += `<div data-ref="c_${c.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid var(--borde, #4a5b94);" onmouseover="this.style.background='var(--borde, #4a5b94)'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
         });
     }
     if (prodFiltrados.length > 0) {
         prodFiltrados.forEach(p => {
             const nombreLegible = `🍔 ${p.nombre} ($${p.precio.toFixed(2)})`;
-            html += `<div data-ref="p_${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
+            html += `<div data-ref="p_${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid var(--borde, #4a5b94);" onmouseover="this.style.background='var(--borde, #4a5b94)'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
         });
     }
 
@@ -1537,11 +1537,11 @@ function buscarCategoriaCombo(inputElement) {
 
     let html = '';
     if (texto === '' || 'combos'.includes(texto)) {
-        html += `<div data-valor="" data-nombre="" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">Combos (por defecto)</div>`;
+        html += `<div data-valor="" data-nombre="" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid var(--borde, #4a5b94);" onmouseover="this.style.background='var(--borde, #4a5b94)'" onmouseout="this.style.background='transparent'">Combos (por defecto)</div>`;
     }
     if (filtradas.length > 0) {
         filtradas.forEach(c => {
-            html += `<div data-valor="${escapeHtml(c.nombre)}" data-nombre="${escapeHtml(c.nombre)}" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'">${escapeHtml(c.nombre)}</div>`;
+            html += `<div data-valor="${escapeHtml(c.nombre)}" data-nombre="${escapeHtml(c.nombre)}" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid var(--borde, #4a5b94);" onmouseover="this.style.background='var(--borde, #4a5b94)'" onmouseout="this.style.background='transparent'">${escapeHtml(c.nombre)}</div>`;
         });
     }
     if (html === '') html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
@@ -1678,7 +1678,7 @@ function buscarProductoPromo(inputElement) {
     if (filtrados.length > 0) {
         filtrados.forEach(p => {
             const nombreLegible = `${p.nombre} ($${p.precio.toFixed(2)})`;
-            html += `<div class="opcion-promo-producto" data-id="${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarProductoPromo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">${escapeHtml(p.nombre)}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`;
+            html += `<div class="opcion-promo-producto" data-id="${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarProductoPromo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid var(--borde, #4a5b94); display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='var(--borde, #4a5b94)'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">${escapeHtml(p.nombre)}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`;
         });
     } else {
         html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
@@ -1711,11 +1711,11 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     const idCaja = 'sug-combo-' + Math.random().toString(36).substr(2, 9);
     fila.innerHTML = `
         <div style="flex: 2; position: relative;">
-            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto fijo..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px; outline: none;">
+            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto fijo..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: var(--input-bg); border: 1px solid var(--borde, #4a5b94); color: white; border-radius: 6px; outline: none;">
             <input type="hidden" class="item-referencia" value="${valorSeleccionado}">
-            <div id="${idCaja}" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: #2e3a68; border: 1px solid #4a5b94; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
+            <div id="${idCaja}" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: var(--card-bg); border: 1px solid var(--borde, #4a5b94); border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
         </div>
-        <input type="number" class="item-cantidad" min="1" value="${qty}" required style="flex: 1; padding: 0.75rem; background-color: #222c57; border: 1px solid #4a5b94; color: white; border-radius: 6px;" placeholder="Cant.">
+        <input type="number" class="item-cantidad" min="1" value="${qty}" required style="flex: 1; padding: 0.75rem; background-color: var(--input-bg); border: 1px solid var(--borde, #4a5b94); color: white; border-radius: 6px;" placeholder="Cant.">
         ${valorSeleccionado.startsWith('CAT_') ? `<button type="button" onclick="convertirFilaCategoriaASeleccion(this)" title="Elegir cuáles productos de esta categoría puede escoger el cliente" style="background: #0e7490; color: white; border: none; border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 11px; font-weight: bold; white-space: nowrap;">👆 Elegir cuáles</button>` : ''}
         <button type="button" onclick="this.parentElement.remove()" style="background: #e11d48; color: white; border: none; border-radius: 4px; padding: 0 15px; cursor: pointer; font-weight: bold;">X</button>
     `;
@@ -1744,16 +1744,16 @@ function agregarGrupoSeleccionCombo(existente = null) {
         <div style="display:flex; gap:10px; margin-bottom:10px;">
             <div style="flex:2;">
                 <label style="display:block; font-size:11px; color:#67e8f9; font-weight:normal; text-transform:none; margin-bottom:3px;">¿Qué elige? (lo ve el cliente, ej. Hamburguesa, Refresco)</label>
-                <input type="text" class="sel-nombre" value="${esc(existente ? existente.nombre : '')}" placeholder="Ej: Hamburguesa" style="width:100%; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+                <input type="text" class="sel-nombre" value="${esc(existente ? existente.nombre : '')}" placeholder="Ej: Hamburguesa" style="width:100%; padding:0.6rem; background-color:var(--input-bg); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px;">
             </div>
             <div style="flex:1;">
                 <label style="display:block; font-size:11px; color:#67e8f9; font-weight:normal; text-transform:none; margin-bottom:3px;">¿Cuántos elige?</label>
-                <input type="number" class="sel-cantidad" min="1" value="${existente ? (existente.cantidad || 1) : 1}" style="width:100%; padding:0.6rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+                <input type="number" class="sel-cantidad" min="1" value="${existente ? (existente.cantidad || 1) : 1}" style="width:100%; padding:0.6rem; background-color:var(--input-bg); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px;">
             </div>
         </div>
         <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
-            <input type="text" class="sel-filtro" placeholder="🔍 Filtrar productos..." style="flex:2; min-width:120px; padding:0.5rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
-            <select class="sel-cat" style="flex:1; min-width:110px; padding:0.5rem; background-color:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px;">
+            <input type="text" class="sel-filtro" placeholder="🔍 Filtrar productos..." style="flex:2; min-width:120px; padding:0.5rem; background-color:var(--input-bg); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px;">
+            <select class="sel-cat" style="flex:1; min-width:110px; padding:0.5rem; background-color:var(--input-bg); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px;">
                 <option value="">Todas las categorías</option>
                 ${cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
             </select>
@@ -1825,14 +1825,14 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
         </div>
         <label style="display:block; margin-bottom:12px; font-size:11px; color:#fbbf24; font-weight:normal; text-transform:none;">
             Con 2+ filas, ¿cómo se comportan las pestañas?
-            <select class="grupo-modo-piezas" onchange="sincronizarModoPiezas(this.closest('.fila-piezas-alternativas'))" style="width:100%; margin-top:4px; padding:8px; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:12px;">
+            <select class="grupo-modo-piezas" onchange="sincronizarModoPiezas(this.closest('.fila-piezas-alternativas'))" style="width:100%; margin-top:4px; padding:8px; background:var(--input-bg); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px; font-size:12px;">
                 <option value="excluyente" ${modoExistente === 'excluyente' ? 'selected' : ''}>Excluyentes: el cliente elige SOLO una pestaña (ej. Tempura 12pz o Frío 10pz)</option>
                 ${modoExistente === 'compartido' ? `<option value="compartido" selected>Piezas compartidas (opción retirada — al guardar se convertirá a excluyente)</option>` : ''}
                 <option value="todas" ${modoExistente === 'todas' ? 'selected' : ''}>Todas obligatorias: el cliente debe completar cada pestaña por separado (ej. 1 roll clásico + 1 tempura + 1 individual + 1 guarnición)</option>
             </select>
         </label>
         <div class="lista-alternativas-piezas" style="display:flex; flex-direction:column; gap:10px;"></div>
-        <button type="button" class="btn-add-alternativa" style="margin-top:10px; background:#4a5b94; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">+ Agregar fila</button>
+        <button type="button" class="btn-add-alternativa" style="margin-top:10px; background:var(--borde, #4a5b94); color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">+ Agregar fila</button>
     `;
     contenedor.appendChild(grupo);
 
@@ -1945,7 +1945,7 @@ construirChipsDias('combo', []);
 function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
     const fila = document.createElement('div');
     fila.className = 'fila-alternativa-piezas';
-    fila.style.cssText = 'background:#222c57; border:1px solid #4a5b94; border-radius:8px; padding:10px;';
+    fila.style.cssText = 'background:var(--input-bg); border:1px solid var(--borde, #4a5b94); border-radius:8px; padding:10px;';
 
     const categoriasSeleccionadas = datos.categorias || (datos.categoria ? [datos.categoria] : []);
     const chipsCategorias = adminCategorias.map(c => {
@@ -1961,14 +1961,14 @@ function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
 
     fila.innerHTML = `
         <div style="display:flex; gap:8px; align-items:center;">
-            <input type="text" class="alt-nombre" placeholder="Nombre (ej. Opción 1, o 'Variado')" value="${escapeHtml(datos.nombre || '')}" style="flex:1; padding:8px; background:#1d2650; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:13px; margin:0;">
+            <input type="text" class="alt-nombre" placeholder="Nombre (ej. Opción 1, o 'Variado')" value="${escapeHtml(datos.nombre || '')}" style="flex:1; padding:8px; background:var(--bg-color); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px; font-size:13px; margin:0;">
             <button type="button" onclick="this.closest('.fila-alternativa-piezas').remove()" title="Quitar esta fila" style="flex-shrink:0; background:transparent; color:#f87171; border:1px solid #7f1d1d; border-radius:6px; width:34px; height:34px; cursor:pointer; font-size:14px;"><i class="fa-solid fa-trash-can"></i></button>
         </div>
         <div class="alt-cantidades" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;">
             <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">El cliente elige</label>
-            <input type="number" class="alt-selecciones" min="1" value="${selecciones}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:64px; padding:8px; background:#1d2650; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
+            <input type="number" class="alt-selecciones" min="1" value="${selecciones}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:64px; padding:8px; background:var(--bg-color); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
             <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">opción(es), y cada una vale</label>
-            <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${porSeleccion}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:70px; padding:8px; background:#1d2650; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
+            <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${porSeleccion}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:70px; padding:8px; background:var(--bg-color); border:1px solid var(--borde, #4a5b94); color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
             <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">piezas</label>
             <span class="alt-total-piezas" style="font-size:12px; font-weight:bold; color:#fbbf24; margin-left:auto;"></span>
         </div>
@@ -2005,7 +2005,7 @@ function buscarItemCombo(inputElement, idCaja) {
 
     let html = '';
     if (prodFiltrados.length > 0) {
-        prodFiltrados.forEach(p => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'PROD_${p.id}', '🍔 Producto: ${p.nombre}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #4a5b94; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#4a5b94'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">🍔 ${p.nombre}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`; });
+        prodFiltrados.forEach(p => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'PROD_${p.id}', '🍔 Producto: ${p.nombre}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid var(--borde, #4a5b94); transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='var(--borde, #4a5b94)'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">🍔 ${p.nombre}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`; });
     }
     if (html === '') html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
 

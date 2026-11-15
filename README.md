@@ -44,6 +44,26 @@ Es un sitio estático: sube la carpeta tal cual a Vercel, Netlify o cualquier ho
 - Se crean, editan y eliminan en **Administración → Mesas** (con botón para copiar el enlace del QR).
 - Desde la caja también se puede tomar un pedido para una mesa.
 
+### Plano del local
+- En **Mesas**, el botón **Plano** muestra las mesas dibujadas como están en el local (con sus sillas, paredes, barra y rótulos), con los mismos colores y la misma cuenta al tocarlas. **Cuadrícula** vuelve a la vista de tarjetas; cada equipo recuerda la que eligió.
+- Un administrador lo dibuja en **`/plano/`** (botón «Editar plano» en Mesas, o «Dibujar el plano del local» en Administración → Mesas): arrastrar, estirar desde la esquina, girar, zonas, paredes, áreas y rótulos. Las mesas que agrega o quita ahí son las mismas de Administración → Mesas. Una mesa en uso no se puede quitar.
+- Con varias sucursales, cada una tiene su plano.
+- Se guarda en el mismo estado de Supabase: cada mesa lleva su `plano` (posición, tamaño, forma, giro) y cada zona su decoración en `plano_zonas`. Rutas: `GET /api/mesas/plano` y `POST /api/mesas/plano/guardar` (`worker/plano.mjs`).
+- **`/plano/` es código compilado.** Su fuente está en `plano-de-mesas/` (React; no se publica en la web, ver `.assetsignore`). Después de cambiarla: `cd plano-de-mesas && npm install && npm run build:castillo`, y subir la carpeta `plano/` que sale. Detalles en `plano-de-mesas/README.md`.
+- **Servicio en mesa por mesa.** El servicio se activa y se configura en Administración → Mesas, y cada pedido de mesa lo suma al crearse. En la ventana de la mesa se ve aparte: consumo, servicio y total. Un administrador puede **quitárselo a una mesa concreta** («Quitarle el servicio a esta mesa»), y vale para los pedidos que ya tiene y los que haga hasta que se libere. También puede devolvérselo; los pedidos hechos mientras estaba quitado reciben el porcentaje actual. Lo hace `worker/servicio-por-mesa.mjs` (`POST /api/mesas/servicio`), sin cambiar cómo se calcula el servicio.
+- El menú del cliente y la caja no muestran el servicio en el carrito si se elige una mesa a la que se lo quitaron (`/api/mesas` indica `sin_servicio`).
+- **El total de un pedido solo lo escribe el servidor.** `/api/pedidos/actualizar-estado` ya no acepta `total_orden` ni `pedido_detallado` del navegador; del dinero solo acepta el precio del delivery al cotizarlo, y la línea y la suma las hace el servidor (`worker/precio-delivery.mjs`). La tasa de un pedido solo se acepta si está cerca de la vigente (entre la mitad y el doble).
+- **Las líneas con precio escrito a mano son solo de administradores**, también en el servidor (antes solo lo decía la caja). Al editar un pedido, un cajero puede conservar las líneas fuera de carta que ya tenía, con el mismo nombre y precio, pero no agregar otras ni cambiarles el precio.
+- «Cobrar y liberar» se confirma dentro de la misma ventana de la mesa (antes usaba la ventana nativa del navegador, que algunos navegadores y la app instalada no muestran). Mientras se guarda un cambio, los botones dicen «Guardando…».
+
+## Modo oscuro (pantallas del personal)
+- Por defecto, Administración, Panel del dueño, Cocina, Mesas, Caja y Estadísticas se ven como siempre.
+- El botón 🌙 (abajo a la izquierda) activa un **modo oscuro, sobrio y neutro** con el estilo de Gelly: menú lateral agrupado en Administración, tarjetas neutras, letra Geist. ☀️ vuelve al diseño de siempre. Se recuerda en cada equipo (`localStorage`, clave `castillo_modo_oscuro`) y vale para todas las pantallas del personal. El menú del cliente y la web pública no cambian.
+- Es solo apariencia: `modo-oscuro.js` (se carga primero en el `<body>` y pone la clase `tema-gelly`) y `tema-gelly.css` (todas sus reglas cuelgan de esa clase). Ningún `id`, botón ni función cambia entre modos.
+
+## Probar en tu PC sin tocar la base real
+`cd plano-de-mesas && npm install && npm run probar` levanta el Worker real con una base de prueba en memoria (el `SUPABASE_URL` de `wrangler.jsonc` se reemplaza por la local, así que producción no recibe nada) y muestra la dirección, el usuario y la clave de prueba. Ctrl+C lo apaga; `npm run probar -- --de-cero` empieza con datos limpios. Los datos de prueba se guardan en la carpeta temporal del sistema, fuera del repo.
+
 ## Datos de prueba
 | Quién | Usuario / teléfono | PIN / clave |
 |---|---|---|
