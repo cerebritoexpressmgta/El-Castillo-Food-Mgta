@@ -50,6 +50,7 @@ Es un sitio estático: sube la carpeta tal cual a Vercel, Netlify o cualquier ho
 - Con varias sucursales, cada una tiene su plano.
 - Se guarda en el mismo estado de Supabase: cada mesa lleva su `plano` (posición, tamaño, forma, giro) y cada zona su decoración en `plano_zonas`. Rutas: `GET /api/mesas/plano` y `POST /api/mesas/plano/guardar` (`worker/plano.mjs`).
 - **`/plano/` es código compilado.** Su fuente está en `plano-de-mesas/` (React; no se publica en la web, ver `.assetsignore`). Después de cambiarla: `cd plano-de-mesas && npm install && npm run build:castillo`, y subir la carpeta `plano/` que sale. Detalles en `plano-de-mesas/README.md`.
+- **Servicio en mesa por mesa.** El servicio se activa y se configura en Administración → Mesas, y cada pedido de mesa lo suma al crearse. En la ventana de la mesa se ve aparte: consumo, servicio y total. Un administrador puede **quitárselo a una mesa concreta** («Quitarle el servicio a esta mesa»), y vale para los pedidos que ya tiene y los que haga hasta que se libere. También puede devolvérselo; los pedidos hechos mientras estaba quitado reciben el porcentaje actual. Lo hace `worker/servicio-por-mesa.mjs` (`POST /api/mesas/servicio`), sin cambiar cómo se calcula el servicio.
 - «Cobrar y liberar» se confirma dentro de la misma ventana de la mesa (antes usaba la ventana nativa del navegador, que algunos navegadores y la app instalada no muestran). Mientras se guarda un cambio, los botones dicen «Guardando…».
 
 ## Probar en tu PC sin tocar la base real

@@ -8,6 +8,7 @@ import { configDelivery, validarConfigDelivery, parsearCoords, coordenadasValida
 import { anotarHito, armarSeguimiento, minutosDeFrase } from './seguimiento.mjs';
 import { registrarSeguridad, tiene2fa, nuevoReto, verificarAfirmacion } from './seguridad.mjs';
 import { registrarPlano } from './plano.mjs';
+import { registrarServicioPorMesa, servicioQuitado } from './servicio-por-mesa.mjs';
 
 const VERSION_DATOS = 3;
 function marca() { return { nombre: CFG.nombreNegocio || 'Mi Restaurante', emoji: CFG.emoji || '🍔', eslogan: CFG.eslogan || '' }; }
@@ -1074,7 +1075,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         // Servicio en mesa (si el local lo habilitó en el panel): se suma al final de la cuenta, solo a pedidos de mesa
         const cfgSM = configServicioMesa(db);
         let servicioMesa = null;
-        if (esMesa && cfgSM.activo && cfgSM.porcentaje > 0) {
+        // (salvo que un administrador se lo haya quitado a esa mesa: worker/servicio-por-mesa.mjs)
+        if (esMesa && cfgSM.activo && cfgSM.porcentaje > 0 && !servicioQuitado(mesa)) {
             servicioMesa = { pct: cfgSM.porcentaje, monto: Math.round(total * cfgSM.porcentaje) / 100 };
             totalFinal = Math.round((totalFinal + servicioMesa.monto) * 100) / 100;
             textoFinal += `\n1x Servicio en mesa (${servicioMesa.pct}%) ($${servicioMesa.monto.toFixed(2)})`;
@@ -1301,7 +1303,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!m) throw new HttpError(404, 'Mesa no encontrada');
         if (!mesaEnSucursal(m, sucursalDelPersonal(ctx, db))) throw new HttpError(403, 'Esa mesa es de otra sucursal.');
         const ped = pedidosDeMesa(db, m);
-        return { mesa: { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, ocupada_desde: m.ocupada_desde }, pedidos: ped.map(p => Object.assign({}, p, { id_pedido: p.id })), total: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100, tasa_bcv: tasaVigente(db) };
+        return { mesa: { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, ocupada_desde: m.ocupada_desde, servicio_quitado: servicioQuitado(m) }, pedidos: ped.map(p => Object.assign({}, p, { id_pedido: p.id })), total: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100, tasa_bcv: tasaVigente(db) };
     });
     ruta('POST', '/api/mesas/guardar', (ctx, db) => {
         requiereAdmin(ctx); const d = ctx.body || {};
@@ -1425,5 +1427,7 @@ registrarSeguridad(seg);
 registrarResenas({ ruta, ok, HttpError, requiereAdmin, limpiarTexto, siguienteId, contarNumeroDiario });
 // Plano del local: dibujo de las mesas por sucursal y zona (worker/plano.mjs)
 registrarPlano({ ruta, ok, HttpError, requiereStaff, requiereAdmin, limpiarTexto, siguienteId, sucursalDelPersonal, idSucursalValido, sucursalesActivas, esEntregaMesa, emitirTablero });
+// Quitar o devolver el servicio en mesa a una mesa concreta (worker/servicio-por-mesa.mjs)
+registrarServicioPorMesa({ ruta, HttpError, requiereAdmin, sucursalDelPersonal, mesaEnSucursal, pedidosDeMesa, configServicioMesa, ahoraCaracas, emitirTablero });
 
 export { rutas, HttpError, ahoraCaracas };

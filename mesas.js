@@ -268,11 +268,12 @@ async function refrescarModal() {
                     <span class="text-xs font-bold text-slate-300">Pedido ${i + 1} · ${hora}</span>
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${COLOR_ESTADO[p.estado] || 'bg-slate-600 text-slate-200'}">${escapeHtml(p.estado)}</span>
                 </div>
-                <p class="text-xs text-slate-300 whitespace-pre-line">${escapeHtml(p.pedido_detallado || '')}</p>
-                <p class="text-right text-sm font-bold text-white mt-1.5">$${fmt(p.total_orden)}</p>
+                <p class="text-xs text-slate-300 whitespace-pre-line">${escapeHtml(sinLineaDeServicio(p.pedido_detallado))}</p>
+                <p class="text-right text-sm font-bold text-white mt-1.5">$${fmt((p.total_orden || 0) - montoServicio(p))}</p>
             </div>`;
         }).join('');
 
+    pintarDesglose(datos);
     document.getElementById('mm-total').textContent = '$' + fmt(datos.total);
     document.getElementById('mm-total-bs').textContent = datos.total > 0 ? `Bs. ${fmt(datos.total * (datos.tasa_bcv || 1))}` : '';
 
@@ -294,9 +295,15 @@ function pintarBotonesMesa() {
         botones += btn('bg-slate-600 hover:bg-slate-500 col-span-2', 'Marcar como ocupada (sin pedido todavía)', `cambiarEstado(${m.id}, 'ocupada')`);
     } else {
         botones += btn('bg-emerald-600 hover:bg-emerald-500', '➕ Agregar pedido', `location.href='menu_trabajadores.html?mesa=${nombreUrl}'`);
+        // Solo un administrador puede perdonarle el servicio a una mesa (quitarlo es regalar dinero).
+        const des = desgloseDeCuenta(datos);
+        const botonServicio = esAdminMesas() && (des.servicio > 0 || des.quitado || (servicioMesaCfg && servicioMesaCfg.habilitado))
+            ? btn('bg-slate-700 hover:bg-slate-600 col-span-2 border border-slate-500', des.quitado ? '↩ Volver a cobrar el servicio en mesa' : '✂️ Quitarle el servicio a esta mesa', `cambiarServicio(${m.id}, ${des.quitado ? 'false' : 'true'})`)
+            : '';
         botones += m.estado === 'ocupada'
             ? btn('bg-fuchsia-600 hover:bg-fuchsia-500', '🧾 Pidió la cuenta', `cambiarEstado(${m.id}, 'cuenta')`)
             : btn('bg-slate-600 hover:bg-slate-500', '↩ Sigue consumiendo', `cambiarEstado(${m.id}, 'ocupada')`);
+        botones += botonServicio;
         // Cobrar se confirma aquí mismo, con un segundo toque: la ventana nativa
         // del navegador (confirm) no aparece en algunos navegadores ni dentro de
         // la app instalada, y entonces el botón parecía no hacer nada.
@@ -348,6 +355,62 @@ async function cambiarEstado(id, estado) {
     if (hecho) cargarMesas();
     if (!hecho && mesaAbierta !== id && errorMesa) alert(errorMesa);
     return hecho;
+}
+
+// ---- Servicio en mesa: desglose en la cuenta y quitarlo a una mesa ----
+// El servicio lo suma cada pedido de mesa al crearse (configurable en Administración →
+// Mesas). Aquí solo se muestra aparte, y un administrador puede quitárselo a una
+// mesa concreta (worker/servicio-por-mesa.mjs).
+let servicioMesaCfg = null;
+fetch(API_BASE + '/api/servicio-mesa').then(r => r.ok ? r.json() : null).then(d => { servicioMesaCfg = d; }).catch(() => {});
+
+function montoServicio(p) { return (p && p.servicio_mesa && Number(p.servicio_mesa.monto)) || 0; }
+function sinLineaDeServicio(texto) {
+    return String(texto || '').split('\n').filter(l => !/^1x Servicio en mesa \(/.test(l.trim())).join('\n');
+}
+function desgloseDeCuenta(datos) {
+    let servicio = 0, pct = 0, quitadoPct = 0;
+    (datos.pedidos || []).forEach(p => {
+        servicio += montoServicio(p);
+        if (!pct && p.servicio_mesa && p.servicio_mesa.pct > 0) pct = p.servicio_mesa.pct;
+        if (!quitadoPct && p.servicio_mesa && p.servicio_mesa.quitado) quitadoPct = p.servicio_mesa.quitado.pct;
+    });
+    servicio = Math.round(servicio * 100) / 100;
+    const quitado = !!(datos.mesa && datos.mesa.servicio_quitado) || (!!quitadoPct && !servicio);
+    return { consumo: Math.round(((datos.total || 0) - servicio) * 100) / 100, servicio, pct, quitado, quitadoPct };
+}
+function pintarDesglose(datos) {
+    const el = document.getElementById('mm-desglose'); if (!el) return;
+    const d = desgloseDeCuenta(datos);
+    if (!(d.servicio > 0 || d.quitado)) { el.classList.add('hidden'); el.replaceChildren(); return; }
+    const fila = (izq, der, clase) => {
+        const f = document.createElement('div'); f.className = 'flex justify-between ' + (clase || 'text-slate-300');
+        const a = document.createElement('span'); a.textContent = izq;
+        const b = document.createElement('span'); b.className = 'tabular-nums'; b.textContent = der;
+        f.append(a, b); return f;
+    };
+    el.replaceChildren(
+        fila('Consumo', '$' + fmt(d.consumo)),
+        d.quitado
+            ? fila('Servicio en mesa: quitado por un administrador', '$' + fmt(0), 'text-slate-400 italic')
+            : fila(`Servicio en mesa${d.pct ? ` (${d.pct}%)` : ''}`, '$' + fmt(d.servicio))
+    );
+    el.classList.remove('hidden');
+}
+
+async function cambiarServicio(id, quitar) {
+    if (guardandoMesa) return;
+    guardandoMesa = true; errorMesa = ''; confirmandoCobro = null;
+    pintarBotonesMesa();
+    let hecho = false;
+    try {
+        const res = await pedir(URL_MESAS + 'servicio', { method: 'POST', body: JSON.stringify({ id, quitar }) });
+        if (res.ok) hecho = true;
+        else { const d = await res.json().catch(() => ({})); errorMesa = d.detail || 'No se pudo cambiar el servicio. Inténtalo de nuevo.'; }
+    } catch (e) { if (e.message !== 'sesión') errorMesa = 'No se pudo conectar. Revisa tu internet e inténtalo de nuevo.'; }
+    guardandoMesa = false;
+    // Cambian los montos: se vuelve a pedir la cuenta antes de pintar.
+    if (hecho) { await refrescarModal(); cargarMesas(); } else pintarBotonesMesa();
 }
 
 function cobrarYLiberar(id) { confirmandoCobro = id; errorMesa = ''; pintarBotonesMesa(); }
