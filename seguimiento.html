@@ -10,12 +10,16 @@
     <style>
         :root { --verde: #16a34a; --naranja: #f59e0b; --rojo: #b4231a; --gris: #cbd5e1; --texto: #1f2937; --suave: #6b7280; --fondo: #f8fafc; }
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--fondo); color: var(--texto); min-height: 100vh; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0a1a45; color: var(--texto); min-height: 100vh; }
+        /* Fondo propio (el mismo del apartado "Rastrea tu pedido" de la página principal) */
+        body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='240'%20height='240'%20opacity='0.16'%3E%3Ctext%20x='30'%20y='45'%20font-size='34'%20transform='rotate%28-15%2030%2045%29'%3E%F0%9F%9B%B5%3C/text%3E%3Ctext%20x='110'%20y='28'%20font-size='34'%20transform='rotate%2812%20110%2028%29'%3E%F0%9F%93%A6%3C/text%3E%3Ctext%20x='188'%20y='52'%20font-size='34'%20transform='rotate%28-8%20188%2052%29'%3E%F0%9F%93%8D%3C/text%3E%3Ctext%20x='60'%20y='118'%20font-size='34'%20transform='rotate%2810%2060%20118%29'%3E%F0%9F%A7%BE%3C/text%3E%3Ctext%20x='150'%20y='104'%20font-size='34'%20transform='rotate%28-14%20150%20104%29'%3E%E2%8F%B1%EF%B8%8F%3C/text%3E%3Ctext%20x='214'%20y='150'%20font-size='34'%20transform='rotate%289%20214%20150%29'%3E%E2%9C%85%3C/text%3E%3Ctext%20x='34'%20y='196'%20font-size='34'%20transform='rotate%28-6%2034%20196%29'%3E%F0%9F%8D%94%3C/text%3E%3Ctext%20x='118'%20y='190'%20font-size='34'%20transform='rotate%2814%20118%20190%29'%3E%F0%9F%97%BA%EF%B8%8F%3C/text%3E%3C/svg%3E"), radial-gradient(circle at 20% 0, rgba(96,165,250,.5) 0, transparent 46%), linear-gradient(155deg, #0a1a45, #12388a 55%, #071231); background-size: 240px 240px, auto, auto; animation: fondoMueve 60s linear infinite; }
+        @keyframes fondoMueve { to { background-position: 240px 240px, 0 0, 0 0; } }
+        @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
         header { background: var(--rojo); color: #fff; padding: 14px 16px; text-align: center; }
         header h1 { margin: 0; font-size: 1.05rem; letter-spacing: .3px; }
         header small { opacity: .85; font-size: .78rem; }
         main { max-width: 480px; margin: 0 auto; padding: 16px; }
-        .tarjeta { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+        .tarjeta { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; margin-bottom: 14px; box-shadow: 0 8px 22px rgba(0,0,0,.35); }
         h2 { margin: 0 0 4px; font-size: 1.25rem; }
         label { display: block; font-size: .8rem; font-weight: 700; color: var(--suave); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .4px; }
         input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 12px; font-size: 1rem; }
@@ -47,7 +51,7 @@
         ul.articulos li { padding: 6px 0; border-bottom: 1px dashed #e5e7eb; font-size: .95rem; }
         ul.articulos li:last-child { border-bottom: 0; }
         .cant { display: inline-block; min-width: 26px; font-weight: 800; color: var(--rojo); }
-        .pie { text-align: center; color: var(--suave); font-size: .78rem; margin: 6px 0 24px; }
+        .pie { text-align: center; color: #fff; font-size: .78rem; margin: 6px 0 24px; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
         .oculto { display: none !important; }
     </style>
 </head>

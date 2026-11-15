@@ -1302,6 +1302,71 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const ped = pedidosDeMesa(db, m);
         return { mesa: { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, ocupada_desde: m.ocupada_desde }, pedidos: ped.map(p => Object.assign({}, p, { id_pedido: p.id })), total: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100, tasa_bcv: tasaVigente(db) };
     });
+    // ---- Plano del local: vista PERSONALIZADA de las mesas (el dueño coloca cada mesa donde está en su local) ----
+    // db.planos_mesas[clave] = { modo: 'cuadricula' | 'personalizado', ancho, alto, mesas: { idMesa: {x,y,w,h,forma} }, elementos: [...] }
+    // La clave es la sucursal (o '0' cuando el negocio tiene una sola). 'cuadricula' es la vista por defecto de siempre.
+    const TIPOS_PLANO = ['pared', 'barra', 'entrada', 'cocina', 'bano', 'caja', 'decoracion', 'texto'];
+    const entero = (v, min, max, def) => { const n = Math.round(parseFloat(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : def; };
+    function clavePlano(db, sid) { return sucursalesActivas(db).length <= 1 ? '0' : String(Number(sid) || 0); }
+    function planoDe(db, clave) {
+        const g = (db.planos_mesas || {})[clave] || {};
+        const ancho = entero(g.ancho, 400, 2000, 1000), alto = entero(g.alto, 400, 2000, 600);
+        const mesas = {};
+        Object.entries(g.mesas || {}).forEach(([id, c]) => { if (db.mesas.some(m => m.id === Number(id))) mesas[id] = c; });
+        return { modo: g.modo === 'personalizado' && Object.keys(mesas).length ? 'personalizado' : 'cuadricula', ancho, alto, mesas, elementos: Array.isArray(g.elementos) ? g.elementos : [] };
+    }
+    ruta('GET', '/api/mesas/plano', (ctx, db) => {
+        requiereStaff(ctx);
+        const sid = sucursalDelPersonal(ctx, db) || parseInt(ctx.query.sucursal, 10) || 0;
+        const clave = clavePlano(db, sid);
+        const multi = sucursalesActivas(db).length > 1;
+        const plano = planoDe(db, clave);
+        return Object.assign({ success: true, clave, aplicable: !(multi && !sid), ubicadas: Object.keys(plano.mesas).length }, plano);
+    });
+    ruta('POST', '/api/mesas/plano/guardar', (ctx, db) => {
+        requiereAdmin(ctx);
+        const b = ctx.body || {};
+        const sid = parseInt(b.sucursal, 10) || 0;
+        if (sucursalesActivas(db).length > 1 && !sid) return { success: false, error: 'Elige una sucursal para diseñar su plano.' };
+        const clave = clavePlano(db, sid);
+        const ancho = entero(b.ancho, 400, 2000, 1000), alto = entero(b.alto, 400, 2000, 600);
+        const mesas = {};
+        Object.entries(b.mesas || {}).forEach(([id, c]) => {
+            const m = db.mesas.find(x => x.id === Number(id));
+            if (!m || !mesaEnSucursal(m, sid) || !c) return;
+            const w = entero(c.w, 40, Math.min(400, ancho), 90), h = entero(c.h, 40, Math.min(400, alto), 90);
+            mesas[m.id] = { x: entero(c.x, 0, ancho - w, 0), y: entero(c.y, 0, alto - h, 0), w, h, forma: c.forma === 'redonda' ? 'redonda' : 'cuadrada' };
+        });
+        const elementos = [];
+        (Array.isArray(b.elementos) ? b.elementos : []).slice(0, 80).forEach((e, i) => {
+            if (!e || !TIPOS_PLANO.includes(e.tipo)) return;
+            const delgado = e.tipo === 'pared';
+            const w = entero(e.w, delgado ? 8 : 20, Math.min(2000, ancho), 120), h = entero(e.h, delgado ? 8 : 20, Math.min(2000, alto), 60);
+            elementos.push({ id: limpiarTexto(e.id, 20, true) || ('e' + (i + 1)), tipo: e.tipo, texto: limpiarTexto(e.texto, 30, true), x: entero(e.x, 0, ancho - w, 0), y: entero(e.y, 0, alto - h, 0), w, h });
+        });
+        let modo = (db.planos_mesas || {})[clave] && db.planos_mesas[clave].modo === 'personalizado' ? 'personalizado' : 'cuadricula';
+        if (b.modo === 'cuadricula' || b.modo === 'personalizado') modo = b.modo;
+        if (modo === 'personalizado' && !Object.keys(mesas).length) return { success: false, error: 'Para usar el plano personalizado coloca al menos una mesa en él.' };
+        db.planos_mesas = db.planos_mesas || {};
+        db.planos_mesas[clave] = { modo, ancho, alto, mesas, elementos };
+        ctx.tras.push(() => emitirTablero('mesas'));
+        return { success: true, modo, ubicadas: Object.keys(mesas).length };
+    });
+    // Cambia solo la vista (por defecto / personalizada) sin tocar el diseño
+    ruta('POST', '/api/mesas/plano/modo', (ctx, db) => {
+        requiereAdmin(ctx);
+        const b = ctx.body || {};
+        const sid = parseInt(b.sucursal, 10) || 0;
+        if (sucursalesActivas(db).length > 1 && !sid) return { success: false, error: 'Elige una sucursal.' };
+        if (b.modo !== 'cuadricula' && b.modo !== 'personalizado') return { success: false, error: 'Vista no válida.' };
+        const clave = clavePlano(db, sid);
+        const actual = planoDe(db, clave);
+        if (b.modo === 'personalizado' && !Object.keys(actual.mesas).length) return { success: false, error: 'Primero diseña tu plano y coloca al menos una mesa.' };
+        db.planos_mesas = db.planos_mesas || {};
+        db.planos_mesas[clave] = Object.assign({}, (db.planos_mesas[clave] || {}), { modo: b.modo, ancho: actual.ancho, alto: actual.alto, mesas: (db.planos_mesas[clave] || {}).mesas || {}, elementos: actual.elementos });
+        ctx.tras.push(() => emitirTablero('mesas'));
+        return { success: true, modo: b.modo };
+    });
     ruta('POST', '/api/mesas/guardar', (ctx, db) => {
         requiereAdmin(ctx); const d = ctx.body || {};
         const nombre = limpiarTexto(d.nombre, 30); const zona = limpiarTexto(d.zona, 30) || 'Salón';

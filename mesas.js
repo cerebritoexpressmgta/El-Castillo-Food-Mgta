@@ -5,6 +5,7 @@ const URL_MESAS = API_BASE + "/api/mesas/";
 let mesas = [];
 let zonaActiva = 'Todas';
 let mesaAbierta = null; // id de la mesa con el modal abierto
+let planoMesas = null;  // plano personalizado del local (lo diseña el dueño en Administración → Mesas)
 
 // Esta pantalla es solo para el personal: sin sesión se vuelve al tablero (donde se inicia sesión)
 if (!localStorage.getItem('usuarioActivo') || !localStorage.getItem('tokioAuthToken')) {
@@ -63,6 +64,12 @@ async function cargarMesas() {
         const datos = await res.json();
         mesas = Array.isArray(datos) ? datos : [];
     } catch (e) { if (e.message !== 'sesión') console.error(e); return; }
+    try {
+        const filtroSuc2 = document.getElementById('filtroSucursalMesas') ? document.getElementById('filtroSucursalMesas').value : '';
+        const rp = await pedir(URL_MESAS + 'plano?t=' + Date.now() + (filtroSuc2 ? '&sucursal=' + filtroSuc2 : ''));
+        const dp = rp.ok ? await rp.json() : null;
+        planoMesas = dp && dp.success ? dp : null;
+    } catch (e) { planoMesas = null; }
     pintarFiltro();
     pintarMesas();
     if (mesaAbierta !== null) refrescarModal();
@@ -84,6 +91,12 @@ function pintarMesas() {
     document.getElementById('chip-ocupadas').textContent = `${ocupadas} ocupada${ocupadas === 1 ? '' : 's'}`;
     document.getElementById('chip-cuenta').textContent = `${cuenta} ${cuenta === 1 ? 'pide' : 'piden'} la cuenta`;
 
+    const vista = vistaMesasActual();
+    pintarSelectorVista();
+    document.getElementById('plano-wrap').classList.toggle('hidden', vista !== 'plano');
+    document.getElementById('grid-mesas').classList.toggle('hidden', vista === 'plano');
+    if (vista === 'plano') { pintarPlano(); document.getElementById('vacio').classList.toggle('hidden', mesas.length > 0); return; }
+
     const visibles = mesas.filter(m => zonaActiva === 'Todas' || m.zona === zonaActiva);
     document.getElementById('vacio').classList.toggle('hidden', mesas.length > 0);
     document.getElementById('grid-mesas').innerHTML = visibles.map(m => {
@@ -102,6 +115,46 @@ function pintarMesas() {
             </div>
         </button>`;
     }).join('');
+}
+
+// ---- Vista: por defecto (cuadrícula) o plano personalizado ----
+// Lo que el dueño eligió en Administración es lo que se ve; en este equipo se puede cambiar de vista con el selector.
+function planoAplicable() { return !!(planoMesas && planoMesas.aplicable && planoMesas.ubicadas > 0); }
+function claveVista() { return 'vistaMesas:' + (planoMesas ? planoMesas.clave + ':' + planoMesas.modo : ''); }
+function vistaMesasActual() {
+    if (!planoAplicable()) return 'cuadricula';
+    let pref = null; try { pref = localStorage.getItem(claveVista()); } catch (e) {}
+    return pref === 'plano' || pref === 'cuadricula' ? pref : (planoMesas.modo === 'personalizado' ? 'plano' : 'cuadricula');
+}
+function elegirVista(v) { try { localStorage.setItem(claveVista(), v); } catch (e) {} pintarMesas(); }
+function pintarSelectorVista() {
+    const t = document.getElementById('toggle-vista'); if (!t) return;
+    t.classList.toggle('hidden', !planoAplicable());
+    const v = vistaMesasActual();
+    [['vista-cuadricula', 'cuadricula'], ['vista-plano', 'plano']].forEach(([id, val]) => {
+        const b = document.getElementById(id); if (!b) return;
+        b.className = 'px-3 h-10 flex items-center gap-1.5 transition ' + (v === val ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700');
+    });
+}
+function pintarPlano() {
+    const pl = planoMesas, cont = document.getElementById('plano-mesas');
+    cont.style.cssText = PLANO.estiloLienzo(pl);
+    const piezas = pl.elementos.map(el => PLANO.htmlElemento(el, pl)).join('');
+    const ubicadas = mesas.filter(m => pl.mesas[m.id]);
+    const sinUbicar = mesas.filter(m => !pl.mesas[m.id]);
+    const botones = ubicadas.map(m => {
+        const c = pl.mesas[m.id], enUso = m.estado !== 'libre';
+        const atenuada = zonaActiva !== 'Todas' && m.zona !== zonaActiva;
+        return `<button onclick="abrirModalMesa(${m.id})" class="pl-mesa ${c.forma === 'redonda' ? 'redonda' : 'cuadrada'} est-${m.estado || 'libre'}${atenuada ? ' atenuada' : ''}" style="${PLANO.estiloPos(c, pl)}" title="${PLANO.esc(m.nombre)} · ${m.capacidad} personas · ${(ESTILOS[m.estado] || ESTILOS.libre).texto}">
+            <span class="pl-nombre">${PLANO.esc(m.nombre)}</span>
+            <span class="pl-sub">👥 ${m.capacidad}</span>
+            ${enUso ? `<span class="pl-cons">$${fmt(m.consumo)}</span>` : ''}
+        </button>`;
+    }).join('');
+    cont.innerHTML = piezas + botones;
+    document.getElementById('plano-sin-ubicar').innerHTML = sinUbicar.length
+        ? '<span class="font-bold text-slate-300">Mesas sin ubicar en el plano:</span>' + sinUbicar.map(m => `<button onclick="abrirModalMesa(${m.id})" class="px-3 py-1.5 rounded-full border border-slate-600 bg-slate-800 text-slate-200 font-bold hover:bg-slate-700">${PLANO.esc(m.nombre)}</button>`).join('')
+        : '';
 }
 
 // ---- Cuenta de una mesa ----
