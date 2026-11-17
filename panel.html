@@ -110,6 +110,12 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
         <img id="logo-prev" alt="" style="display:none;height:56px;margin-top:8px;border-radius:8px;background:#fff;padding:4px">
       </div>
       <div>
+        <label>Logo del sistema (Administración, Cocina y Mesas)</label>
+        <div class="row"><input id="logosis-file" type="file" accept="image/*" style="margin:0"><button class="sec" id="logosis-quitar" type="button">Restablecer</button></div>
+        <img id="logosis-prev" alt="" style="height:56px;width:56px;object-fit:cover;margin-top:8px;border-radius:14px;background:#fff;padding:2px">
+        <div id="logosis-estado" style="font-size:12px;opacity:.75;margin-top:4px"></div>
+      </div>
+      <div>
         <label>Imagen de portada (opcional, reemplaza el color)</label>
         <div class="row"><input id="port-file" type="file" accept="image/*" style="margin:0"><button class="sec" id="port-quitar" type="button">Quitar</button></div>
         <img id="port-prev" alt="" style="display:none;height:70px;margin-top:8px;border-radius:8px">
@@ -278,7 +284,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
 
 
   // ---- Apariencia (colores, logo, portada) ----
-  const TEMA_VACIO = { colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', tituloSobrePortada: false };
+  const TEMA_VACIO = { colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', logoSistema: '', tituloSobrePortada: false };
   let tema = Object.assign({}, TEMA_VACIO);
   const PRESETS = [
     ['Castillo', '#b4231a', '#d99a1e', '#6b2412'], ['Océano', '#1d4ed8', '#f59e0b', '#0b3b8c'], ['Bosque', '#15803d', '#eab308', '#14532d'],
@@ -289,6 +295,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     const pi = $('port-prev'), lg = $('logo-prev');
     pi.style.display = tema.imagenPortada ? 'block' : 'none'; if (tema.imagenPortada) pi.src = tema.imagenPortada;
     lg.style.display = tema.logo ? 'inline-block' : 'none'; if (tema.logo) lg.src = tema.logo;
+    $('logosis-prev').src = tema.logoSistema || 'icons/logo-escudo.jpg?v=1'; $('logosis-estado').textContent = tema.logoSistema ? 'Imagen propia (se verá al guardar).' : 'Imagen por defecto: el escudo del Castillo.';
     const p = tema.colorPrincipal || '#b4231a', a = tema.colorSecundario || '#d99a1e', h = tema.colorPortada || '#6b2412';
     $('vp-hero').style.background = tema.imagenPortada ? 'linear-gradient(to bottom, rgba(0,0,0,.06) 38%, rgba(0,0,0,.82) 100%), url("' + tema.imagenPortada + '") center 30%/cover no-repeat' : 'linear-gradient(135deg,' + h + ',#000)';
     $('port-titulo').checked = tema.tituloSobrePortada === true;
@@ -309,6 +316,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
   $('tema-reset').onclick = () => { tema.colorPrincipal = tema.colorSecundario = tema.colorPortada = ''; pintarTema(); };
   $('port-titulo').onchange = e => { tema.tituloSobrePortada = e.target.checked; pintarTema(); };
   $('logo-quitar').onclick = () => { tema.logo = ''; pintarTema(); };
+  $('logosis-quitar').onclick = () => { tema.logoSistema = ''; pintarTema(); };
   $('port-quitar').onclick = () => { tema.imagenPortada = ''; pintarTema(); };
   async function subirUna(archivo, campo, max) {
     try {
@@ -319,6 +327,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     } catch (err) { alert('Error: ' + err.message); }
   }
   $('logo-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'logo', 600); };
+  $('logosis-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'logoSistema', 400); };
   $('port-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'imagenPortada', 1920); };
 
   // ---- Datos de la web y sucursales ----
@@ -431,7 +440,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     if (r.s !== 200) return;
     const s = r.d.sitio || {};
     ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { $('s-' + k).value = s[k] || ''; });
-    tema = Object.assign({}, TEMA_VACIO, { colorPrincipal: s.colorPrincipal || '', colorSecundario: s.colorSecundario || '', colorPortada: s.colorPortada || '', imagenPortada: s.imagenPortada || '', logo: s.logo || '', tituloSobrePortada: s.tituloSobrePortada === true }); pintarTema();
+    tema = Object.assign({}, TEMA_VACIO, { colorPrincipal: s.colorPrincipal || '', colorSecundario: s.colorSecundario || '', colorPortada: s.colorPortada || '', imagenPortada: s.imagenPortada || '', logo: s.logo || '', logoSistema: s.logoSistema || '', tituloSobrePortada: s.tituloSobrePortada === true }); pintarTema();
     limiteSuc = r.d.limite_sucursales || 1;
     sucursales = r.d.sucursales || []; pintarSuc();
     galeria = r.d.galeria || []; pintarGal(); resenas = r.d.resenas || []; pintarRes();

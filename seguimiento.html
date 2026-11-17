@@ -199,6 +199,8 @@
         if (t) arrancar(t); else mostrarBuscar();
         // Si vino con ?n=12 (de un mensaje), el número queda escrito
         if (params.get('n')) $('inp-numero').value = String(params.get('n')).replace(/\D/g, '');
+        // Si vino desde "Mi cuenta", el teléfono ya queda escrito
+        if (params.get('tel')) $('inp-tel').value = String(params.get('tel')).replace(/[^\d+ -]/g, '').slice(0, 20);
     })();
     </script>
 </body>

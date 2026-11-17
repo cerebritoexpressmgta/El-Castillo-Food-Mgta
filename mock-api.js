@@ -811,14 +811,37 @@
         const c = db.clientes.find(x => x.telefono === ctx.query.telefono);
         return c ? [{ nombre: c.nombre, telefono: c.telefono, direccion_principal: c.direccion_principal, direcciones_extra: c.direcciones_extra, tiene_clave: !!c.clave_hash }] : [];
     });
+    // Ingreso con teléfono + cédula (versión de demostración; la real firma un token en el servidor)
+    const digitosCedulaM = v => String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+/, '');
+    const datosClienteM = c => ({ nombre: c.nombre, telefono: c.telefono, cedula: c.cedula || '', direccion_principal: c.direccion_principal, direcciones_extra: c.direcciones_extra, tiene_clave: !!c.clave_hash });
+    ruta('POST', '/api/clientes/ingresar', (ctx, db) => {
+        const b = ctx.body || {}; const tel = limpiarTexto(b.telefono, 30);
+        if (!telefonoPublicoValido(tel)) throw new HttpError(400, 'El número de teléfono no es válido.');
+        if (digitosCedulaM(b.cedula).length < 5) throw new HttpError(400, 'Escribe tu cédula o RIF (solo números, sin puntos).');
+        const c = db.clientes.find(x => x.telefono === tel);
+        if (!c) return { success: true, existe: false };
+        if (digitosCedulaM(c.cedula)) { if (digitosCedulaM(c.cedula) !== digitosCedulaM(b.cedula)) throw new HttpError(401, 'Los datos no coinciden. Revisa tu número de teléfono y tu cédula.'); }
+        else {
+            if (c.clave_hash) { if (!b.clave) return { success: true, existe: true, necesita_clave: true }; if (b.clave !== c.clave_hash) throw new HttpError(401, 'La clave no es correcta.'); }
+            c.cedula = limpiarTexto(b.cedula, 20);
+        }
+        return { success: true, existe: true, token: 'demo-' + c.telefono, cliente: datosClienteM(c) };
+    });
+    ruta('GET', '/api/clientes/mi-cuenta', (ctx, db) => {
+        const tel = String(ctx.query.token || '').replace(/^demo-/, '');
+        const c = db.clientes.find(x => x.telefono === tel);
+        if (!c) throw new HttpError(401, 'Tu sesión venció. Vuelve a ingresar.');
+        return { success: true, cliente: datosClienteM(c) };
+    });
     ruta('POST', '/api/clientes/registrar', (ctx, db) => {
         const d = ctx.body; const tel = limpiarTexto(d.telefono, 30);
         if (!telefonoPublicoValido(tel)) throw new HttpError(400, 'El número de teléfono no es válido.');
+        if (digitosCedulaM(d.cedula).length < 5) throw new HttpError(400, 'La cédula o RIF es obligatoria (solo números).');
         const clave = validarClaveNueva(d.clave);
         if (db.clientes.some(c => c.telefono === tel)) throw new HttpError(400, 'El cliente ya está registrado.');
         const extras = listaDirecciones(d.direcciones_extra).map(x => limpiarTexto(x, 300)).slice(0, 15);
         db.clientes.push({ telefono: tel, nombre: limpiarTexto(d.nombre, 80) || 'Cliente', cedula: limpiarTexto(d.cedula, 20) || null, direccion_principal: limpiarTexto(d.direccion_principal, 300), direcciones_extra: JSON.stringify(extras), clave_hash: clave });
-        return { status: 'success', mensaje: 'Cliente registrado exitosamente' };
+        return { status: 'success', mensaje: 'Cliente registrado exitosamente', token: 'demo-' + tel };
     });
     ruta('POST', '/api/clientes/crear-clave', (ctx, db) => {
         const c = buscarCliente(db, ctx.body.telefono);

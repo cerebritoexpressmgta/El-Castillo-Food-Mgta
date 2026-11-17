@@ -115,7 +115,17 @@ window.onload = async function() {
     history.replaceState({ step: 'auth' }, "Autenticación");
 
 
-    const sesionCliente = localStorage.getItem('sesionCliente');
+    let sesionCliente = localStorage.getItem('sesionCliente');
+    // Sesiones de antes de la cédula (sin token): por seguridad se pide ingresar de nuevo, una sola vez
+    if (sesionCliente) {
+        let previa = null; try { previa = JSON.parse(sesionCliente); } catch (e) {}
+        if (!previa || !previa.token) {
+            localStorage.removeItem('sesionCliente'); sesionCliente = null;
+            const tel = previa && previa.telefono; if (tel) { const inp = document.getElementById('auth-phone'); if (inp) inp.value = tel; }
+            const av = document.getElementById('auth-aviso');
+            if (av) { av.textContent = '🔒 Para proteger tu cuenta ahora pedimos tu cédula. Confírmala una sola vez para seguir.'; av.classList.remove('hidden'); }
+        }
+    }
     if (sesionCliente) {
         datosClienteLogueado = JSON.parse(sesionCliente);
         document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
@@ -132,17 +142,18 @@ window.onload = async function() {
 // número, así que aquí es donde se entera de que tiene que crear su clave.
 // De paso refresca sus direcciones con lo que hay en la base.
 async function revisarClaveDeSesionGuardada() {
-    if (!datosClienteLogueado || !datosClienteLogueado.telefono) return;
+    if (!datosClienteLogueado || !datosClienteLogueado.token) return;
     try {
-        const response = await fetch(`${URL_VERIFICAR_CLIENTE}?telefono=${encodeURIComponent(datosClienteLogueado.telefono)}`);
+        const response = await fetch(`${API_BASE}/api/clientes/mi-cuenta?token=${encodeURIComponent(datosClienteLogueado.token)}`);
+        if (response.status === 401) { cerrarSesionCliente(); return; } // la sesión venció: vuelve a ingresar
         if (!response.ok) return;
-        const lista = await response.json();
-        if (!Array.isArray(lista) || lista.length === 0) return;
-        datosClienteLogueado = { ...datosClienteLogueado, ...lista[0] };
+        const d = await response.json();
+        if (!d || !d.cliente) return;
+        datosClienteLogueado = { ...datosClienteLogueado, ...d.cliente };
         localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
         // `=== false` a propósito: un backend viejo no manda el campo y no hay
         // que pedirle una clave que todavía no sabe guardar.
-        if (lista[0].tiene_clave === false) goToStep('crear-clave');
+        if (d.cliente.tiene_clave === false) goToStep('crear-clave');
     } catch (e) { /* sin conexión: se revisa la próxima vez */ }
 }
 
@@ -406,28 +417,42 @@ function irAItemDeAnuncio() {
 }
 
 // --- 2. AUTENTICACIÓN Y REGISTRO ---
+async function ingresarConCedula(telefono, cedula, clave) {
+    const response = await fetch(`${API_BASE}/api/clientes/ingresar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefono, cedula, clave: clave || undefined })
+    });
+    if (!response.ok) throw new Error(await motivoDelRechazo(response, 'No se pudo verificar tus datos.'));
+    return response.json();
+}
+
 async function procesarVerificacionTelefono(event) {
     event.preventDefault();
     const txtTelefono = leerTelefonoDeFormulario('auth-phone');
     if (!txtTelefono) return;
+    const tipoDoc = document.getElementById('auth-doc-tipo').value;
+    const numeroDoc = document.getElementById('auth-cedula').value.trim().replace(/[^0-9]/g, '');
+    if (numeroDoc.length < 5) { alert('Escribe tu cédula o RIF (solo números, sin puntos).'); return; }
+    const cedula = `${tipoDoc}-${numeroDoc}`;
 
     const btn = document.getElementById('btn-auth-submit');
     btn.disabled = true; btn.innerText = "Verificando...";
 
     try {
-        // encodeURIComponent es obligatorio: sin él, el '+' de los números
-        // internacionales se decodifica como espacio y el cliente no se encuentra.
-        const response = await fetch(`${URL_VERIFICAR_CLIENTE}?telefono=${encodeURIComponent(txtTelefono)}`);
-        if (!response.ok) throw new Error('Error de red');
-        
-        const resultado = await response.json();
-        const listaClientes = Array.isArray(resultado) ? resultado : (resultado.data || []);
+        let resultado = await ingresarConCedula(txtTelefono, cedula);
+        // Cuenta anterior a la cédula que ya tiene clave: se confirma con ella
+        if (resultado.necesita_clave) {
+            const clave = await pedirClaveCliente('Tu cuenta es de antes de pedir la cédula. Escribe tu clave para confirmar que eres tú.');
+            if (!clave) return;
+            resultado = await ingresarConCedula(txtTelefono, cedula, clave);
+        }
 
-        if (listaClientes.length > 0) {
-            datosClienteLogueado = listaClientes[0];
+        if (resultado.existe && resultado.cliente) {
+            datosClienteLogueado = { ...resultado.cliente, token: resultado.token };
             localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
             document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
             mostrarIconosHeaderSesion(true);
+            const av = document.getElementById('auth-aviso'); if (av) av.classList.add('hidden');
 
             await cargarMenuDesdeDB();
             // Cliente de antes de que existiera la clave: la crea una sola vez.
@@ -436,14 +461,14 @@ async function procesarVerificacionTelefono(event) {
             document.getElementById('reg-name').value = '';
             document.getElementById('reg-clave').value = '';
             document.getElementById('reg-clave-2').value = '';
-            document.getElementById('reg-doc-tipo').value = 'V';
-            document.getElementById('reg-cedula-numero').value = '';
+            document.getElementById('reg-doc-tipo').value = tipoDoc;
+            document.getElementById('reg-cedula-numero').value = numeroDoc; // ya la escribió en el ingreso
             document.getElementById('reg-address').value = '';
             goToStep('registro');
         }
     } catch (e) {
         console.error(e);
-        alert("Ocurrió un error de conexión al verificar el teléfono.");
+        alert(e && e.message && e.message !== 'Failed to fetch' ? e.message : "Ocurrió un error de conexión al verificar tus datos.");
     } finally {
         btn.disabled = false; btn.innerText = "Ingresar ➔";
     }
@@ -452,12 +477,11 @@ async function procesarVerificacionTelefono(event) {
 async function procesarRegistroCliente(event) {
     event.preventDefault();
 
-    // La cédula/RIF es opcional: si no la escriben, el cliente se guarda sin ella.
-    // Se manda "" y no null a propósito: así el registro sigue funcionando aunque el
-    // backend todavía no haya terminado de desplegar el cambio que la vuelve opcional.
+    // La cédula/RIF es obligatoria: es con lo que el cliente ingresa (junto con su teléfono).
     const tipoDoc = document.getElementById('reg-doc-tipo').value;
     const numeroDoc = document.getElementById('reg-cedula-numero').value.trim().replace(/[^0-9]/g, '');
 
+    if (numeroDoc.length < 5) { alert('Escribe tu cédula o RIF (solo números, sin puntos).'); return; }
     const clave = document.getElementById('reg-clave').value;
     if (!claveNuevaValida(clave, document.getElementById('reg-clave-2').value)) return;
 
@@ -486,9 +510,11 @@ async function procesarRegistroCliente(event) {
             return;
         }
 
+        const respuesta = await response.json().catch(() => ({}));
         // La clave no se guarda en el navegador: solo viaja al registrarse.
         delete payload.clave;
         payload.tiene_clave = true;
+        payload.token = respuesta.token;
         datosClienteLogueado = payload;
         localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
         document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
@@ -525,7 +551,7 @@ async function procesarCrearClave(event) {
         const response = await fetch(API_BASE + "/api/clientes/crear-clave", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telefono: datosClienteLogueado.telefono, clave: clave })
+            body: JSON.stringify({ telefono: datosClienteLogueado.telefono, clave: clave, token: datosClienteLogueado.token })
         });
         if (!response.ok) {
             alert(await motivoDelRechazo(response, 'No se pudo guardar la clave. Intenta de nuevo.'));
@@ -2626,4 +2652,11 @@ function pintarServicioMesa() {
     document.getElementById('checkout-servicio-price').innerText = '$' + monto.toFixed(2);
     document.getElementById('checkout-total-servicio').innerText = '$' + (sub + monto).toFixed(2);
     fila.classList.remove('hidden'); filaTot.classList.remove('hidden');
+}
+
+// "Mi cuenta" → Rastrear mi pedido (llega con el teléfono ya escrito)
+function rastrearDesdeCuenta(ev) {
+    if (ev) ev.preventDefault();
+    const tel = datosClienteLogueado && datosClienteLogueado.telefono ? '?tel=' + encodeURIComponent(datosClienteLogueado.telefono) : '';
+    location.href = 'seguimiento.html' + tel;
 }

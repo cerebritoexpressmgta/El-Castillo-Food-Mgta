@@ -959,21 +959,65 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!(await verificarClave(clave, cliente.clave_hash))) { anotarFallo(k); throw new HttpError(401, 'La clave no es correcta.'); }
         olvidarFallos(k);
     }
+    // ---- Ingreso del cliente: teléfono + cédula/RIF (antes bastaba con el teléfono y cualquiera veía los datos de otro) ----
+    // La cédula se compara solo por sus dígitos ("V-12.345.678" = "12345678").
+    const digitosCedula = v => String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+/, '');
+    const cedulaValida = v => { const d = digitosCedula(v); return d.length >= 5 && d.length <= 12; };
+    const datosPublicosCliente = c => ({ nombre: c.nombre, telefono: c.telefono, cedula: c.cedula || '', direccion_principal: c.direccion_principal, direcciones_extra: c.direcciones_extra, tiene_clave: !!c.clave_hash });
+    const TOKEN_CLIENTE_MS = 30 * 24 * 3600e3;
+    // Sin sesión de personal solo se dice si el número existe y si ya tiene clave (nada de nombre ni direcciones)
     ruta('GET', '/api/clientes/verificar', (ctx, db) => {
         const c = db.clientes.find(x => x.telefono === ctx.query.telefono);
-        return c ? [{ nombre: c.nombre, telefono: c.telefono, direccion_principal: c.direccion_principal, direcciones_extra: c.direcciones_extra, tiene_clave: !!c.clave_hash }] : [];
+        if (!c) return [];
+        if (ctx.sesion) return [datosPublicosCliente(c)];
+        return [{ telefono: c.telefono, tiene_clave: !!c.clave_hash }];
+    });
+    ruta('POST', '/api/clientes/ingresar', async (ctx, db) => {
+        const b = ctx.body || {};
+        const tel = limpiarTexto(b.telefono, 30);
+        if (!telefonoPublicoValido(tel)) throw new HttpError(400, 'El número de teléfono no es válido.');
+        if (!cedulaValida(b.cedula)) throw new HttpError(400, 'Escribe tu cédula o RIF (solo números, sin puntos).');
+        const k = 'ingreso:' + tel;
+        if (cupoAgotado(k, 6, 15 * 60)) throw new HttpError(429, 'Demasiados intentos con ese número. Espera 15 minutos e inténtalo de nuevo.');
+        const c = db.clientes.find(x => x.telefono === tel);
+        if (!c) return { success: true, existe: false };
+        const guardada = digitosCedula(c.cedula);
+        if (guardada) {
+            if (guardada !== digitosCedula(b.cedula)) { anotarFallo(k); throw new HttpError(401, 'Los datos no coinciden. Revisa tu número de teléfono y tu cédula.'); }
+        } else {
+            // Cuenta anterior a la cédula: si tiene clave, se confirma con ella antes de asociar la cédula
+            if (c.clave_hash) {
+                if (!b.clave) return { success: true, existe: true, necesita_clave: true };
+                if (!(await verificarClave(String(b.clave), c.clave_hash))) { anotarFallo(k); throw new HttpError(401, 'La clave no es correcta.'); }
+            }
+            c.cedula = limpiarTexto(b.cedula, 20);
+        }
+        olvidarFallos(k);
+        const token = await firmarObjeto({ fase: 'cliente', tel: c.telefono }, TOKEN_CLIENTE_MS);
+        return { success: true, existe: true, token, cliente: datosPublicosCliente(c) };
+    });
+    // Refresco de la sesión guardada en el celular (con el token que se dio al ingresar)
+    ruta('GET', '/api/clientes/mi-cuenta', async (ctx, db) => {
+        const o = await leerObjeto(ctx.query.token);
+        const c = o && o.fase === 'cliente' ? db.clientes.find(x => x.telefono === o.tel) : null;
+        if (!c) throw new HttpError(401, 'Tu sesión venció. Vuelve a ingresar.');
+        return { success: true, cliente: datosPublicosCliente(c) };
     });
     ruta('POST', '/api/clientes/registrar', async (ctx, db) => {
         const d = ctx.body; const tel = limpiarTexto(d.telefono, 30);
         if (!telefonoPublicoValido(tel)) throw new HttpError(400, 'El número de teléfono no es válido.');
+        if (!cedulaValida(d.cedula)) throw new HttpError(400, 'La cédula o RIF es obligatoria (solo números).');
         const clave = validarClaveNueva(d.clave);
         if (db.clientes.some(c => c.telefono === tel)) throw new HttpError(400, 'El cliente ya está registrado.');
         const extras = listaDirecciones(d.direcciones_extra).map(x => limpiarTexto(x, 300)).slice(0, 15);
         db.clientes.push({ telefono: tel, nombre: limpiarTexto(d.nombre, 80) || 'Cliente', cedula: limpiarTexto(d.cedula, 20) || null, direccion_principal: limpiarTexto(d.direccion_principal, 300), direcciones_extra: JSON.stringify(extras), clave_hash: await hashClave(clave) });
-        return { status: 'success', mensaje: 'Cliente registrado exitosamente' };
+        const tokenNuevo = await firmarObjeto({ fase: 'cliente', tel }, TOKEN_CLIENTE_MS);
+        return { status: 'success', mensaje: 'Cliente registrado exitosamente', token: tokenNuevo };
     });
     ruta('POST', '/api/clientes/crear-clave', async (ctx, db) => {
         const c = buscarCliente(db, ctx.body.telefono);
+        const o = await leerObjeto(ctx.body.token);
+        if (!o || o.fase !== 'cliente' || o.tel !== c.telefono) throw new HttpError(401, 'Por seguridad, vuelve a ingresar con tu cédula para crear tu clave.');
         if (c.clave_hash) throw new HttpError(400, 'Este número ya tiene una clave. Si la olvidaste, pide al personal que la restablezca.');
         c.clave_hash = await hashClave(validarClaveNueva(ctx.body.clave));
         return { status: 'success' };
@@ -1419,7 +1463,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 
 
 // ---- Web pública: datos del sitio y sucursales ----
-const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', tituloSobrePortada: false };
+const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', logoSistema: '', tituloSobrePortada: false };
 const colorOk = v => (/^#[0-9a-fA-F]{6}$/.test(String(v || '').trim()) ? String(v).trim().toLowerCase() : '');
 // Horario propio de una sucursal: 7 días (0 = lunes) con activo + apertura/cierre. null = usa el horario general del negocio.
 const HORA_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -1453,7 +1497,7 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
         facebook: limpiarTexto(s.facebook, 200, true), tiktok: limpiarTexto(s.tiktok, 200, true).replace(/^@/, ''),
         email: limpiarTexto(s.email, 120, true),
         colorPrincipal: colorOk(s.colorPrincipal), colorSecundario: colorOk(s.colorSecundario), colorPortada: colorOk(s.colorPortada),
-        imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo), tituloSobrePortada: s.tituloSobrePortada === true
+        imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo), logoSistema: urlSegura(s.logoSistema), tituloSobrePortada: s.tituloSobrePortada === true
     };
     const lista = Array.isArray(d.sucursales) ? d.sucursales.slice(0, 12) : [];
     // El plan limita cuántas sucursales activas puede tener el negocio (solo se bloquea si se intenta AUMENTAR)
