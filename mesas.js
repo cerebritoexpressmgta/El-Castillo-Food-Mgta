@@ -142,6 +142,10 @@ function pintarPlano() {
     const piezas = pl.elementos.map(el => PLANO.htmlElemento(el, pl)).join('');
     const ubicadas = mesas.filter(m => pl.mesas[m.id]);
     const sinUbicar = mesas.filter(m => !pl.mesas[m.id]);
+    const sillas = ubicadas.map(m => {
+        const atenuada = zonaActiva !== 'Todas' && m.zona !== zonaActiva;
+        return PLANO.htmlSillas(pl.mesas[m.id], pl, m.capacidad, m.estado || 'libre', m.id, atenuada ? 'atenuada' : '');
+    }).join('');
     const botones = ubicadas.map(m => {
         const c = pl.mesas[m.id], enUso = m.estado !== 'libre';
         const atenuada = zonaActiva !== 'Todas' && m.zona !== zonaActiva;
@@ -151,7 +155,7 @@ function pintarPlano() {
             ${enUso ? `<span class="pl-cons">$${fmt(m.consumo)}</span>` : ''}
         </button>`;
     }).join('');
-    cont.innerHTML = piezas + botones;
+    cont.innerHTML = piezas + sillas + botones;
     document.getElementById('plano-sin-ubicar').innerHTML = sinUbicar.length
         ? '<span class="font-bold text-slate-300">Mesas sin ubicar en el plano:</span>' + sinUbicar.map(m => `<button onclick="abrirModalMesa(${m.id})" class="px-3 py-1.5 rounded-full border border-slate-600 bg-slate-800 text-slate-200 font-bold hover:bg-slate-700">${PLANO.esc(m.nombre)}</button>`).join('')
         : '';

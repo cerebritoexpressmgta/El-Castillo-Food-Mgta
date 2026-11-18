@@ -153,6 +153,10 @@
         }).join('');
         h += Object.keys(PE.mesas).map(function (id) {
             var c = PE.mesas[id], m = PE.lista.find(function (x) { return String(x.id) === String(id); });
+            return m ? PLANO.htmlSillas(c, plano, m.capacidad, 'edit', id) : '';
+        }).join('');
+        h += Object.keys(PE.mesas).map(function (id) {
+            var c = PE.mesas[id], m = PE.lista.find(function (x) { return String(x.id) === String(id); });
             if (!m) return '';
             var es = PE.sel && PE.sel.k === 'm' && String(PE.sel.id) === String(id);
             return '<div class="pl-mesa est-edit pe-item ' + (c.forma === 'redonda' ? 'redonda' : 'cuadrada') + (es ? ' sel' : '') + '" data-k="m" data-id="' + id + '" style="' + PLANO.estiloPos(c, plano) + '">' +
@@ -271,6 +275,11 @@
             ajustar(o, PE.sel.k);
             var p = PLANO.estiloPos(o, { ancho: PE.ancho, alto: PE.alto }).split(';');
             p.forEach(function (par) { var kv = par.split(':'); if (kv.length === 2) d.nodo.style[kv[0]] = kv[1]; });
+            if (PE.sel.k === 'm') { // las sillas acompañan a la mesa mientras se arrastra
+                var mm = PE.lista.find(function (x) { return String(x.id) === String(PE.sel.id); });
+                lienzo.querySelectorAll('.pl-silla[data-silla="' + PE.sel.id + '"]').forEach(function (n) { n.remove(); });
+                if (mm) { var ref = d.nodo; ref.insertAdjacentHTML('beforebegin', PLANO.htmlSillas(o, { ancho: PE.ancho, alto: PE.alto }, mm.capacidad, 'edit', PE.sel.id)); }
+            }
         });
         function soltar() { if (PE && PE.drag) { if (PE.drag.movido) PE.sucio = true; PE.drag = null; } }
         lienzo.addEventListener('pointerup', soltar);
