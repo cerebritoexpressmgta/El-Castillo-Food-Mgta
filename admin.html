@@ -654,17 +654,19 @@
         </div>
 
         <div id="tab-pagos" class="tab-content">
-            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.5rem; max-width: 800px; margin: 0 auto;">
-                <h2 class="titulo-seccion"><i class="fa-solid fa-credit-card"></i> Métodos de Pago</h2>
+            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.5rem; max-width: 900px; margin: 0 auto;">
+                <h2 class="titulo-seccion"><i class="fa-solid fa-credit-card"></i> Métodos de Pago / Pasarelas</h2>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem; text-align: center;">
-                    Son las opciones que ven los clientes en el menú y el personal en la caja. También se usan en Estadísticas. Puedes cambiarles el nombre, quitarlas o agregar nuevas.
+                    Anota con qué métodos cobras: los datos para pagar, un enlace de pago y, si quieres, tu código QR (tú lo generas y lo subes; aquí no se crea).
+                    Los nombres son los que ven los clientes en el menú y el personal en la caja, y también se usan en Estadísticas.
+                    El personal puede compartir estos datos desde el botón <b>💳 Pagos</b> de sus pantallas, sin entrar a este panel.
                 </p>
-                <div id="lista-metodos-pago" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;"></div>
-                <div style="display:flex; gap:0.5rem; margin-top:1rem; flex-wrap:wrap;">
-                    <input type="text" id="nuevo-metodo-pago" maxlength="30" placeholder="Ej: Zelle, Punto de venta, Binance..." style="flex:1; min-width:200px; margin-top:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarMetodoPago();}">
-                    <button type="button" class="btn-submit" onclick="agregarMetodoPago()" style="width:auto; margin:0; padding:0.75rem 1.3rem;">+ Agregar</button>
+                <div id="lista-metodos-pago" style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;"></div>
+                <div class="pagos-barra">
+                    <button type="button" class="btn-submit" onclick="agregarMetodoPago()">➕ Agregar método de pago</button>
+                    <button type="button" class="btn-submit btn-gris-pago" onclick="compartirTodosMetodos()">📤 Compartir todos mis métodos</button>
                 </div>
-                <button type="button" class="btn-submit" id="btn-save-pagos" onclick="guardarMetodosPago()" style="margin-top:1.25rem; max-width:300px;">💾 Guardar métodos de pago</button>
+                <button type="button" class="btn-submit" id="btn-save-pagos" onclick="guardarMetodosPago()" style="margin-top:1rem;">💾 Guardar métodos de pago</button>
             </div>
         </div>
 
@@ -923,6 +925,7 @@
     <script src="demo-config.js"></script>
     <script src="logo-sistema.js?v=1"></script>
     <script src="api-cliente.js"></script>
+    <script src="compartir-pagos.js?v=1"></script>
     <script src="admin.js"></script>
     <script src="admin-mesas.js"></script>
     <script src="plano-comun.js?v=4"></script>

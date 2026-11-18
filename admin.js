@@ -957,48 +957,129 @@ async function eliminarTrabajador() {
 // ==========================================
 // MÉTODOS DE PAGO (los ve el cliente en el menú, la caja y las estadísticas)
 // ==========================================
-let METODOS_PAGO = [];
+let METODOS_PAGO = []; // [{ nombre, datos, enlace, qr }]
+
+(function () {
+    const st = document.createElement('style');
+    st.textContent =
+        '.pago-card{background:var(--card-bg);border:1px solid #4a5b94;border-radius:10px;padding:1rem}' +
+        '.pago-top{display:flex;justify-content:space-between;align-items:center;gap:.5rem}' +
+        '.pago-top b{color:#a5b4fc;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}' +
+        '.pago-card label{text-align:center;text-transform:none;font-weight:normal;margin-top:.8rem}' +
+        '.pago-card input,.pago-card textarea{margin-top:.3rem;text-align:center}' +
+        '.pago-card textarea{text-align:left;min-height:80px;resize:vertical}' +
+        '.pago-qr{display:flex;justify-content:center;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:.5rem}' +
+        '.pago-qr .vista{width:124px;height:124px;border-radius:10px;background:#fff;border:3px solid #fff;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#64748b;font-size:.75rem;text-align:center}' +
+        '.pago-qr .vista img{width:100%;height:100%;object-fit:contain;cursor:pointer}' +
+        '.pago-qr .btns{display:flex;flex-direction:column;gap:.4rem}' +
+        '.pago-card .mini{border:0;border-radius:6px;padding:.55rem 1rem;font-weight:bold;cursor:pointer;color:#fff;background:#4f46e5;font-size:.8rem}' +
+        '.pago-card .mini.gris{background:#475569}.pago-card .mini.rojo{background:#dc2626}.pago-card .mini.verde{background:#16a34a}' +
+        '.pago-acciones{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:1rem}' +
+        '.pago-acciones .mini{padding:.7rem}' +
+        '.pagos-barra{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1rem}' +
+        '.pagos-barra .btn-submit{margin-top:0}.btn-gris-pago{background-color:#475569!important}' +
+        '@media(max-width:600px){.pagos-barra,.pago-acciones{grid-template-columns:1fr}}';
+    document.head.appendChild(st);
+})();
 
 async function cargarMetodosPago() {
     try {
-        const res = await fetch(API_BASE + "/api/metodos-pago", { headers: authHeaders() });
+        // Con sesión de administrador, la ruta de detalle trae datos, enlace y QR de cada método
+        const res = await fetch(API_BASE + "/api/metodos-pago/detalle", { headers: authHeaders() });
         const data = await res.json();
-        METODOS_PAGO = Array.isArray(data) ? data.map(String) : [];
+        METODOS_PAGO = Array.isArray(data) ? data.map(m => ({ nombre: String(m.nombre || ''), datos: String(m.datos || ''), enlace: String(m.enlace || ''), qr: String(m.qr || '') })) : [];
         renderMetodosPago();
     } catch (error) { console.error("Error obteniendo métodos de pago:", error); }
 }
 
 function renderMetodosPago() {
     const cont = document.getElementById('lista-metodos-pago');
-    cont.innerHTML = METODOS_PAGO.map((n, i) => `<div style="display:flex; gap:0.5rem; align-items:center;">
-        <input type="text" maxlength="30" value="${escapeHtml(n)}" oninput="METODOS_PAGO[${i}] = this.value" style="margin-top:0; flex:1;">
-        <button type="button" class="action-btn btn-delete" onclick="quitarMetodoPago(${i})" title="Quitar">🗑️</button></div>`).join('')
-        || '<p style="color:var(--text-muted); font-size:0.85rem;">No hay métodos de pago. Agrega al menos uno.</p>';
+    cont.innerHTML = METODOS_PAGO.map((m, i) => `
+    <div class="pago-card">
+        <div class="pago-top"><b>Método ${i + 1}</b>
+            <button type="button" class="mini rojo" onclick="quitarMetodoPago(${i})">🗑️ Eliminar</button></div>
+        <label>Nombre del método</label>
+        <input type="text" maxlength="30" value="${escapeHtml(m.nombre)}" placeholder="Ej: Pago Móvil, Zelle, Binance..." oninput="METODOS_PAGO[${i}].nombre = this.value">
+        <label>Datos para pagar (cuenta, banco, teléfono, cédula...)</label>
+        <textarea maxlength="700" oninput="METODOS_PAGO[${i}].datos = this.value">${escapeHtml(m.datos)}</textarea>
+        <label>Enlace de pago (opcional)</label>
+        <input type="url" maxlength="400" value="${escapeHtml(m.enlace)}" placeholder="https://..." oninput="METODOS_PAGO[${i}].enlace = this.value">
+        <label>Código QR (opcional)</label>
+        <div class="pago-qr">
+            <div class="vista">${m.qr ? `<img src="${escapeHtml(m.qr)}" alt="QR ${escapeHtml(m.nombre)}" title="Clic para ver en grande" onclick="PagosCompartir.verQr(METODOS_PAGO[${i}].qr)">` : 'Sin QR'}</div>
+            <div class="btns">
+                <button type="button" class="mini" onclick="document.getElementById('pago-qr-file-${i}').click()">${m.qr ? '🖼️ Cambiar QR' : '⬆️ Subir QR'}</button>
+                ${m.qr ? `<button type="button" class="mini gris" onclick="quitarQrMetodo(${i})">Quitar QR</button>` : ''}
+                <input type="file" id="pago-qr-file-${i}" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="subirQrMetodo(${i}, this)">
+            </div>
+        </div>
+        <div class="pago-acciones">
+            <button type="button" class="mini verde" onclick="compartirMetodo(${i})">📤 Compartir</button>
+            <button type="button" class="mini gris" onclick="copiarMetodo(${i})">📋 Copiar datos</button>
+        </div>
+    </div>`).join('')
+        || '<p style="color:var(--text-muted); font-size:0.85rem; text-align:center;">No hay métodos de pago. Agrega al menos uno.</p>';
 }
 
 function agregarMetodoPago() {
-    const inp = document.getElementById('nuevo-metodo-pago');
-    const n = inp.value.trim();
-    if (!n) return;
-    if (METODOS_PAGO.some(x => x.trim().toLowerCase() === n.toLowerCase())) { alert('Ese método ya está en la lista.'); return; }
     if (METODOS_PAGO.length >= 12) { alert('Máximo 12 métodos de pago.'); return; }
-    METODOS_PAGO.push(n); inp.value = ''; renderMetodosPago();
+    METODOS_PAGO.push({ nombre: '', datos: '', enlace: '', qr: '' });
+    renderMetodosPago();
+    const cards = document.querySelectorAll('#lista-metodos-pago .pago-card');
+    const ult = cards[cards.length - 1];
+    if (ult) { ult.scrollIntoView({ behavior: 'smooth', block: 'center' }); const inp = ult.querySelector('input'); if (inp) inp.focus(); }
 }
 
 function quitarMetodoPago(i) {
     if (METODOS_PAGO.length <= 1) { alert('Debe quedar al menos un método de pago.'); return; }
+    if (!confirm('¿Eliminar este método de pago?')) return;
     METODOS_PAGO.splice(i, 1); renderMetodosPago();
 }
 
+function quitarQrMetodo(i) { METODOS_PAGO[i].qr = ''; renderMetodosPago(); }
+
+// Sube la imagen del QR (que genera el dueño por su cuenta) y la deja en el método; se guarda al pulsar "Guardar".
+async function subirQrMetodo(i, input) {
+    const archivo = input.files && input.files[0]; input.value = '';
+    if (!archivo) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(archivo.type)) { alert('Usa una imagen PNG, JPG o WebP.'); return; }
+    try {
+        let imagen = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(archivo); });
+        if (imagen.length > 1.3 * 1024 * 1024) { // demasiado pesada: se reduce sin perder legibilidad del QR
+            imagen = await new Promise((res, rej) => {
+                const im = new Image();
+                im.onload = () => {
+                    const k = Math.min(1, 1200 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+                    c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+                    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height);
+                    res(c.toDataURL('image/png'));
+                };
+                im.onerror = rej; im.src = imagen;
+            });
+        }
+        const res = await fetch(API_BASE + '/api/subir-imagen', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ imagen }) });
+        const r = await res.json();
+        if (!r.success) { alert(r.detail || 'No se pudo subir la imagen.'); return; }
+        METODOS_PAGO[i].qr = r.data.url; renderMetodosPago();
+    } catch (e) { alert('No se pudo subir el QR: ' + e.message); }
+}
+
+function metodoLimpio(m) { return { nombre: (m.nombre || '').trim(), datos: (m.datos || '').trim(), enlace: (m.enlace || '').trim(), qr: m.qr || '' }; }
+function compartirMetodo(i) { PagosCompartir.compartir([metodoLimpio(METODOS_PAGO[i])]); }
+function copiarMetodo(i) { PagosCompartir.copiar([metodoLimpio(METODOS_PAGO[i])]); }
+function compartirTodosMetodos() { PagosCompartir.compartir(METODOS_PAGO.map(metodoLimpio).filter(m => m.nombre)); }
+
 async function guardarMetodosPago() {
     const btn = document.getElementById('btn-save-pagos');
-    const lista = METODOS_PAGO.map(x => x.trim()).filter(Boolean);
-    if (!lista.length) { alert('Debe quedar al menos un método de pago.'); return; }
+    const detalle = METODOS_PAGO.map(metodoLimpio).filter(m => m.nombre);
+    if (!detalle.length) { alert('Debe quedar al menos un método de pago con nombre.'); return; }
+    const malo = detalle.find(m => m.enlace && !/^https:\/\//i.test(m.enlace));
+    if (malo) { alert('El enlace de pago de "' + malo.nombre + '" debe empezar con https://'); return; }
     btn.disabled = true; btn.innerText = "Guardando...";
     try {
-        const res = await fetch(API_BASE + "/api/metodos-pago/guardar", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ metodos: lista }) });
+        const res = await fetch(API_BASE + "/api/metodos-pago/guardar", { method: 'POST', headers: authHeaders(), body: JSON.stringify({ detalle }) });
         const data = await res.json();
-        if (data.success) { alert("✅ Métodos de pago actualizados. El menú ya los muestra."); await cargarMetodosPago(); }
+        if (data.success) { alert("✅ Métodos de pago actualizados. El menú y el personal ya los ven."); await cargarMetodosPago(); }
         else alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
     } catch (e) { alert('Error de red al guardar.'); }
     finally { btn.disabled = false; btn.innerText = "💾 Guardar métodos de pago"; }

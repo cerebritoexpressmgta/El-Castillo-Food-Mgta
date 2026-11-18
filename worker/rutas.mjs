@@ -601,22 +601,41 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     });
 
     // ---- Métodos de pago (los que ve el cliente en el menú y en la caja; también alimentan las estadísticas) ----
+    // db.metodos_pago_det guarda el detalle de cada método (datos para pagar, enlace y imagen del QR que sube el dueño).
+    // GET /api/metodos-pago (público) sigue devolviendo solo los nombres; el detalle es solo para personal con sesión.
     const METODOS_PAGO_BASE = ['Pago Móvil', 'Efectivo / Divisas'];
-    function metodosPago(db) {
+    function metodosPagoDet(db) {
+        const det = Array.isArray(db.metodos_pago_det) ? db.metodos_pago_det.filter(x => x && typeof x.nombre === 'string' && x.nombre.trim()) : [];
+        if (det.length) return det.map(x => ({ nombre: x.nombre, datos: x.datos || '', enlace: x.enlace || '', qr: x.qr || '' }));
         const l = Array.isArray(db.metodos_pago) ? db.metodos_pago.filter(x => typeof x === 'string' && x.trim()) : [];
-        return l.length ? l : METODOS_PAGO_BASE.slice();
+        return (l.length ? l : METODOS_PAGO_BASE).map(n => ({ nombre: n, datos: '', enlace: '', qr: '' }));
     }
+    function metodosPago(db) { return metodosPagoDet(db).map(x => x.nombre); }
     ruta('GET', '/api/metodos-pago', (ctx, db) => metodosPago(db));
+    ruta('GET', '/api/metodos-pago/detalle', (ctx, db) => { requiereStaff(ctx); return metodosPagoDet(db); });
     ruta('POST', '/api/metodos-pago/guardar', (ctx, db) => {
         requiereAdmin(ctx);
+        const b = ctx.body || {};
+        const entrada = Array.isArray(b.detalle) ? b.detalle : (Array.isArray(b.metodos) ? b.metodos.map(n => ({ nombre: n })) : []);
         const vistos = new Set(); const lista = [];
-        (Array.isArray((ctx.body || {}).metodos) ? ctx.body.metodos : []).forEach(n => {
-            const t = txtFicha(n, 30); const k = t.toLowerCase();
-            if (t && !vistos.has(k)) { vistos.add(k); lista.push(t); }
+        entrada.forEach(x => {
+            const o = (x && typeof x === 'object') ? x : { nombre: x };
+            const nombre = txtFicha(o.nombre, 30); const k = nombre.toLowerCase();
+            if (!nombre || vistos.has(k)) return;
+            vistos.add(k);
+            const enlace = limpiarTexto(o.enlace, 400, true);
+            const qr = limpiarTexto(o.qr, 600, true);
+            lista.push({
+                nombre,
+                datos: limpiarTexto(o.datos, 700, false),
+                enlace: /^https:\/\//i.test(enlace) ? enlace : '',
+                qr: /^(https:\/\/|\/)/i.test(qr) ? qr : ''
+            });
         });
         if (!lista.length) return { success: false, error: 'Debe quedar al menos un método de pago' };
         if (lista.length > 12) return { success: false, error: 'Máximo 12 métodos de pago' };
-        db.metodos_pago = lista;
+        db.metodos_pago_det = lista;
+        db.metodos_pago = lista.map(x => x.nombre);
         return ok();
     });
 
