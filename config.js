@@ -28,7 +28,7 @@ const API_BASE = "";
 //
 // OJO: esto NO apaga el aviso al grupo de WhatsApp ni el precio del
 // delivery. Esas dos cosas se siguen usando todos los dias.
-const FUNCION_MOTORIZADOS = false;
+const FUNCION_MOTORIZADOS = true;
 
 // Zelle no se le ofrece a los clientes desde hace rato (la opcion ya no esta
 // en el menu), asi que su plantilla de WhatsApp tampoco tiene por que ocupar
