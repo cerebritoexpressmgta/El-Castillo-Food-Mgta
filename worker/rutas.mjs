@@ -383,7 +383,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     ruta('GET', '/api/menu', (ctx, db) => { const sid = parseInt(ctx.query.sucursal, 10) || 0; return ({
         menu: {
             categorias: db.categorias.map(c => ({ id: c.id, nombre: c.nombre, imagen: c.imagen })),
-            productos: db.productos.filter(p => itemDisponibleEn(p, sid)).map(p => ({ no_disponible_en: p.no_disponible_en || [], id: p.id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, inventario: p.inventario == null ? null : p.inventario, favorito: !!p.favorito, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
+            productos: db.productos.filter(p => itemDisponibleEn(p, sid)).map(p => ({ no_disponible_en: p.no_disponible_en || [], id: p.id, codigo_barras: p.codigo_barras || '', nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, inventario: p.inventario == null ? null : p.inventario, favorito: !!p.favorito, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
             combos: db.combos.filter(c => comboDisponibleEn(db, c, sid)).map(c => ({ no_disponible_en: c.no_disponible_en || [], id: c.id, nombre: c.nombre, categoria: c.categoria, precio: c.precio, imagen: c.imagen, descripcion: c.descripcion, disponible: c.disponible, favorito: !!c.favorito, items_json: c.items_json, promo_cantidad_minima: c.promo_cantidad_minima, promo_producto_id: c.promo_producto_id, promo_producto_cantidad: c.promo_producto_cantidad, disponible_desde: c.disponible_desde, disponible_hasta: c.disponible_hasta, dias_disponibles: c.dias_disponibles, bandejas: c.bandejas, cajas_pizza: c.cajas_pizza }))
         }
     }); });
@@ -402,13 +402,19 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         guardarEn(db.categorias, db, d, ['nombre', 'imagen'], () => db.categorias.push({ id: siguienteId(db, 'categorias'), nombre: d.nombre, imagen: d.imagen || '' }));
         return ok();
     });
-    const CAMPOS_PROD = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'agotado', 'favorito', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'precio_paquete', 'cantidad_paquete', 'bandejas', 'cajas_pizza'];
+    const CAMPOS_PROD = ['no_disponible_en', 'nombre', 'categoria', 'precio', 'imagen', 'descripcion', 'disponible', 'agotado', 'favorito', 'disponible_desde', 'disponible_hasta', 'dias_disponibles', 'precio_paquete', 'cantidad_paquete', 'bandejas', 'cajas_pizza', 'codigo_barras'];
+    // Código de barras: opcional, único por producto (solo letras, números y - . _)
+    function limpiarCodigo(v) { return String(v == null ? '' : v).replace(/[^0-9A-Za-z\-._]/g, '').slice(0, 64); }
+    function productoConCodigo(db, codigo, exceptoId) { return codigo ? db.productos.find(x => (x.codigo_barras || '') === codigo && x.id !== exceptoId) : null; }
     ruta('POST', '/api/menu/guardar-producto', (ctx, db) => {
         requiereAdmin(ctx); const d = ctx.body;
         if (!d.nombre || !d.categoria || typeof d.precio !== 'number') throw new HttpError(422, 'Datos incompletos');
         const previo = d.id ? db.productos.find(x => x.id === d.id) : null;
         d.no_disponible_en = d.no_disponible_en === undefined ? ((previo && previo.no_disponible_en) || []) : limpiarListaSucursales(db, d.no_disponible_en);
-        const defaults = { disponible: true, agotado: false, favorito: false, bandejas: 1, cajas_pizza: 0, cantidad_paquete: 0, precio_paquete: null, imagen: '', descripcion: '' };
+        d.codigo_barras = d.codigo_barras === undefined ? ((previo && previo.codigo_barras) || '') : limpiarCodigo(d.codigo_barras);
+        const repetido = productoConCodigo(db, d.codigo_barras, d.id || null);
+        if (repetido) return { success: false, error: 'Ese código de barras ya pertenece a "' + repetido.nombre + '".' };
+        const defaults = { disponible: true, agotado: false, favorito: false, bandejas: 1, cajas_pizza: 0, cantidad_paquete: 0, precio_paquete: null, imagen: '', descripcion: '', codigo_barras: '' };
         const datos = Object.assign({}, defaults, d);
         guardarEn(db.productos, db, datos, CAMPOS_PROD, () => { const f = { id: siguienteId(db, 'productos') }; CAMPOS_PROD.forEach(c => { f[c] = datos[c] === undefined ? null : datos[c]; }); db.productos.push(f); });
         return ok();
@@ -437,10 +443,28 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const p = db.productos.find(x => x.id === Number(id));
         if (!p) throw new HttpError(404, 'Producto no encontrado');
         if (cantidad === null) { p.inventario = null; return ok(); } // quitar el control de inventario
+        // Ingreso de mercancía (escáner): suma a lo que haya, sin depender de la cifra que tenga la pantalla
+        if (ctx.body.sumar !== undefined && ctx.body.sumar !== null) {
+            const s = Math.floor(Number(ctx.body.sumar));
+            if (!Number.isFinite(s) || s < 1 || s > 100000) throw new HttpError(422, 'Cantidad no válida');
+            p.inventario = (p.inventario == null ? 0 : p.inventario) + s; p.agotado = p.inventario <= 0;
+            return ok({ inventario: p.inventario });
+        }
         const n = Math.floor(Number(cantidad));
         if (!Number.isFinite(n) || n < 0 || n > 100000) throw new HttpError(422, 'Cantidad no válida');
         p.inventario = n; p.agotado = n <= 0; // con 0 queda sin stock; si se repone, vuelve a estar disponible
         return ok();
+    });
+    // Asignar (o quitar) el código de barras de un producto que ya existe
+    ruta('POST', '/api/menu/codigo', (ctx, db) => {
+        requiereAdmin(ctx); const { id, codigo_barras } = ctx.body || {};
+        const p = db.productos.find(x => x.id === Number(id));
+        if (!p) throw new HttpError(404, 'Producto no encontrado');
+        const codigo = limpiarCodigo(codigo_barras);
+        const repetido = productoConCodigo(db, codigo, p.id);
+        if (repetido) return { success: false, error: 'Ese código de barras ya pertenece a "' + repetido.nombre + '".' };
+        p.codigo_barras = codigo;
+        return ok({ codigo_barras: codigo });
     });
     ruta('POST', '/api/menu/ordenar', (ctx, db) => {
         requiereAdmin(ctx); const { tipo, ids } = ctx.body || {};
