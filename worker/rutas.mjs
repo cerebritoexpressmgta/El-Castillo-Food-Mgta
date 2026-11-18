@@ -1201,8 +1201,11 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!esPersonal && !estaAbiertoAhora(db, sid)) throw new HttpError(403, 'Esta sucursal está cerrada en este momento. Intenta durante su horario de atención.');
 
         const esMesa = esEntregaMesa(tipo);
-        const mesa = esMesa ? db.mesas.find(m => m.nombre === direccion && mesaEnSucursal(m, sid)) : null;
+        let mesa = esMesa ? db.mesas.find(m => m.nombre === direccion && mesaEnSucursal(m, sid)) : null;
         if (esMesa && !mesa) throw new HttpError(400, 'Selecciona una mesa válida.');
+        // Mesa unida a otra: el pedido se carga a la cuenta de la mesa principal (se recuerda la mesa de origen)
+        let mesaOrigen = null;
+        if (mesa && mesa.unida_a) { const prin = db.mesas.find(x => x.id === mesa.unida_a); if (prin) { mesaOrigen = mesa.nombre; mesa = prin; } }
 
         const tasa = tasaVigente(db);
         const cli = db.clientes.find(c => c.telefono === telefono);
@@ -1248,7 +1251,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
 
         const nuevo = {
             id: siguienteId(db, 'pedidos'), cliente, telefono, timestamp: ahoraCaracas(), fecha: hoyCaracas(),
-            tipo_entrega: tipo, direccion, metodo_pago: metodoPago, pedido_detallado: textoFinal, total_orden: totalFinal,
+            tipo_entrega: tipo, direccion: (esMesa && mesa) ? mesa.nombre : direccion, mesa_origen: mesaOrigen, metodo_pago: metodoPago, pedido_detallado: textoFinal, total_orden: totalFinal,
             estado: esMesa ? 'En Cocina' : (cobroDirecto ? 'Pago Pendiente' : 'Calculando Delivery'), procesado_por: esMesa ? 'Pedido en mesa' : 'Sistema Automatizado',
             referencia_pago: /efectivo|punto de venta/i.test(metodoPago) ? null : 'Pendiente',
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,
@@ -1459,6 +1462,16 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         return db.pedidos.filter(p => esEntregaMesa(p.tipo_entrega) && p.direccion === mesa.nombre && (!mesa.sucursal_id || Number(p.sucursal_id) === Number(mesa.sucursal_id)) && p.timestamp >= mesa.ocupada_desde && p.estado !== 'Cancelado')
             .sort((a, b) => a.id - b.id);
     }
+    // Mesas unidas: la principal guarda m.unidas = [ids]; cada mesa unida guarda m.unida_a = id de la principal.
+    // Los pedidos de todas se cargan a la cuenta de la principal (direccion = nombre de la principal).
+    function mesasDelGrupo(db, m) { return [m].concat((m.unidas || []).map(id => db.mesas.find(x => x.id === id)).filter(Boolean)); }
+    function sincronizarUnidas(db, principal) {
+        (principal.unidas || []).forEach(id => { const s = db.mesas.find(x => x.id === id); if (s) { s.estado = principal.estado; s.ocupada_desde = principal.ocupada_desde; } });
+    }
+    function desunirTodas(db, principal) {
+        (principal.unidas || []).forEach(id => { const s = db.mesas.find(x => x.id === id); if (s) { delete s.unida_a; s.estado = 'libre'; s.ocupada_desde = null; } });
+        delete principal.unidas;
+    }
     ruta('GET', '/api/mesas', (ctx, db) => {
         const staff = staffOpcional(ctx);
         const sidM = (staff && sucursalDelPersonal(ctx, db)) || parseInt(ctx.query.sucursal, 10) || 0;
@@ -1466,16 +1479,23 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, sucursal_id: m.sucursal_id || null, qr_url: m.qr_url || '' };
             if (!staff) return base;
             const ped = pedidosDeMesa(db, m);
-            return Object.assign(base, { ocupada_desde: m.ocupada_desde, pedidos: ped.length, consumo: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100 });
+            const grupo = mesasDelGrupo(db, m);
+            return Object.assign(base, {
+                ocupada_desde: m.ocupada_desde, pedidos: ped.length, consumo: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100,
+                unida_a: m.unida_a || null, unidas: m.unidas || [], capacidad_total: grupo.reduce((s, x) => s + (x.capacidad || 0), 0)
+            });
         });
     });
     ruta('GET', '/api/mesas/cuenta', (ctx, db) => {
         requiereStaff(ctx);
-        const m = db.mesas.find(x => x.id === parseInt(ctx.query.id, 10));
+        let m = db.mesas.find(x => x.id === parseInt(ctx.query.id, 10));
         if (!m) throw new HttpError(404, 'Mesa no encontrada');
         if (!mesaEnSucursal(m, sucursalDelPersonal(ctx, db))) throw new HttpError(403, 'Esa mesa es de otra sucursal.');
+        if (m.unida_a) m = db.mesas.find(x => x.id === m.unida_a) || m;
         const ped = pedidosDeMesa(db, m);
-        return { mesa: { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, ocupada_desde: m.ocupada_desde }, pedidos: ped.map(p => Object.assign({}, p, { id_pedido: p.id })), total: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100, tasa_bcv: tasaVigente(db) };
+        const grupo = mesasDelGrupo(db, m);
+        return { mesa: { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, ocupada_desde: m.ocupada_desde,
+                         unidas: grupo.slice(1).map(x => ({ id: x.id, nombre: x.nombre, capacidad: x.capacidad })), capacidad_total: grupo.reduce((s, x) => s + (x.capacidad || 0), 0) }, pedidos: ped.map(p => Object.assign({}, p, { id_pedido: p.id })), total: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100, tasa_bcv: tasaVigente(db) };
     });
     // ---- Plano del local: vista PERSONALIZADA de las mesas (el dueño coloca cada mesa donde está en su local) ----
     // db.planos_mesas[clave] = { modo: 'cuadricula' | 'personalizado', ancho, alto, mesas: { idMesa: {x,y,w,h,forma} }, elementos: [...] }
@@ -1582,9 +1602,10 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     });
     ruta('POST', '/api/mesas/estado', (ctx, db) => {
         const staff = requiereStaff(ctx); const d = ctx.body || {};
-        const m = db.mesas.find(x => x.id === d.id);
+        let m = db.mesas.find(x => x.id === d.id);
         if (!m) throw new HttpError(404, 'Mesa no encontrada');
         if (!mesaEnSucursal(m, sucursalDelPersonal(ctx, db))) throw new HttpError(403, 'Esa mesa es de otra sucursal.');
+        if (m.unida_a) m = db.mesas.find(x => x.id === m.unida_a) || m; // una mesa unida se maneja desde su principal
         let total = 0;
         if (d.estado === 'libre') {
             const ped = pedidosDeMesa(db, m);
@@ -1599,8 +1620,61 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             if (m.estado === 'libre') throw new HttpError(400, 'La mesa está libre: no tiene cuenta.');
             m.estado = 'cuenta';
         } else throw new HttpError(422, 'Estado inválido');
+        // Al cobrar, todas las mesas unidas quedan libres y vuelven a ser mesas sueltas; si no, copian el estado de la principal
+        if (d.estado === 'libre') desunirTodas(db, m); else sincronizarUnidas(db, m);
         ctx.tras.push(() => emitirTablero('mesas'));
         return { success: true, total: Math.round(total * 100) / 100 };
+    });
+
+    // ---- Unir mesas en una sola cuenta (cualquier empleado, sin entrar a Administración) ----
+    ruta('POST', '/api/mesas/fusionar', (ctx, db) => {
+        requiereStaff(ctx); const d = ctx.body || {};
+        const ids = [...new Set((Array.isArray(d.ids) ? d.ids : []).map(Number))];
+        if (ids.length < 2) return { success: false, error: 'Elige al menos 2 mesas para unir.' };
+        if (ids.length > 12) return { success: false, error: 'Son demasiadas mesas para una sola cuenta.' };
+        const sel = ids.map(id => db.mesas.find(x => x.id === id));
+        if (sel.some(x => !x)) throw new HttpError(404, 'Mesa no encontrada');
+        const sidP = sucursalDelPersonal(ctx, db);
+        if (sel.some(x => !mesaEnSucursal(x, sidP))) throw new HttpError(403, 'Esa mesa es de otra sucursal.');
+        if (new Set(sel.map(x => Number(x.sucursal_id || 0))).size > 1) return { success: false, error: 'Las mesas son de sucursales distintas.' };
+        const yaUnida = sel.find(x => x.unida_a);
+        if (yaUnida) { const pr = db.mesas.find(x => x.id === yaUnida.unida_a); return { success: false, error: yaUnida.nombre + ' ya está unida a ' + (pr ? pr.nombre : 'otra mesa') + '. Sepárala primero.' }; }
+        const pidioCuenta = sel.find(x => x.estado === 'cuenta');
+        if (pidioCuenta) return { success: false, error: pidioCuenta.nombre + ' ya pidió la cuenta: no se puede unir.' };
+        const grupos = sel.filter(x => (x.unidas || []).length);
+        if (grupos.length > 1) return { success: false, error: 'No se pueden unir dos grupos de mesas ya unidos. Separa uno primero.' };
+        const principal = grupos[0] || sel.find(x => x.id === Number(d.principal)) || sel.find(x => x.estado !== 'libre') || sel[0];
+        const ahora = ahoraCaracas();
+        // La cuenta abre con la hora más antigua de las mesas que ya estaban en uso
+        const desdes = sel.filter(x => x.estado !== 'libre' && x.ocupada_desde).map(x => x.ocupada_desde).sort();
+        if (principal.estado === 'libre') { principal.estado = 'ocupada'; principal.ocupada_desde = desdes[0] || ahora; }
+        else if (desdes.length && desdes[0] < principal.ocupada_desde) principal.ocupada_desde = desdes[0];
+        principal.unidas = principal.unidas || [];
+        sel.filter(x => x.id !== principal.id).forEach(sec => {
+            // Lo que esa mesa ya había pedido pasa a la cuenta de la principal
+            pedidosDeMesa(db, sec).forEach(p => { p.mesa_origen = p.mesa_origen || p.direccion; p.direccion = principal.nombre; });
+            sec.unida_a = principal.id; delete sec.unidas;
+            principal.unidas.push(sec.id);
+        });
+        sincronizarUnidas(db, principal);
+        ctx.tras.push(() => emitirTablero('mesas'));
+        return { success: true, principal: principal.id, unidas: principal.unidas };
+    });
+    // Separar: sobre la mesa principal deshace todo el grupo; sobre una mesa unida la saca sola del grupo.
+    // Los pedidos ya hechos se quedan en la cuenta de la principal.
+    ruta('POST', '/api/mesas/separar', (ctx, db) => {
+        requiereStaff(ctx); const d = ctx.body || {};
+        const m = db.mesas.find(x => x.id === Number(d.id));
+        if (!m) throw new HttpError(404, 'Mesa no encontrada');
+        if (!mesaEnSucursal(m, sucursalDelPersonal(ctx, db))) throw new HttpError(403, 'Esa mesa es de otra sucursal.');
+        if (m.unida_a) {
+            const pr = db.mesas.find(x => x.id === m.unida_a);
+            if (pr) { pr.unidas = (pr.unidas || []).filter(id => id !== m.id); if (!pr.unidas.length) delete pr.unidas; }
+            delete m.unida_a; m.estado = 'libre'; m.ocupada_desde = null;
+        } else if ((m.unidas || []).length) desunirTodas(db, m);
+        else return { success: false, error: 'Esa mesa no está unida a otra.' };
+        ctx.tras.push(() => emitirTablero('mesas'));
+        return { success: true };
     });
 
 
