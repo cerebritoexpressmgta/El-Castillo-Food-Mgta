@@ -936,6 +936,7 @@
         const nuevo = {
             id: siguienteId(db, 'pedidos'), cliente, telefono, timestamp: ahoraCaracas(), fecha: hoyCaracas(),
             tipo_entrega: tipo, direccion, metodo_pago: metodoPago, pedido_detallado: texto, total_orden: total,
+            ...(esMesa ? { en_cocina_ms: Date.now(), tiempo_prep_min: 20, tiempo_estimado: '20 minutos' } : {}),
             estado: esMesa ? 'En Cocina' : (esPickup ? 'Pago Pendiente' : 'Calculando Delivery'), procesado_por: esMesa ? 'Pedido en mesa' : 'Sistema Automatizado',
             referencia_pago: /efectivo|punto de venta/i.test(metodoPago) ? null : 'Pendiente',
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,

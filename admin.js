@@ -1095,6 +1095,7 @@ async function cargarServicioMesa() {
         if (!d.success) return;
         document.getElementById('sm-activo').checked = !!d.habilitado;
         document.getElementById('sm-pct').value = d.porcentaje;
+        document.getElementById('sm-tiempo').value = d.tiempo_min || 20;
         actualizarEjemploServicioMesa();
     } catch (e) { console.error("Error obteniendo el servicio en mesa:", e); }
 }
@@ -1107,7 +1108,7 @@ function actualizarEjemploServicioMesa() {
 }
 async function guardarServicioMesa() {
     const btn = document.getElementById('btn-save-sm');
-    const body = { activo: document.getElementById('sm-activo').checked, porcentaje: document.getElementById('sm-pct').value };
+    const body = { activo: document.getElementById('sm-activo').checked, porcentaje: document.getElementById('sm-pct').value, tiempo_min: document.getElementById('sm-tiempo').value };
     btn.disabled = true;
     try {
         const res = await fetch(API_BASE + "/api/servicio-mesa/guardar", { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });

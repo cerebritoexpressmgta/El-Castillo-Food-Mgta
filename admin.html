@@ -574,6 +574,12 @@
                     <span>%</span>
                     <button type="button" class="btn-submit" id="btn-save-sm" onclick="guardarServicioMesa()" style="width:auto; margin:0 0 0 0.5rem; padding:0.6rem 1.2rem;">💾 Guardar</button>
                 </div>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.8rem;">
+                    <span>⏱️ Tiempo de preparación en mesa:</span>
+                    <input type="number" id="sm-tiempo" min="1" max="720" step="1" value="20" style="width:100px; margin:0;">
+                    <span>minutos</span>
+                </div>
+                <p style="font-size:0.78rem; color:var(--text-muted); margin:0.4rem 0 0;">Es el tiempo que se promete en los pedidos de mesa (del cliente o del personal). Con él arranca el reloj regresivo en la columna “En cocina”, igual que en pickup y delivery. Se guarda con el botón 💾 Guardar de arriba.</p>
                 <p id="sm-ejemplo" style="font-size:0.8rem; color:var(--text-muted); margin:0.7rem 0 0;"></p>
             </div>
             <div id="card-plano" style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.1rem 1.25rem; margin-bottom: 1.25rem;">

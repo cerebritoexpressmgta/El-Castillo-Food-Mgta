@@ -725,11 +725,33 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const desde = diaCaracas(30);
         return db.pedidos.filter(x => String(x.id) === numero && ultimos9(x.telefono) === tel && (x.fecha || String(x.timestamp || '').slice(0, 10)) >= desde)[0] || null;
     }
+    // Lo que ve el dueño del enlace de seguimiento: la línea de tiempo y, según el paso, el cobro (delivery + total + datos para pagar)
+    // o la opción de compartir su ubicación para que el delivery se calcule solo.
+    function datosSeguimiento(db, p) {
+        const seg = armarSeguimiento(p, String(contarNumeroDiario(db, p)));
+        const est = String(p.estado || '').toLowerCase().replace(/\s+/g, '');
+        if (est === 'pagopendiente') {
+            const total = Number(p.total_orden) || 0;
+            const tasa = Number(p.tasa_bcv) || tasaVigente(db);
+            const nombre = String(p.metodo_pago || '').trim().toLowerCase();
+            const m = metodosPagoDet(db).find(x => x.nombre.trim().toLowerCase() === nombre) || null;
+            seg.cobro = {
+                delivery: p.precio_delivery != null ? Number(p.precio_delivery) : null, total: Math.round(total * 100) / 100,
+                total_bs: Math.round(total * tasa * 100) / 100, metodo: String(p.metodo_pago || ''),
+                datos: m ? m.datos : '', enlace: m ? m.enlace : '', qr: m ? m.qr : ''
+            };
+        }
+        if (est === 'calculandodelivery' && !/mesa|pickup|retiro/i.test(String(p.tipo_entrega || ''))) {
+            const suc = p.sucursal_id ? (db.sucursales || []).find(s => s.id === p.sucursal_id) : null;
+            seg.ubicacion = { auto: configDelivery(db).modo === 'automatico' && !!(suc && parsearCoords(suc.coords)), enviada: p.lat != null && p.lng != null };
+        }
+        return seg;
+    }
     ruta('GET', '/api/seguimiento', async (ctx, db) => {
         const o = await leerObjeto(ctx.query.t);
         const p = o && o.fase === 'seguimiento' ? db.pedidos.find(x => x.id === Number(o.pid)) : null;
         if (!p) return { success: false, error: 'Este enlace ya no sirve. Búscalo con tu número de pedido y tu teléfono.' };
-        return { success: true, seguimiento: armarSeguimiento(p, String(contarNumeroDiario(db, p))) };
+        return { success: true, seguimiento: datosSeguimiento(db, p) };
     });
     ruta('POST', '/api/seguimiento/buscar', async (ctx, db) => {
         const b = ctx.body || {};
@@ -740,7 +762,53 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const p = pedidoPublico(db, numero, tel);
         if (!p) return noEsta;
         const token = await firmarObjeto({ fase: 'seguimiento', pid: p.id }, 4 * 24 * 3600e3);
-        return { success: true, token, seguimiento: armarSeguimiento(p, String(contarNumeroDiario(db, p))) };
+        return { success: true, token, seguimiento: datosSeguimiento(db, p) };
+    });
+
+    // El cliente comparte su ubicación DESPUÉS de pedir (desde el seguimiento): si el delivery es automático, el costo se calcula
+    // y se anexa al pedido solo, que pasa a "Pago Pendiente" sin que cocina tenga que hacer nada. En modo manual solo queda guardada
+    // la ubicación para que el local confirme el costo.
+    ruta('POST', '/api/seguimiento/ubicacion', async (ctx, db) => {
+        const b = ctx.body || {};
+        const o = await leerObjeto(b.t);
+        const p = o && o.fase === 'seguimiento' ? db.pedidos.find(x => x.id === Number(o.pid)) : null;
+        if (!p) return { success: false, error: 'Este enlace ya no sirve. Búscalo con tu número de pedido y tu teléfono.' };
+        const clave = 'ubic:' + p.id;
+        if (cupoAgotado(clave, 12, 600)) throw new HttpError(429, 'Demasiados intentos. Espera unos minutos.');
+        anotarFallo(clave);
+        const est = String(p.estado || '').toLowerCase().replace(/\s+/g, '');
+        if (est !== 'calculandodelivery') return { success: true, mensaje: 'Tu pedido ya tiene el costo del delivery.', seguimiento: datosSeguimiento(db, p) };
+        const destino = coordenadasValidas(b.lat, b.lng);
+        if (!destino) return { success: false, error: 'No pudimos leer tu ubicación. Intenta de nuevo.' };
+        p.lat = destino.lat; p.lng = destino.lng;
+        const suc = p.sucursal_id ? (db.sucursales || []).find(s => s.id === p.sucursal_id) : null;
+        const origen = suc ? parsearCoords(suc.coords) : null;
+        const cfgD = configDelivery(db);
+        if (cfgD.modo !== 'automatico' || !origen) {
+            ctx.tras.push(() => emitirTablero('actualizacion', p.sucursal_id));
+            return { success: true, pendiente: true, mensaje: 'Recibimos tu ubicación. El local te confirmará el costo del delivery en breve.', seguimiento: datosSeguimiento(db, p) };
+        }
+        const km = distanciaKm(origen, destino, cfgD.factor_ruta);
+        const c = cotizarDelivery(cfgD, { km, subtotal: Number(p.total_orden) || 0, hora: horaActualCaracas() });
+        if (!c.ok) return { success: false, error: c.mensaje };
+        p.precio_delivery = c.precio; p.delivery_auto = true; p.distancia_km = c.km;
+        p.total_orden = Math.round(((Number(p.total_orden) || 0) + c.precio) * 100) / 100;
+        p.pedido_detallado = String(p.pedido_detallado || '') + `\n1x Servicio de Delivery ($${c.precio})`;
+        p.estado = 'Pago Pendiente'; p.procesado_por = 'Delivery automático';
+        anotarHito(p, 'Pago Pendiente', Date.now());
+        // Aviso de cobro por WhatsApp, con la misma plantilla que usan los pedidos que salen directo a cobro
+        const m = String(p.metodo_pago || '').toLowerCase();
+        const plantillaId = m.includes('zelle') ? 'cobro_zelle' : (m.includes('efectivo') ? 'cobro_efectivo' : 'cobro_pago_movil');
+        const pl = db.mensajes.find(x => x.id === plantillaId);
+        const tasa = Number(p.tasa_bcv) || tasaVigente(db);
+        const bs = (p.total_orden * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const idVisual = contarNumeroDiario(db, p);
+        const cliente = String(p.cliente || '').trim() || 'Cliente';
+        const mensaje = pl ? aplicarPlaceholders(pl.texto, { '[CLIENTE]': cliente, '[PEDIDO_DETALLADO]': p.pedido_detallado, '[PEDIDO]': idVisual, '[TOTAL_USD]': p.total_orden.toFixed(2), '[TOTAL_BS]': bs })
+            : `¡Hola ${cliente}! Tu pedido #${idVisual} está listo para ser pagado. Total: $${p.total_orden.toFixed(2)}`;
+        enviarWhatsappSimulado(db, p.telefono, mensaje, 'cobro delivery');
+        ctx.tras.push(() => emitirTablero('actualizacion', p.sucursal_id));
+        return { success: true, calculado: true, mensaje: c.gratis ? '🎁 ¡Delivery gratis en tu pedido!' : 'Delivery calculado: $' + Number(c.precio).toFixed(2), seguimiento: datosSeguimiento(db, p) };
     });
 
     // El repartidor (página principal): número de pedido + teléfono del cliente -> marca "en camino" / "entregado".
@@ -781,11 +849,13 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const g = db.servicio_mesa || {};
         let pct = parseFloat(g.porcentaje);
         if (!Number.isFinite(pct) || pct < 0) pct = 10;
-        return { activo: !!g.activo, porcentaje: Math.min(100, Math.round(pct * 100) / 100) };
+        let tm = parseInt(g.tiempo_min, 10);
+        if (!Number.isFinite(tm) || tm < 1 || tm > 720) tm = 20; // minutos que se promete en mesa (alimenta el reloj de cocina)
+        return { activo: !!g.activo, porcentaje: Math.min(100, Math.round(pct * 100) / 100), tiempo_min: tm };
     }
     ruta('GET', '/api/servicio-mesa', (ctx, db) => {
         const c = configServicioMesa(db);
-        return { success: true, activo: c.activo && c.porcentaje > 0, habilitado: c.activo, porcentaje: c.porcentaje };
+        return { success: true, activo: c.activo && c.porcentaje > 0, habilitado: c.activo, porcentaje: c.porcentaje, tiempo_min: c.tiempo_min };
     });
     ruta('POST', '/api/servicio-mesa/guardar', (ctx, db) => {
         requiereAdmin(ctx);
@@ -793,7 +863,10 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const pct = parseFloat(String(b.porcentaje).replace(',', '.'));
         if (!Number.isFinite(pct) || pct < 0 || pct > 100) return { success: false, error: 'Escribe un porcentaje entre 0 y 100.' };
         if (b.activo && !(pct > 0)) return { success: false, error: 'Para activar el servicio escribe un porcentaje mayor a 0.' };
-        db.servicio_mesa = { activo: !!b.activo, porcentaje: Math.round(pct * 100) / 100 };
+        let tm = parseInt(b.tiempo_min, 10);
+        if (b.tiempo_min !== undefined && (!Number.isFinite(tm) || tm < 1 || tm > 720)) return { success: false, error: 'El tiempo de preparación debe estar entre 1 y 720 minutos.' };
+        if (b.tiempo_min === undefined) tm = configServicioMesa(db).tiempo_min;
+        db.servicio_mesa = { activo: !!b.activo, porcentaje: Math.round(pct * 100) / 100, tiempo_min: tm };
         return Object.assign({ success: true }, configServicioMesa(db));
     });
 
@@ -1180,6 +1253,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         }
         enviarWhatsappSimulado(db, telefono, mensaje, 'nuevo pedido');
         const t0 = Date.now(); anotarHito(nuevo, 'Pedido realizado', t0);
+        // Pedidos de mesa (del cliente o del personal) entran directo a cocina: arrancan el reloj igual que pickup y delivery
+        if (esMesa) { nuevo.en_cocina_ms = t0; nuevo.tiempo_prep_min = cfgSM.tiempo_min; nuevo.tiempo_estimado = cfgSM.tiempo_min + ' minutos'; }
         if (nuevo.estado !== 'Calculando Delivery') anotarHito(nuevo, nuevo.estado, t0);
         ctx.tras.push(() => emitirTablero(cobroDirecto ? 'actualizacion' : 'nuevo_pedido', sid));
         if (esMesa) ctx.tras.push(() => emitirTablero('mesas', sid));
