@@ -625,14 +625,21 @@ function filaReporte(p) {
     const f = partesFechaPedido(p.timestamp);
     const totalUSD = Math.round((parseFloat(p.total_orden || 0) || 0) * 100) / 100;
     const tasa = p.tasa_bcv ? parseFloat(p.tasa_bcv) : tasaEstadisticas;
+    // Teléfono y referencia: si son solo dígitos van como NÚMERO (con ceros a la izquierda conservados por el formato); si no, como texto
+    const comoNumero = v => { const t = String(v || '').trim(); return /^\d{1,15}$/.test(t) ? { valor: Number(t), formato: '0'.repeat(t.length) } : { valor: t, formato: null }; };
+    const tel = comoNumero(p.telefono || 'N/A'), ref = comoNumero(p.referencia_pago);
+    // Motorizado: solo tiene sentido en delivery. Si es delivery y nadie lo asignó aún -> "Sin asignar"; en mesa y pickup -> "No aplica"
+    const tipoTxt = String(p.tipo_entrega || '').toLowerCase();
+    const esDelivery = !(tipoTxt.includes('mesa') || tipoTxt.includes('pickup') || tipoTxt.includes('retiro'));
+    const motorizado = (p.repartidor || p.Repartidor || '').trim() || (esDelivery ? 'Sin asignar' : 'No aplica');
     return {
         nro: num(idVisual), id: num(idReal),
         fecha: f ? new Date(Date.UTC(f.y, f.mo - 1, f.d)) : '',
         hora: f ? (f.h * 60 + f.mi) / 1440 : '',
-        cliente: p.cliente || 'Desconocido', telefono: String(p.telefono || 'N/A'),
-        metodo: p.metodo_pago || 'N/A', referencia: String(p.referencia_pago || ''),
+        cliente: p.cliente || 'Desconocido', telefono: tel.valor, fmt_telefono: tel.formato, telefonoTxt: String(p.telefono || 'N/A'),
+        metodo: p.metodo_pago || 'N/A', referencia: ref.valor, fmt_referencia: ref.formato, referenciaTxt: String(p.referencia_pago || ''),
         usd: totalUSD, bs: Math.round(totalUSD * (tasa || 1) * 100) / 100,
-        tipo: p.tipo_entrega || 'N/A', repartidor: p.repartidor || 'N/A',
+        tipo: p.tipo_entrega || 'N/A', repartidor: motorizado,
         detalle: String(p.pedido_detallado || '').replace(/\n/g, ' | ')
     };
 }
@@ -645,7 +652,7 @@ async function generarExcelReporte() {
     const ws = wb.addWorksheet(nombreHojaReporte(titulo), { views: [{ state: 'frozen', ySplit: 1, zoomScale: 130 }] });
     const columnas = [
         ['Nro. Diario', 'nro', 11.4], ['ID Base Datos', 'id', 15.3], ['Fecha', 'fecha', 14.4], ['Hora', 'hora', 14.4],
-        ['Cliente', 'cliente', 30.4], ['Telefono', 'telefono', 14.6], ['Metodo de Pago', 'metodo', 18], ['Referencia', 'referencia', 13.7],
+        ['Cliente', 'cliente', 30.4], ['Telefono', 'telefono', 20], ['Metodo de Pago', 'metodo', 18], ['Referencia', 'referencia', 18],
         ['Total USD', 'usd', 14.7], ['Total Bolivares', 'bs', 17.1], ['Tipo de Entrega', 'tipo', 19.7], ['Motorizado', 'repartidor', 18.1],
         ['Detalle del Pedido', 'detalle', 39.7]
     ];
@@ -670,7 +677,9 @@ async function generarExcelReporte() {
         fila.eachCell({ includeEmpty: true }, (c, i) => {
             if (i > columnas.length) return;
             estilo(c, 'FFFFC000');
-            const fmt = formatos[columnas[i - 1][1]]; if (fmt) c.numFmt = fmt;
+            const clave = columnas[i - 1][1];
+            const fmt = formatos[clave] || (typeof c.value === 'number' ? d['fmt_' + clave] : null);
+            if (fmt) c.numFmt = fmt;
         });
         // Las filas no se autoajustan solas: se calcula la altura según lo que ocupe el detalle y el nombre del cliente
         const n = Math.max(lineas(d.detalle, 34), lineas(d.cliente, 26), lineas(d.metodo, 15), 1);
@@ -715,7 +724,7 @@ function exportarCSVBasico() {
         const f = partesFechaPedido(p.timestamp), dos = n => String(n).padStart(2, '0');
         const fecha = f ? `${dos(f.d)}/${dos(f.mo)}/${f.y}` : '';
         const hora = f ? `${f.h % 12 || 12}:${dos(f.mi)} ${f.h >= 12 ? 'PM' : 'AM'}` : '';
-        csvContent += [d.nro, d.id, fecha, hora, q(d.cliente), d.telefono, d.metodo, d.referencia, d.usd.toFixed(2), d.bs.toFixed(2), d.tipo, d.repartidor, q(d.detalle)].join(";") + "\n";
+        csvContent += [d.nro, d.id, fecha, hora, q(d.cliente), d.telefonoTxt, d.metodo, d.referenciaTxt, d.usd.toFixed(2), d.bs.toFixed(2), d.tipo, d.repartidor, q(d.detalle)].join(";") + "\n";
     });
     descargarArchivo(new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }), nombreArchivoReporte(tituloReporte(), 'csv'));
 }
