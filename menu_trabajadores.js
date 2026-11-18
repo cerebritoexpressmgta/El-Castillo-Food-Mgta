@@ -978,7 +978,7 @@ function pintarMesasCaja() {
     const porZona = {};
     MESAS_CAJA.forEach(m => { (porZona[m.zona || 'Salón'] = porZona[m.zona || 'Salón'] || []).push(m); });
     sel.innerHTML = '<option value="">Elige la mesa...</option>' + Object.keys(porZona).map(z =>
-        `<optgroup label="${escapeHtml(z)}">${porZona[z].map(m => `<option value="${escapeHtml(m.nombre)}">${escapeHtml(m.nombre)} · ${m.capacidad} pers.${m.estado !== 'libre' ? ' · en uso' : ''}</option>`).join('')}</optgroup>`).join('');
+        `<optgroup label="${escapeHtml(z)}">${porZona[z].map(m => `<option value="${escapeHtml(m.nombre)}">${escapeHtml(m.nombre)} · ${m.capacidad} pers.${m.unida_a ? ' · unida a ' + escapeHtml((MESAS_CAJA.find(x => x.id === m.unida_a) || {}).nombre || 'otra mesa') : (m.estado !== 'libre' ? ' · en uso' : '')}</option>`).join('')}</optgroup>`).join('');
     if (elegido) sel.value = elegido;
 }
 
