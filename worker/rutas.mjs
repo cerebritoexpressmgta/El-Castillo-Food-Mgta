@@ -1332,7 +1332,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const staff = staffOpcional(ctx);
         const sidM = (staff && sucursalDelPersonal(ctx, db)) || parseInt(ctx.query.sucursal, 10) || 0;
         return db.mesas.filter(m => mesaEnSucursal(m, sidM)).sort((a, b) => a.id - b.id).map(m => {
-            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, sucursal_id: m.sucursal_id || null };
+            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, sucursal_id: m.sucursal_id || null, qr_url: m.qr_url || '' };
             if (!staff) return base;
             const ped = pedidosDeMesa(db, m);
             return Object.assign(base, { ocupada_desde: m.ocupada_desde, pedidos: ped.length, consumo: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100 });
@@ -1426,6 +1426,17 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         } else {
             db.mesas.push({ id: siguienteId(db, 'mesas'), nombre, zona, capacidad, estado: 'libre', ocupada_desde: null, sucursal_id: sucMesa });
         }
+        ctx.tras.push(() => emitirTablero('mesas'));
+        return ok();
+    });
+    ruta('POST', '/api/mesas/qr', (ctx, db) => {
+        requiereAdmin(ctx); const d = ctx.body || {};
+        const m = db.mesas.find(x => x.id === d.id);
+        if (!m) return { success: false, error: 'Mesa no encontrada.' };
+        const u = String(d.qr_url || '');
+        if (u && !/^(https:\/\/|\/|icons\/)/.test(u) && !/^data:image\/(png|jpeg|webp);base64,/.test(u)) return { success: false, error: 'Imagen de QR inválida.' };
+        if (u.length > 1500000) return { success: false, error: 'La imagen del QR es demasiado grande.' };
+        m.qr_url = u;
         ctx.tras.push(() => emitirTablero('mesas'));
         return ok();
     });

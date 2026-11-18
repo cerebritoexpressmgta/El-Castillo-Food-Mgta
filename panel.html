@@ -44,12 +44,13 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     <script src="pwa.js" defer></script>
     <link rel="stylesheet" href="fondos.css?v=3">
     <script src="seguridad.js?v=1" defer></script>
+    <script src="logo-sistema.js?v=1"></script>
 </head>
 <body data-fondo="dueno">
 <div class="wrap">
 
 <div id="vista-login" class="card login">
-  <h1 style="text-align:center">🏰 El Castillo Food Mgta</h1>
+  <h1 style="text-align:center"><img class="logo-sistema" src="icons/logo-escudo.jpg?v=1" alt="Logo" style="margin-right:8px"> El Castillo Food Mgta</h1>
   <p style="text-align:center;color:var(--mu);margin:6px 0 20px">Acceso del administrador</p>
   <label>Usuario</label><input id="u" autocomplete="username" autocapitalize="none">
   <label>Contraseña</label><input id="p" type="password" autocomplete="current-password">
@@ -59,7 +60,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
 
 <div id="vista-panel" class="hidden">
   <div class="top">
-    <div><h1>🏰 Panel del dueño</h1><small id="quien"></small></div>
+    <div><h1 style="display:flex;align-items:center;gap:10px"><img class="logo-sistema" src="icons/logo-escudo.jpg?v=1" alt="Logo"> Panel del dueño</h1><small id="quien"></small></div>
     <button class="sec" id="salir">Cerrar sesión</button>
   </div>
 
@@ -451,7 +452,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     const sitio = {}; ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });
     Object.assign(sitio, tema);
     const r = await api('POST', '/api/sitio/guardar', { sitio, sucursales, galeria, resenas });
-    if (r.d && r.d.success) { ms.forEach(m => { m.className = 'ok'; m.textContent = 'Guardado. Ya se ve en la web.'; }); cargarWeb(); }
+    if (r.d && r.d.success) { ms.forEach(m => { m.className = 'ok'; m.textContent = 'Guardado. Ya se ve en la web.'; }); try { if (tema.logoSistema) localStorage.setItem('logoSistemaUrl', tema.logoSistema); else localStorage.removeItem('logoSistemaUrl'); } catch (e) {} document.querySelectorAll('img.logo-sistema').forEach(i => i.src = tema.logoSistema || 'icons/logo-escudo.jpg?v=1'); cargarWeb(); }
     else ms.forEach(m => { m.textContent = (r.d && (r.d.error || r.d.detail)) || 'No se pudo guardar'; });
   }
   $('guardar-web').onclick = guardarWeb; $('guardar-web2').onclick = guardarWeb;

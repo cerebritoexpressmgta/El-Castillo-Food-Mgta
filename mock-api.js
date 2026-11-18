@@ -1088,7 +1088,7 @@
     ruta('GET', '/api/mesas', (ctx, db) => {
         const staff = staffOpcional(ctx);
         return db.mesas.slice().sort((a, b) => a.id - b.id).map(m => {
-            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado };
+            const base = { id: m.id, nombre: m.nombre, zona: m.zona, capacidad: m.capacidad, estado: m.estado, qr_url: m.qr_url || '' };
             if (!staff) return base;
             const ped = pedidosDeMesa(db, m);
             return Object.assign(base, { ocupada_desde: m.ocupada_desde, pedidos: ped.length, consumo: Math.round(ped.reduce((s, p) => s + (p.total_orden || 0), 0) * 100) / 100 });
@@ -1115,6 +1115,17 @@
         } else {
             db.mesas.push({ id: siguienteId(db, 'mesas'), nombre, zona, capacidad, estado: 'libre', ocupada_desde: null });
         }
+        ctx.tras.push(() => emitirTablero('mesas'));
+        return ok();
+    });
+    ruta('POST', '/api/mesas/qr', (ctx, db) => {
+        requiereAdmin(ctx); const d = ctx.body || {};
+        const m = db.mesas.find(x => x.id === d.id);
+        if (!m) return { success: false, error: 'Mesa no encontrada.' };
+        const u = String(d.qr_url || '');
+        if (u && !/^(https:\/\/|\/|icons\/)/.test(u) && !/^data:image\/(png|jpeg|webp);base64,/.test(u)) return { success: false, error: 'Imagen de QR inválida.' };
+        if (u.length > 1500000) return { success: false, error: 'La imagen del QR es demasiado grande.' };
+        m.qr_url = u;
         ctx.tras.push(() => emitirTablero('mesas'));
         return ok();
     });

@@ -13,8 +13,11 @@
         } catch (e) {}
         if (!activo) return;
 
+        var logoSrc = 'icons/logo-escudo.jpg?v=1';
+        try { var lg = localStorage.getItem('logoSistemaUrl') || ''; if (/^(https:\/\/|\/|icons\/)/.test(lg)) logoSrc = lg; } catch (e) {}
+
         var paginas = [
-            ['🏰', 'Panel del dueño', 'panel.html'],
+            ['<img class="logo-sistema" src="' + logoSrc + '" alt="" style="height:22px;width:22px;border-radius:6px;border:0;box-shadow:none">', 'Panel del dueño', 'panel.html'],
             ['🍳', 'Cocina', 'cocina.html'],
             ['🍽️', 'Mesas', 'mesas.html'],
             ['📝', 'Tomar pedido (caja)', 'menu_trabajadores.html'],
