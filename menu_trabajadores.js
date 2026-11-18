@@ -698,6 +698,7 @@ function precargarCarritoDesdePedido(textoDetallado) {
     pendientesPersonalizarCombo = {};
     contadorLineaPrecargada = 0;
     window.__servicioMesaFijo = 0; // al editar manda el servicio que el pedido ya tenía (si no tenía, no se agrega)
+    window.__ivaFijo = 0;          // igual con el IVA: el pedido conserva el porcentaje con el que se hizo
 
     String(textoDetallado || '').split('\n').forEach(linea => {
         const match = linea.trim().match(/^(\d+)[xX]\s+(.+)$/);
@@ -736,6 +737,10 @@ function precargarCarritoDesdePedido(textoDetallado) {
         // El servicio en mesa no es un plato: no entra al carrito, el servidor lo recalcula con el mismo porcentaje.
         const matchServ = nombre.match(/^Servicio en mesa\s*\((\d+(?:\.\d+)?)%\)/i);
         if (matchServ) { window.__servicioMesaFijo = parseFloat(matchServ[1]) || 0; return; }
+
+        // El IVA tampoco es un plato: no entra al carrito, el servidor lo recalcula con el mismo porcentaje.
+        const matchIva = nombre.match(/^IVA\s*\((\d+(?:\.\d+)?)%\)/i);
+        if (matchIva) { window.__ivaFijo = parseFloat(matchIva[1]) || 0; return; }
 
         const itemMenu = buscarItemPorNombreExacto(nombre);
         if (itemMenu) {

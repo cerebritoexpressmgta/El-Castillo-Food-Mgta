@@ -162,6 +162,7 @@ async function desbloquearAdmin() {
             cargarMetodosPago();
             cargarTasaBcv();
             cargarServicioMesa();
+            cargarIva();
             cargarDeliveryAdmin();
             cargarAnuncios();
         } else {
@@ -1083,6 +1084,40 @@ async function guardarMetodosPago() {
         else alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
     } catch (e) { alert('Error de red al guardar.'); }
     finally { btn.disabled = false; btn.innerText = "💾 Guardar métodos de pago"; }
+}
+
+// ==========================================
+// IVA (impuesto opcional que se suma a los productos de cada pedido)
+// ==========================================
+async function cargarIva() {
+    try {
+        const res = await fetch(API_BASE + "/api/iva?t=" + Date.now());
+        const d = await res.json();
+        if (!d.success) return;
+        document.getElementById('iva-activo').checked = !!d.habilitado;
+        document.getElementById('iva-pct').value = d.porcentaje;
+        actualizarEjemploIva();
+    } catch (e) { console.error("Error obteniendo el IVA:", e); }
+}
+function actualizarEjemploIva() {
+    const on = document.getElementById('iva-activo').checked, pct = parseFloat(document.getElementById('iva-pct').value) || 0;
+    const el = document.getElementById('iva-ejemplo');
+    const monto = Math.round(20 * pct) / 100;
+    el.textContent = (on && pct > 0)
+        ? `Ejemplo: productos por $20.00 → IVA (${pct}%): $${monto.toFixed(2)} → total $${(20 + monto).toFixed(2)}.`
+        : 'Desactivado: los pedidos salen sin IVA.';
+}
+async function guardarIva() {
+    const btn = document.getElementById('btn-save-iva');
+    const body = { activo: document.getElementById('iva-activo').checked, porcentaje: document.getElementById('iva-pct').value };
+    btn.disabled = true;
+    try {
+        const res = await fetch(API_BASE + "/api/iva/guardar", { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+        const d = await res.json();
+        if (d.success) { alert(body.activo ? `✅ IVA activado: ${d.porcentaje}% en los pedidos nuevos.` : '✅ IVA desactivado: los pedidos nuevos salen sin IVA.'); await cargarIva(); }
+        else alert('No se pudo guardar: ' + (d.error || d.detail || 'error desconocido'));
+    } catch (e) { alert('Error de red al guardar.'); }
+    finally { btn.disabled = false; }
 }
 
 // ==========================================

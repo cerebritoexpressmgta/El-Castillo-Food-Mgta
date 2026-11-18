@@ -1353,6 +1353,7 @@ function renderizarResumenCarrito() {
     if (cartItems.length === 0 && pendientes.length === 0) {
         document.getElementById('checkout-total-price').innerText = "$0.00";
         window.__totalCarritoCheckout = 0;
+        const filasIva = document.getElementById('checkout-iva-rows'); if (filasIva) filasIva.classList.add('hidden');
         goToStep(1);
         return false;
     }
@@ -1434,6 +1435,7 @@ function renderizarResumenCarrito() {
     window.__totalCarritoCheckout = total;
     refrescarCotizacionDelivery();
     asegurarServicioMesa().then(pintarServicioMesa);
+    asegurarIva().then(pintarIva);
 
     return true;
 }
@@ -2591,7 +2593,8 @@ function pintarCotizacionDelivery() {
     box.classList.add('hidden'); ocultarFilas();
     if (!c) { caja.classList.add('hidden'); return; }
     caja.classList.remove('hidden');
-    const sub = Number(window.__totalCarritoCheckout) || 0;
+    const sub0 = Number(window.__totalCarritoCheckout) || 0;
+    const sub = sub0 + montoIva(sub0); // productos + IVA (si está activo)
 
     if (!c.automatico) {
         // Modo manual (o sucursal sin coordenadas) o aún sin ubicación
@@ -2650,8 +2653,48 @@ function pintarServicioMesa() {
     const monto = Math.round(sub * pct) / 100;
     document.getElementById('checkout-servicio-label').innerText = 'Servicio en mesa (' + pct + '%):';
     document.getElementById('checkout-servicio-price').innerText = '$' + monto.toFixed(2);
-    document.getElementById('checkout-total-servicio').innerText = '$' + (sub + monto).toFixed(2);
+    document.getElementById('checkout-total-servicio').innerText = '$' + (sub + montoIva(sub) + monto).toFixed(2);
     fila.classList.remove('hidden'); filaTot.classList.remove('hidden');
+}
+
+// ==========================================
+// IVA: se muestra como subtotal + IVA + total cuando el local lo tiene activado (el servidor es quien lo aplica de verdad)
+// ==========================================
+let IVA_CFG = null;   // { activo, porcentaje }
+let _ivaPromesa = null;
+function asegurarIva() {
+    if (IVA_CFG) return Promise.resolve(IVA_CFG);
+    if (!_ivaPromesa) {
+        _ivaPromesa = fetch(API_BASE + '/api/iva').then(r => r.ok ? r.json() : null)
+            .then(d => { IVA_CFG = d && d.success ? { activo: !!d.activo, porcentaje: Number(d.porcentaje) || 0 } : { activo: false, porcentaje: 0 }; return IVA_CFG; })
+            .catch(() => { IVA_CFG = { activo: false, porcentaje: 0 }; return IVA_CFG; });
+    }
+    return _ivaPromesa;
+}
+// Porcentaje que aplica a esta cuenta: al editar un pedido manda el que ya tenía; si no, el del panel.
+function porcentajeIva() {
+    if (window.__ivaFijo != null) return Number(window.__ivaFijo) || 0;
+    return IVA_CFG && IVA_CFG.activo ? IVA_CFG.porcentaje : 0;
+}
+function montoIva(sub) {
+    const pct = porcentajeIva();
+    return pct > 0 && sub > 0 ? Math.round(sub * pct) / 100 : 0;
+}
+function pintarIva() {
+    const filas = document.getElementById('checkout-iva-rows'), totalEl = document.getElementById('checkout-total-price');
+    if (!filas || !totalEl) return;
+    const sub = Number(window.__totalCarritoCheckout) || 0, pct = porcentajeIva(), monto = montoIva(sub);
+    if (!(monto > 0)) { filas.classList.add('hidden'); totalEl.innerText = '$' + sub.toFixed(2); }
+    else {
+        document.getElementById('checkout-subtotal-price').innerText = '$' + sub.toFixed(2);
+        document.getElementById('checkout-iva-label').innerText = 'IVA (' + pct + '%):';
+        document.getElementById('checkout-iva-price').innerText = '$' + monto.toFixed(2);
+        totalEl.innerText = '$' + (sub + monto).toFixed(2);
+        filas.classList.remove('hidden');
+    }
+    // Los totales con delivery y con servicio dependen del IVA: se repintan con el dato ya cargado
+    if (typeof pintarCotizacionDelivery === 'function') pintarCotizacionDelivery();
+    if (typeof pintarServicioMesa === 'function') pintarServicioMesa();
 }
 
 // "Mi cuenta" → Rastrear mi pedido (llega con el teléfono ya escrito)

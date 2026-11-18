@@ -346,7 +346,9 @@ function procesarCalculosEstadisticos(pedidos) {
                 const cant = parseInt(match[1]);
                 let nombreProd = match[2].trim();
                 
-                if (!nombreProd.toLowerCase().includes('servicio de delivery')) {
+                if (/^iva\s*\(/i.test(nombreProd)) {
+                    // el IVA es un impuesto, no un producto: no entra al ranking
+                } else if (!nombreProd.toLowerCase().includes('servicio de delivery')) {
                     if (!conteoProductos[nombreProd]) conteoProductos[nombreProd] = 0;
                     conteoProductos[nombreProd] += cant;
                 } else {

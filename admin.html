@@ -219,6 +219,7 @@
             <button class="tab-btn" onclick="switchTab('pagos')"><span class="tab-ico">💳</span> Métodos de Pago</button>
             <button class="tab-btn" onclick="switchTab('anuncios')"><span class="tab-ico">📢</span> Anuncios</button>
             <button class="tab-btn" onclick="switchTab('tasa')"><span class="tab-ico">💱</span> Tasa BCV</button>
+            <button class="tab-btn" onclick="switchTab('iva')"><span class="tab-ico">🏛️</span> IVA</button>
             <button class="tab-btn" onclick="switchTab('delivery')"><span class="tab-ico">🛵</span> Delivery</button>
         </div>
 
@@ -718,6 +719,23 @@
 
                 <h3 style="margin:1.5rem 0 0.5rem; font-size:0.95rem;">Últimos cambios</h3>
                 <div id="tasa-historial" style="max-height:240px; overflow-y:auto; border:1px solid #4a5b94; border-radius:8px;"></div>
+            </div>
+        </div>
+
+        <div id="tab-iva" class="tab-content">
+            <div style="background-color: var(--input-bg); border: 1px solid #4a5b94; border-radius: 8px; padding: 1.1rem 1.25rem; margin: 0 auto 1.25rem; max-width: 800px;">
+                <h3 style="margin: 0 0 0.4rem;">🏛️ IVA</h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0 0 0.8rem; line-height: 1.5;">Si lo activas, cada pedido nuevo suma este porcentaje sobre el valor de los productos y lo muestra en su propio renglón (“IVA”) en el resumen, el ticket y los mensajes de WhatsApp. El delivery y el servicio en mesa no llevan IVA. Si tu local está en una zona económica especial u otra situación donde no aplica, déjalo apagado: los pedidos salen sin ningún cargo. Los pedidos ya hechos no cambian.</p>
+                <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; text-transform:none; font-weight:bold; color:white; margin:0 0 0.8rem;">
+                    <input type="checkbox" id="iva-activo" onchange="actualizarEjemploIva()" style="width:auto; margin:0; transform:scale(1.2);"> Cobrar IVA en los pedidos
+                </label>
+                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span>Porcentaje:</span>
+                    <input type="number" id="iva-pct" min="0" max="100" step="0.5" value="16" oninput="actualizarEjemploIva()" style="width:100px; margin:0;">
+                    <span>%</span>
+                    <button type="button" class="btn-submit" id="btn-save-iva" onclick="guardarIva()" style="width:auto; margin:0 0 0 0.5rem; padding:0.6rem 1.2rem;">💾 Guardar</button>
+                </div>
+                <p id="iva-ejemplo" style="font-size: 0.82rem; color: #38bdf8; margin: 0.8rem 0 0;"></p>
             </div>
         </div>
 
