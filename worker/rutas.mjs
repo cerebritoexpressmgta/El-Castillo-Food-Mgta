@@ -789,7 +789,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             return { success: true, pendiente: true, mensaje: 'Recibimos tu ubicación. El local te confirmará el costo del delivery en breve.', seguimiento: datosSeguimiento(db, p) };
         }
         const km = distanciaKm(origen, destino, cfgD.factor_ruta);
-        const c = cotizarDelivery(cfgD, { km, subtotal: Number(p.total_orden) || 0, hora: horaActualCaracas() });
+        const c = cotizarDelivery(cfgD, { km, subtotal: (Number(p.total_orden) || 0) - (p.iva ? Number(p.iva.monto) || 0 : 0), hora: horaActualCaracas() });
         if (!c.ok) return { success: false, error: c.mensaje };
         p.precio_delivery = c.precio; p.delivery_auto = true; p.distancia_km = c.km;
         p.total_orden = Math.round(((Number(p.total_orden) || 0) + c.precio) * 100) / 100;
@@ -868,6 +868,28 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (b.tiempo_min === undefined) tm = configServicioMesa(db).tiempo_min;
         db.servicio_mesa = { activo: !!b.activo, porcentaje: Math.round(pct * 100) / 100, tiempo_min: tm };
         return Object.assign({ success: true }, configServicioMesa(db));
+    });
+
+    // ---- IVA (impuesto opcional que se suma al total de los productos de cada pedido) ----
+    // Apagado = el pedido sale igual que siempre (zonas económicas especiales u otros casos sin IVA).
+    function configIva(db) {
+        const g = db.iva || {};
+        let pct = parseFloat(g.porcentaje);
+        if (!Number.isFinite(pct) || pct < 0) pct = 16;
+        return { activo: !!g.activo, porcentaje: Math.min(100, Math.round(pct * 100) / 100) };
+    }
+    ruta('GET', '/api/iva', (ctx, db) => {
+        const c = configIva(db);
+        return { success: true, activo: c.activo && c.porcentaje > 0, habilitado: c.activo, porcentaje: c.porcentaje };
+    });
+    ruta('POST', '/api/iva/guardar', (ctx, db) => {
+        requiereAdmin(ctx);
+        const b = ctx.body || {};
+        const pct = parseFloat(String(b.porcentaje).replace(',', '.'));
+        if (!Number.isFinite(pct) || pct < 0 || pct > 100) return { success: false, error: 'Escribe un porcentaje entre 0 y 100.' };
+        if (b.activo && !(pct > 0)) return { success: false, error: 'Para activar el IVA escribe un porcentaje mayor a 0.' };
+        db.iva = { activo: !!b.activo, porcentaje: Math.round(pct * 100) / 100 };
+        return Object.assign({ success: true }, { activo: db.iva.activo && db.iva.porcentaje > 0, habilitado: db.iva.activo, porcentaje: db.iva.porcentaje });
     });
 
     // ---- Delivery por distancia ----
@@ -1204,8 +1226,16 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             delivery = Object.assign({}, c, { auto: cfgD.modo === 'automatico' });
         }
         const deliveryAuto = !!(delivery && delivery.auto);
-        let totalFinal = deliveryAuto ? Math.round((total + delivery.precio) * 100) / 100 : total;
-        let textoFinal = deliveryAuto ? texto + `\n1x Servicio de Delivery ($${delivery.precio})` : texto;
+        // IVA (si el local lo activó en el panel): se calcula sobre los productos y va en su propio renglón, antes del delivery y del servicio
+        const cfgIva = configIva(db);
+        let iva = null, totalBase = total, textoBase = texto;
+        if (cfgIva.activo && cfgIva.porcentaje > 0 && total > 0) {
+            iva = { pct: cfgIva.porcentaje, monto: Math.round(total * cfgIva.porcentaje) / 100 };
+            totalBase = Math.round((total + iva.monto) * 100) / 100;
+            textoBase = texto + `\n1x IVA (${iva.pct}%) ($${iva.monto.toFixed(2)})`;
+        }
+        let totalFinal = deliveryAuto ? Math.round((totalBase + delivery.precio) * 100) / 100 : totalBase;
+        let textoFinal = deliveryAuto ? textoBase + `\n1x Servicio de Delivery ($${delivery.precio})` : textoBase;
         // Servicio en mesa (si el local lo habilitó en el panel): se suma al final de la cuenta, solo a pedidos de mesa
         const cfgSM = configServicioMesa(db);
         let servicioMesa = null;
@@ -1224,7 +1254,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             imagen_pago: null, repartidor: null, tasa_bcv: tasa, cedula: cli ? cli.cedula : null,
             precio_delivery: deliveryAuto ? delivery.precio : null, paga_con: null,
             historial: [],
-            servicio_mesa: servicioMesa, delivery_auto: deliveryAuto, delivery_sugerido: delivery && !deliveryAuto ? delivery.precio : null, distancia_km: delivery ? delivery.km : null,
+            servicio_mesa: servicioMesa, iva, delivery_auto: deliveryAuto, delivery_sugerido: delivery && !deliveryAuto ? delivery.precio : null, distancia_km: delivery ? delivery.km : null,
             lat: destinoCli ? destinoCli.lat : null, lng: destinoCli ? destinoCli.lng : null,
             total_bandejas: emp.bandejas, total_cajas_pizza: emp.cajas_pizza, total_refrescos: emp.refrescos,
             sucursal_id: sid, sucursal_nombre: suc ? suc.nombre : null
@@ -1315,6 +1345,13 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         if (!d.articulos || !d.articulos.length) throw new HttpError(400, 'El pedido editado llego sin articulos');
         const resumen = construirResumenPedido(db, d.articulos, true, p.sucursal_id);
         let texto = resumen.texto, total = resumen.total;
+        // El IVA tampoco viaja como artículo: se recalcula con el porcentaje que ese pedido ya tenía (si no tenía IVA, no se agrega)
+        if (p.iva && p.iva.pct > 0 && total > 0) {
+            const montoIva = Math.round(total * p.iva.pct) / 100;
+            p.iva = { pct: p.iva.pct, monto: montoIva };
+            total = Math.round((total + montoIva) * 100) / 100;
+            texto += `\n1x IVA (${p.iva.pct}%) ($${montoIva.toFixed(2)})`;
+        }
         // El servicio en mesa no viaja como artículo: se vuelve a calcular con el porcentaje que ese pedido ya tenía
         if (p.servicio_mesa && p.servicio_mesa.pct > 0) {
             const monto = Math.round(total * p.servicio_mesa.pct) / 100;
