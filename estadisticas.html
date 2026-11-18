@@ -72,7 +72,7 @@
 
             <input type="date" id="fechaCustom" onchange="apagarBotonesFiltro(); aplicarFiltroEstadisticas('custom')" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none focus:border-indigo-500">
             <button onclick="exportarCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-xs font-bold transition flex items-center gap-2 ml-auto lg:ml-4 shadow-lg shadow-emerald-900/20 border border-emerald-500/50">
-                <i class="fa-solid fa-file-csv"></i> Exportar
+                <i class="fa-solid fa-file-excel"></i> Exportar
             </button>
         </div>
     </div>
@@ -131,6 +131,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="config.js"></script>
     <script src="demo-config.js"></script>
     <script src="api-cliente.js"></script>

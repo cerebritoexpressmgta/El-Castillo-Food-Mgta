@@ -590,57 +590,134 @@ function cerrarModalDetalle() {
 }
 
 // =================================================================
-// 7. EXPORTACIÓN A EXCEL / GOOGLE SHEETS (CSV)
+// 7. EXPORTACIÓN A EXCEL (.xlsx con formato)
 // =================================================================
+// El título sale del nombre del negocio configurado (window.MARCA.nombre): "Reporte de El Castillo Food Mgta",
+// "Reporte de Asados El León", etc. Ese título se usa en el nombre del archivo y en la pestaña del Excel.
+function nombreNegocioReporte() {
+    const n = (window.MARCA && window.MARCA.nombre) || (typeof CFG !== 'undefined' && CFG.nombreNegocio) || '';
+    return String(n).replace(/\s+/g, ' ').trim() || 'Mi Negocio';
+}
+function tituloReporte() { return 'Reporte de ' + nombreNegocioReporte(); }
+// Excel limita el nombre de la pestaña a 31 caracteres y no admite  [ ] : * ? / \
+function nombreHojaReporte(titulo) {
+    let t = String(titulo).replace(/[\[\]:*?\/\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (t.length > 31) t = t.replace(/^Reporte de /, 'Reporte ');
+    return t.slice(0, 31).trim() || 'Reporte';
+}
+function nombreArchivoReporte(titulo, extension) {
+    const hoy = new Date(), dos = n => String(n).padStart(2, '0');
+    const fecha = hoy.getFullYear() + '-' + dos(hoy.getMonth() + 1) + '-' + dos(hoy.getDate());
+    const base = String(titulo).replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim();
+    return `${base} - ${filtroActivo} - ${fecha}.${extension}`;
+}
+// La fecha del pedido viene como hora de Caracas sin zona ("2026-11-17T13:24:00"): se lee tal cual, sin desplazamientos
+function partesFechaPedido(ts) {
+    const m = /(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/.exec(String(ts || ''));
+    if (m) return { y: +m[1], mo: +m[2], d: +m[3], h: +m[4], mi: +m[5] };
+    const d = new Date(ts);
+    return isNaN(d) ? null : { y: d.getFullYear(), mo: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes() };
+}
+function filaReporte(p) {
+    const idReal = p.id_pedido || p.ID || 'S/ID';
+    const idVisual = p.id_visual || idReal;
+    const num = v => (/^\d+$/.test(String(v)) ? Number(v) : String(v));
+    const f = partesFechaPedido(p.timestamp);
+    const totalUSD = Math.round((parseFloat(p.total_orden || 0) || 0) * 100) / 100;
+    const tasa = p.tasa_bcv ? parseFloat(p.tasa_bcv) : tasaEstadisticas;
+    return {
+        nro: num(idVisual), id: num(idReal),
+        fecha: f ? new Date(Date.UTC(f.y, f.mo - 1, f.d)) : '',
+        hora: f ? (f.h * 60 + f.mi) / 1440 : '',
+        cliente: p.cliente || 'Desconocido', telefono: String(p.telefono || 'N/A'),
+        metodo: p.metodo_pago || 'N/A', referencia: String(p.referencia_pago || ''),
+        usd: totalUSD, bs: Math.round(totalUSD * (tasa || 1) * 100) / 100,
+        tipo: p.tipo_entrega || 'N/A', repartidor: p.repartidor || 'N/A',
+        detalle: String(p.pedido_detallado || '').replace(/\n/g, ' | ')
+    };
+}
+
+async function generarExcelReporte() {
+    const titulo = tituloReporte();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = nombreNegocioReporte(); wb.created = new Date();
+    // Formato tomado del modelo: encabezado verde, filas naranja, bordes finos, texto centrado en negrita (Calibri 11)
+    const ws = wb.addWorksheet(nombreHojaReporte(titulo), { views: [{ state: 'frozen', ySplit: 1, zoomScale: 130 }] });
+    const columnas = [
+        ['Nro. Diario', 'nro', 11.4], ['ID Base Datos', 'id', 15.3], ['Fecha', 'fecha', 14.4], ['Hora', 'hora', 14.4],
+        ['Cliente', 'cliente', 30.4], ['Telefono', 'telefono', 14.6], ['Metodo de Pago', 'metodo', 18], ['Referencia', 'referencia', 13.7],
+        ['Total USD', 'usd', 14.7], ['Total Bolivares', 'bs', 17.1], ['Tipo de Entrega', 'tipo', 19.7], ['Motorizado', 'repartidor', 18.1],
+        ['Detalle del Pedido', 'detalle', 39.7]
+    ];
+    ws.columns = columnas.map(c => ({ header: c[0], key: c[1], width: c[2] }));
+
+    const lado = { style: 'thin', color: { argb: 'FF000000' } };
+    const borde = { top: lado, left: lado, bottom: lado, right: lado };
+    const estilo = (celda, relleno) => {
+        celda.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+        celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: relleno } };
+        celda.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        celda.border = borde;
+    };
+    const encabezado = ws.getRow(1); encabezado.height = 30;
+    encabezado.eachCell(c => estilo(c, 'FF66FF33'));
+
+    const formatos = { fecha: 'dd/mm/yyyy', hora: 'h:mm AM/PM', usd: '"$"#,##0.00', bs: '#,##0.00' };
+    const lineas = (txt, ancho) => String(txt || '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / ancho)), 0);
+    pedidosFiltradosActuales.forEach(p => {
+        const d = filaReporte(p);
+        const fila = ws.addRow(d);
+        fila.eachCell({ includeEmpty: true }, (c, i) => {
+            if (i > columnas.length) return;
+            estilo(c, 'FFFFC000');
+            const fmt = formatos[columnas[i - 1][1]]; if (fmt) c.numFmt = fmt;
+        });
+        // Las filas no se autoajustan solas: se calcula la altura según lo que ocupe el detalle y el nombre del cliente
+        const n = Math.max(lineas(d.detalle, 34), lineas(d.cliente, 26), lineas(d.metodo, 15), 1);
+        fila.height = Math.min(409, Math.max(30, n * 15 + 6));
+    });
+
+    const buf = await wb.xlsx.writeBuffer();
+    descargarArchivo(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), nombreArchivoReporte(titulo, 'xlsx'));
+}
+
+function descargarArchivo(blob, nombre) {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', nombre);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+// Botón "Exportar": genera el Excel con formato; si la librería no cargó (sin internet), baja un CSV simple como respaldo.
 function exportarCSV() {
     if (!pedidosFiltradosActuales || pedidosFiltradosActuales.length === 0) {
         alert("No hay datos para exportar en el rango de fechas seleccionado.");
         return;
     }
-
-    let csvContent = "Nro. Diario;ID Base Datos;Fecha;Hora;Cliente;Telefono;Metodo de Pago;Referencia;Total USD;Total Bolivares;Tipo de Entrega;Motorizado;Detalle del Pedido\n";
-
-    pedidosFiltradosActuales.forEach(p => {
-        const idReal = p.id_pedido || p.ID || 'S/ID';
-        const idVisual = p.id_visual || idReal;
-        
-        let fecha = '', hora = '';
-        if (p.timestamp) {
-            try {
-                const d = new Date(p.timestamp);
-                fecha = d.toLocaleDateString('es-VE');
-                hora = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            } catch(e){}
-        }
-
-        const cliente = `"${(p.cliente || 'Desconocido').replace(/"/g, '""')}"`;
-        const tel = p.telefono || 'N/A';
-        const metodo = p.metodo_pago || 'N/A';
-        const ref = p.referencia_pago || '';
-        
-        const totalUSD = parseFloat(p.total_orden || 0).toFixed(2);
-        const tasa = p.tasa_bcv ? parseFloat(p.tasa_bcv) : tasaEstadisticas;
-        const totalVES = (totalUSD * tasa).toFixed(2);
-        
-        const tipo = p.tipo_entrega || 'N/A';
-        const repartidor = p.repartidor || 'N/A';
-        
-        const detalle = `"${(p.pedido_detallado || '').replace(/"/g, '""').replace(/\n/g, ' | ')}"`;
-
-        const fila = [idVisual, idReal, fecha, hora, cliente, tel, metodo, ref, totalUSD, totalVES, tipo, repartidor, detalle];
-        csvContent += fila.join(";") + "\n";
+    if (typeof ExcelJS === 'undefined') { exportarCSVBasico(); return; }
+    generarExcelReporte().catch(e => {
+        console.error('Error creando el Excel:', e);
+        alert('No se pudo crear el Excel con formato. Se descargará un CSV simple.');
+        exportarCSVBasico();
     });
+}
 
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Reporte_PrototipoComidaRapida_${filtroActivo}_${new Date().getTime()}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+function exportarCSVBasico() {
+    let csvContent = "Nro. Diario;ID Base Datos;Fecha;Hora;Cliente;Telefono;Metodo de Pago;Referencia;Total USD;Total Bolivares;Tipo de Entrega;Motorizado;Detalle del Pedido\n";
+    const q = v => `"${String(v).replace(/"/g, '""')}"`;
+    pedidosFiltradosActuales.forEach(p => {
+        const d = filaReporte(p);
+        const f = partesFechaPedido(p.timestamp), dos = n => String(n).padStart(2, '0');
+        const fecha = f ? `${dos(f.d)}/${dos(f.mo)}/${f.y}` : '';
+        const hora = f ? `${f.h % 12 || 12}:${dos(f.mi)} ${f.h >= 12 ? 'PM' : 'AM'}` : '';
+        csvContent += [d.nro, d.id, fecha, hora, q(d.cliente), d.telefono, d.metodo, d.referencia, d.usd.toFixed(2), d.bs.toFixed(2), d.tipo, d.repartidor, q(d.detalle)].join(";") + "\n";
+    });
+    descargarArchivo(new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }), nombreArchivoReporte(tituloReporte(), 'csv'));
 }
 
 // =================================================================
