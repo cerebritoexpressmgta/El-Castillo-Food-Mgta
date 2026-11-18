@@ -53,7 +53,8 @@
         .dl-fila input { width:92px; margin:0; padding:0.4rem 0.5rem; background-color:#1a2347; border:1px solid #4a5b94; color:white; border-radius:6px; }
         .titulo-con-logo { display: flex; align-items: center; justify-content: center; gap: 14px; }
         .logo-admin { height: 62px; width: 62px; object-fit: cover; border-radius: 16px; border: 2px solid rgba(255,255,255,.6); box-shadow: 0 4px 14px rgba(0,0,0,.35); flex-shrink: 0; }
-        .tab-btn { flex: 1; padding: 1rem; background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 1rem; min-width: 120px; }
+        .tab-btn { flex: 1; padding: 1rem; background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 1rem; min-width: 120px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; line-height: 1.2; }
+        .tab-ico { font-size: 1.15em; line-height: 1; }
         .tab-btn.active { color: var(--text-main); border-bottom: 3px solid var(--primary); background-color: var(--card-bg); }
         
         .tab-content { display: none; padding: 2rem; }
@@ -207,18 +208,18 @@
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('categorias')">🏷️ Categorías</button>
-            <button class="tab-btn" onclick="switchTab('productos')">📦 Productos</button>
-            <button class="tab-btn" onclick="switchTab('combos')">🍱 Combos</button>
-            <button class="tab-btn" onclick="switchTab('motorizados')">🛵 Motorizados</button>
-            <button class="tab-btn" onclick="switchTab('mesas')">🍽️ Mesas</button>
-            <button class="tab-btn" onclick="switchTab('usuarios')">👥 Usuarios</button>
-            <button class="tab-btn" onclick="switchTab('mensajes')">💬 Mensajes WP</button>
-            <button class="tab-btn" onclick="switchTab('horarios')">🕒 Horarios de Trabajo</button>
-            <button class="tab-btn" onclick="switchTab('pagos')">💳 Métodos de Pago</button>
-            <button class="tab-btn" onclick="switchTab('anuncios')">📢 Anuncios</button>
-            <button class="tab-btn" onclick="switchTab('tasa')">💱 Tasa BCV</button>
-            <button class="tab-btn" onclick="switchTab('delivery')">🛵 Delivery</button>
+            <button class="tab-btn active" onclick="switchTab('categorias')"><span class="tab-ico">🏷️</span> Categorías</button>
+            <button class="tab-btn" onclick="switchTab('productos')"><span class="tab-ico">📦</span> Productos</button>
+            <button class="tab-btn" onclick="switchTab('combos')"><span class="tab-ico">🍱</span> Combos</button>
+            <button class="tab-btn" onclick="switchTab('motorizados')"><span class="tab-ico">🛵</span> Motorizados</button>
+            <button class="tab-btn" onclick="switchTab('mesas')"><span class="tab-ico">🍽️</span> Mesas</button>
+            <button class="tab-btn" onclick="switchTab('usuarios')"><span class="tab-ico">👥</span> Usuarios</button>
+            <button class="tab-btn" onclick="switchTab('mensajes')"><span class="tab-ico">💬</span> Mensajes WP</button>
+            <button class="tab-btn" onclick="switchTab('horarios')"><span class="tab-ico">🕒</span> Horarios de Trabajo</button>
+            <button class="tab-btn" onclick="switchTab('pagos')"><span class="tab-ico">💳</span> Métodos de Pago</button>
+            <button class="tab-btn" onclick="switchTab('anuncios')"><span class="tab-ico">📢</span> Anuncios</button>
+            <button class="tab-btn" onclick="switchTab('tasa')"><span class="tab-ico">💱</span> Tasa BCV</button>
+            <button class="tab-btn" onclick="switchTab('delivery')"><span class="tab-ico">🛵</span> Delivery</button>
         </div>
 
         <div id="tab-mensajes" class="tab-content">
