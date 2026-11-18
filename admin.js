@@ -1618,7 +1618,7 @@ function renderListaProductos(lista = adminProductos) {
             <div class="list-item ${opacityClass}" data-id="${p.id}">
                 <div class="item-info">
                     <p class="item-title">${p.favorito ? '⭐ ' : ''}${p.nombre} <span style="color:#10b981">$${p.precio}</span>${badgeAgotado}</p>
-                    <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}${p.inventario != null ? ` | <span style="color:${p.inventario <= 0 ? '#f87171' : (p.inventario <= 5 ? '#fbbf24' : '#34d399')}; font-weight:bold;">Inventario: ${p.inventario}</span>` : ''}</p>
+                    <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}${p.codigo_barras ? ` | Cód: ${escapeHtml(p.codigo_barras)}` : ''}${p.inventario != null ? ` | <span style="color:${p.inventario <= 0 ? '#f87171' : (p.inventario <= 5 ? '#fbbf24' : '#34d399')}; font-weight:bold;">Inventario: ${p.inventario}</span>` : ''}</p>
                 </div>
                 <div class="item-actions">
                     <button class="action-btn btn-edit drag-handle" title="Mantén presionado y arrastra para mover esta tarjeta a donde quieras">↕ Mover</button>
@@ -1633,7 +1633,7 @@ function renderListaProductos(lista = adminProductos) {
 function filtrarProductosAdmin() {
     const input = document.getElementById('buscador-productos-admin');
     const textoBuscado = input.value.toLowerCase();
-    const resultados = adminProductos.filter(p => p.nombre.toLowerCase().includes(textoBuscado));
+    const resultados = adminProductos.filter(p => p.nombre.toLowerCase().includes(textoBuscado) || String(p.codigo_barras || '').toLowerCase().includes(textoBuscado));
     renderListaProductos(resultados);
     const panel = input.closest('.list-panel');
     if (panel) panel.scrollTop = 0;
@@ -1698,6 +1698,7 @@ if (document.getElementById('form-producto')) {
             precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked,
             agotado: document.getElementById('prod-agotado').checked,
             favorito: document.getElementById('prod-favorito').checked,
+            codigo_barras: limpiarCodigoBarras(document.getElementById('prod-codigo').value),
             no_disponible_en: leerNoDisponible('prod'),
             disponible_desde: document.getElementById('prod-disponible-desde').value || null,
             disponible_hasta: document.getElementById('prod-disponible-hasta').value || null,
@@ -1706,11 +1707,13 @@ if (document.getElementById('form-producto')) {
             ...leerPaquete('prod')
         };
         try {
-            await fetch(ADMIN_URL_GUARDAR_PROD, { 
+            const respProd = await fetch(ADMIN_URL_GUARDAR_PROD, { 
                 method: 'POST', 
                 headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${adminToken}`}, 
                 body: JSON.stringify(payload)
             });
+            const datosProd = await respProd.json().catch(() => ({}));
+            if (datosProd && datosProd.success === false) { alert('⚠️ ' + (datosProd.error || 'No se pudo guardar el producto.')); return; }
             resetFormProd(); cargarDatosAdmin();
         } catch (error) { alert('Error al guardar el producto.'); }
     });
@@ -1722,6 +1725,7 @@ function editarProducto(id) {
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
     document.getElementById('prod-agotado').checked = !!p.agotado;
     document.getElementById('prod-favorito').checked = !!p.favorito;
+    document.getElementById('prod-codigo').value = p.codigo_barras || '';
     document.getElementById('prod-disponible-desde').value = p.disponible_desde || '';
     marcarNoDisponible('prod', p.no_disponible_en);
     document.getElementById('prod-disponible-hasta').value = p.disponible_hasta || '';
@@ -2410,6 +2414,163 @@ async function guardarInventario(quitar) {
         cerrarInventario();
         await cargarDatosAdmin();
     } catch (e) { alert('No se pudo guardar el inventario.'); }
+}
+
+// =====================================================================
+// Códigos de barras: lector USB/Bluetooth (escribe solo en el campo) o cámara del celular/PC
+// =====================================================================
+function limpiarCodigoBarras(v) { return String(v == null ? '' : v).replace(/[^0-9A-Za-z\-._]/g, '').slice(0, 64); }
+function buscarPorCodigo(c) { c = limpiarCodigoBarras(c); return c ? adminProductos.find(p => limpiarCodigoBarras(p.codigo_barras) === c) : null; }
+
+let zxingPromesa = null;
+function cargarZXing() {
+    if (window.ZXing) return Promise.resolve();
+    if (!zxingPromesa) zxingPromesa = new Promise((ok, mal) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+        s.onload = () => ok(); s.onerror = () => { zxingPromesa = null; mal(new Error('zxing')); };
+        document.head.appendChild(s);
+    });
+    return zxingPromesa;
+}
+
+// Abre la cámara a pantalla completa; al leer un código llama alLeer(codigo) una sola vez y se cierra
+async function abrirCamaraEscaner(alLeer) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('Este navegador no permite usar la cámara aquí. Usa un lector de códigos o escribe el código.'); return; }
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:3000;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px;';
+    ov.innerHTML = '<video playsinline muted style="width:100%;max-width:520px;max-height:62vh;border-radius:12px;background:#111;"></video>' +
+        '<p style="color:#e2e8f0;font-weight:bold;margin:0;text-align:center;">Apunta la cámara al código de barras</p>' +
+        '<button type="button" style="padding:0.75rem 2rem;background:#4a5b94;border:none;color:white;border-radius:8px;font-weight:bold;cursor:pointer;font-size:1rem;">Cancelar</button>';
+    document.body.appendChild(ov);
+    const video = ov.querySelector('video');
+    let detenido = false, stream = null, lector = null, timer = null;
+    const cerrar = () => {
+        detenido = true; clearTimeout(timer);
+        try { if (lector) lector.reset(); } catch (e) {}
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        ov.remove();
+    };
+    ov.querySelector('button').onclick = cerrar;
+    const encontrado = codigo => { if (detenido) return; cerrar(); alLeer(codigo); };
+    try {
+        if ('BarcodeDetector' in window) {
+            const quiero = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'codabar'];
+            let formatos = quiero;
+            try { const sop = await BarcodeDetector.getSupportedFormats(); formatos = quiero.filter(f => sop.includes(f)); } catch (e) {}
+            const det = new BarcodeDetector({ formats: formatos });
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+            video.srcObject = stream; await video.play();
+            const tick = async () => {
+                if (detenido) return;
+                try { const r = await det.detect(video); if (r.length && r[0].rawValue) return encontrado(r[0].rawValue); } catch (e) {}
+                timer = setTimeout(tick, 200);
+            };
+            tick();
+        } else {
+            await cargarZXing();
+            lector = new ZXing.BrowserMultiFormatReader();
+            lector.decodeFromConstraints({ video: { facingMode: 'environment' } }, video, res => { if (res) encontrado(res.getText()); });
+        }
+    } catch (e) {
+        cerrar();
+        alert('No se pudo abrir la cámara. Revisa que el navegador tenga permiso para usarla (y que la página sea https), o usa un lector de códigos o escribe el código.');
+    }
+}
+
+// Campo "Código de barras" del formulario de producto
+function escanearCodigoProducto() {
+    abrirCamaraEscaner(c => {
+        const campo = document.getElementById('prod-codigo');
+        campo.value = limpiarCodigoBarras(c);
+        const idActual = document.getElementById('prod-id').value;
+        const otro = buscarPorCodigo(campo.value);
+        if (otro && String(otro.id) !== String(idActual)) alert('⚠️ Ese código ya pertenece a "' + otro.nombre + '". Cada producto necesita un código distinto.');
+    });
+}
+if (document.getElementById('prod-codigo')) {
+    document.getElementById('prod-codigo').addEventListener('change', e => {
+        e.target.value = limpiarCodigoBarras(e.target.value);
+        const otro = buscarPorCodigo(e.target.value);
+        if (otro && String(otro.id) !== String(document.getElementById('prod-id').value)) alert('⚠️ Ese código ya pertenece a "' + otro.nombre + '". Cada producto necesita un código distinto.');
+    });
+}
+
+// Ventana de escaneo continuo: cada código leído suma al inventario del producto
+function abrirEscaner() {
+    document.getElementById('esc-codigo').value = '';
+    document.getElementById('esc-ultimo').textContent = '';
+    document.getElementById('esc-resultado').innerHTML = '';
+    document.getElementById('modal-escaner').style.display = 'flex';
+    setTimeout(() => document.getElementById('esc-codigo').focus(), 50);
+}
+function cerrarEscaner() { document.getElementById('modal-escaner').style.display = 'none'; }
+function enfocarEscaner() { const c = document.getElementById('esc-codigo'); c.value = ''; setTimeout(() => c.focus(), 50); }
+
+function procesarCodigoEscaneado(raw) {
+    const c = limpiarCodigoBarras(raw); if (!c) return;
+    document.getElementById('esc-codigo').value = c;
+    const res = document.getElementById('esc-resultado');
+    const p = buscarPorCodigo(c);
+    const estiloInput = 'padding:0.6rem; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:1rem; outline:none;';
+    if (p) {
+        res.innerHTML = `
+            <p style="margin:0 0 4px; font-weight:bold; color:#38bdf8; font-size:1.05rem;">${escapeHtml(p.nombre)}</p>
+            <p style="margin:0 0 10px; font-size:0.85rem; color:var(--text-muted);">${p.inventario != null ? 'Inventario actual: ' + p.inventario : 'Sin control de inventario: al sumar empezará a llevarlo.'}</p>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <label style="font-size:0.8rem; font-weight:bold; color:var(--text-muted);">CANTIDAD A SUMAR</label>
+                <input type="number" id="esc-cant" min="1" step="1" value="1" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault(); sumarInventarioEscaneado(${p.id});}" style="width:90px; ${estiloInput}">
+            </div>
+            <button type="button" onclick="sumarInventarioEscaneado(${p.id})" style="width:100%; margin-top:10px; padding:0.7rem; background:#16a34a; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">➕ Sumar al inventario</button>`;
+        setTimeout(() => { const q = document.getElementById('esc-cant'); if (q) { q.focus(); q.select(); } }, 50);
+    } else {
+        const opciones = adminProductos.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(x => `<option value="${x.id}">${escapeHtml(x.nombre)}${x.codigo_barras ? ' (ya tiene código)' : ''}</option>`).join('');
+        res.innerHTML = `
+            <p style="margin:0 0 10px; font-size:0.9rem; color:#fbbf24; font-weight:bold;">⚠️ Ningún producto tiene el código ${escapeHtml(c)}.</p>
+            <button type="button" onclick="crearProductoConCodigo('${escapeHtml(c)}')" style="width:100%; padding:0.7rem; background:#0ea5e9; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">➕ Crear producto nuevo con este código</button>
+            <p style="margin:12px 0 6px; font-size:0.8rem; color:var(--text-muted); font-weight:bold;">O ASIGNARLO A UN PRODUCTO QUE YA EXISTE</p>
+            <div style="display:flex; gap:8px;">
+                <select id="esc-asignar" style="flex:1; ${estiloInput}"><option value="">-- Elige el producto --</option>${opciones}</select>
+                <button type="button" onclick="asignarCodigoAProducto('${escapeHtml(c)}')" style="padding:0 14px; background:#4a5b94; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">🔗 Asignar</button>
+            </div>`;
+    }
+}
+
+async function sumarInventarioEscaneado(id) {
+    const p = adminProductos.find(x => x.id === id); if (!p) return;
+    const n = parseInt(document.getElementById('esc-cant').value, 10);
+    if (!(n >= 1)) { alert('Escribe cuántas unidades vas a sumar (1 o más).'); return; }
+    try {
+        const r = await fetch(ADMIN_URL_INVENTARIO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id, sumar: n }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.success === false) throw new Error();
+        p.inventario = d.inventario; p.agotado = false;
+        renderListaProductos();
+        document.getElementById('esc-ultimo').textContent = '✅ ' + p.nombre + ': +' + n + ' → ahora ' + d.inventario;
+        document.getElementById('esc-resultado').innerHTML = '';
+        enfocarEscaner();
+    } catch (e) { alert('No se pudo guardar el inventario.'); }
+}
+
+async function asignarCodigoAProducto(codigo) {
+    const id = parseInt(document.getElementById('esc-asignar').value, 10);
+    if (!id) { alert('Elige primero el producto.'); return; }
+    try {
+        const r = await fetch(API_BASE + '/api/menu/codigo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id, codigo_barras: codigo }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.success === false) { alert('⚠️ ' + (d.error || 'No se pudo asignar el código.')); return; }
+        const p = adminProductos.find(x => x.id === id); if (p) p.codigo_barras = d.codigo_barras;
+        renderListaProductos();
+        procesarCodigoEscaneado(codigo); // ya existe: queda listo para sumar cantidad
+    } catch (e) { alert('No se pudo asignar el código.'); }
+}
+
+function crearProductoConCodigo(codigo) {
+    cerrarEscaner();
+    resetFormProd();
+    document.getElementById('prod-codigo').value = limpiarCodigoBarras(codigo);
+    desplazarseAlFormulario('titulo-form-prod');
+    setTimeout(() => document.getElementById('prod-nombre').focus(), 400);
 }
 
 function ordenarPorPrecio(tipo) {
