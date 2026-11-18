@@ -140,9 +140,9 @@
         '.pl-silla{position:absolute;display:block;pointer-events:none;box-sizing:border-box;--sc:#10b981;--sb:rgba(16,185,129,.35);filter:drop-shadow(0 2px 2px rgba(0,0,0,.55));isolation:isolate}',
         '.pl-silla::before,.pl-silla::after{content:"";position:absolute;box-sizing:border-box}',
         /* espaldar: barra curva en el lado de afuera */
-        '.pl-silla::before{left:6%;right:6%;top:0;height:36%;background:linear-gradient(var(--sc),var(--sc)) top/100% 24% no-repeat,linear-gradient(90deg,var(--sc) 0 13%,transparent 13% 29%,var(--sc) 29% 42%,transparent 42% 58%,var(--sc) 58% 71%,transparent 71% 87%,var(--sc) 87% 100%) bottom/100% 80% no-repeat;border-radius:2px}',
+        '.pl-silla::before{left:0;right:0;top:0;height:32%;background:linear-gradient(180deg,var(--sc),color-mix(in srgb,var(--sc) 70%,#000));border-radius:2px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.35)}',
         /* asiento acolchado */
-        '.pl-silla::after{left:6%;right:6%;top:34%;bottom:0;background:var(--sb);border:1.5px solid var(--sc);border-radius:14%}',
+        '.pl-silla::after{left:6%;right:6%;top:26%;bottom:0;background:var(--sb);border:1.5px solid var(--sc);border-radius:2px}',
         '.pl-silla.est-libre{--sc:#10b981;--sb:rgba(16,185,129,.30)}',
         '.pl-silla.est-ocupada{--sc:#f59e0b;--sb:rgba(245,158,11,.38)}',
         '.pl-silla.est-cuenta{--sc:#d946ef;--sb:rgba(217,70,239,.38)}',
