@@ -878,9 +878,12 @@
             <h3 style="margin:0 0 4px;">📦 Inventario</h3>
             <p id="inv-nombre" style="margin:0 0 10px; font-weight:bold; color:#38bdf8;"></p>
             <p id="inv-estado" style="font-size:0.85rem; color:var(--text-muted); margin:0 0 12px;"></p>
+            <div id="inv-sucursales"></div>
+            <div id="inv-unico">
             <label style="font-size:0.8rem; font-weight:bold; color:var(--text-muted);">CANTIDAD DISPONIBLE</label>
             <input type="number" id="inv-cantidad" min="0" step="1" inputmode="numeric" placeholder="Ej: 20" onkeydown="if(event.key==='Enter') guardarInventario(false)" style="width:100%; padding:0.75rem; margin:6px 0 8px; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:1.1rem; outline:none;">
-            <p style="font-size:0.75rem; color:var(--text-muted); margin:0 0 14px;">Cada venta resta esta cantidad. Al llegar a 0 el producto se marca solo como sin stock, y al volver a poner una cantidad mayor a 0 se vuelve a activar.</p>
+            </div>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin:0 0 14px;">Cada venta resta esta cantidad (con varias sucursales, de la sucursal donde se hace el pedido). Al llegar a 0 el producto se marca solo como sin stock, y al volver a poner una cantidad mayor a 0 se vuelve a activar.</p>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button type="button" onclick="guardarInventario(false)" style="flex:1; padding:0.7rem; background:#16a34a; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">💾 Guardar</button>
                 <button type="button" onclick="cerrarInventario()" style="flex:1; padding:0.7rem; background:#4a5b94; border:none; color:white; border-radius:6px; font-weight:bold; cursor:pointer;">Cancelar</button>
@@ -893,6 +896,10 @@
         <div style="background:#2e3a68; border:1px solid #4a5b94; border-radius:12px; padding:22px; width:100%; max-width:420px; max-height:92vh; overflow-y:auto; color:#e2e8f0;">
             <h3 style="margin:0 0 4px;">📷 Escanear códigos</h3>
             <p style="font-size:0.8rem; color:var(--text-muted); margin:0 0 12px;">Usa un lector de códigos (queda escrito solo) o la cámara. Cada código suma al inventario del producto.</p>
+            <div id="esc-wrap-sucursal" style="display:none; margin-bottom:10px;">
+                <label style="font-size:0.8rem; font-weight:bold; color:var(--text-muted);">INGRESAR INVENTARIO EN</label>
+                <select id="esc-sucursal" onchange="procesarCodigoEscaneado(document.getElementById('esc-codigo').value)" style="width:100%; margin-top:4px; padding:0.6rem; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:1rem; outline:none;"></select>
+            </div>
             <div style="display:flex; gap:8px; align-items:stretch;">
                 <input type="text" id="esc-codigo" autocomplete="off" placeholder="Escanea o escribe el código y pulsa Enter" onkeydown="if(event.key==='Enter'){event.preventDefault(); procesarCodigoEscaneado(this.value);}" style="flex:1; padding:0.75rem; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:1rem; outline:none;">
                 <button type="button" onclick="abrirCamaraEscaner(procesarCodigoEscaneado)" title="Escanear con la cámara" style="padding:0 14px; background:#4a5b94; border:none; color:white; border-radius:6px; cursor:pointer; font-size:1.2rem;">📷</button>
@@ -971,7 +978,7 @@
     <script src="logo-sistema.js?v=1"></script>
     <script src="api-cliente.js"></script>
     <script src="compartir-pagos.js?v=2"></script>
-    <script src="admin.js?v=2"></script>
+    <script src="admin.js?v=3"></script>
     <script src="admin-mesas.js"></script>
     <script src="plano-comun.js?v=4"></script>
     <script src="admin-plano.js?v=2"></script>

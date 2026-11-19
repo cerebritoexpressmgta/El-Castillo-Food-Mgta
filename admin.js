@@ -215,7 +215,7 @@ function marcarNoDisponible(pref, arr) { const set = new Set((arr || []).map(Num
 
 async function cargarDatosAdmin() {
     try {
-        const res = await fetch(ADMIN_URL_MENU);
+        const res = await fetch(ADMIN_URL_MENU, { headers: { 'Authorization': `Bearer ${adminToken}` } });
         const rawData = await res.json();
         const data = Array.isArray(rawData) ? rawData[0] : rawData;
         
@@ -1618,7 +1618,7 @@ function renderListaProductos(lista = adminProductos) {
             <div class="list-item ${opacityClass}" data-id="${p.id}">
                 <div class="item-info">
                     <p class="item-title">${p.favorito ? '⭐ ' : ''}${p.nombre} <span style="color:#10b981">$${p.precio}</span>${badgeAgotado}</p>
-                    <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}${p.codigo_barras ? ` | Cód: ${escapeHtml(p.codigo_barras)}` : ''}${p.inventario != null ? ` | <span style="color:${p.inventario <= 0 ? '#f87171' : (p.inventario <= 5 ? '#fbbf24' : '#34d399')}; font-weight:bold;">Inventario: ${p.inventario}</span>` : ''}</p>
+                    <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}${p.codigo_barras ? ` | Cód: ${escapeHtml(p.codigo_barras)}` : ''}${textoInventario(p)}</p>
                 </div>
                 <div class="item-actions">
                     <button class="action-btn btn-edit drag-handle" title="Mantén presionado y arrastra para mover esta tarjeta a donde quieras">↕ Mover</button>
@@ -1723,7 +1723,7 @@ function editarProducto(id) {
     const p = adminProductos.find(x => x.id === id); if(!p) return;
     document.getElementById('prod-id').value = p.id; document.getElementById('prod-nombre').value = p.nombre; document.getElementById('prod-categoria').value = p.categoria;
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
-    document.getElementById('prod-agotado').checked = !!p.agotado;
+    document.getElementById('prod-agotado').checked = !!(p.agotado_manual !== undefined ? p.agotado_manual : p.agotado);
     document.getElementById('prod-favorito').checked = !!p.favorito;
     document.getElementById('prod-codigo').value = p.codigo_barras || '';
     document.getElementById('prod-disponible-desde').value = p.disponible_desde || '';
@@ -2387,29 +2387,74 @@ function activarArrastre(contId, tipo) {
 activarArrastre('lista-productos-container', 'producto');
 activarArrastre('lista-combos-container', 'combo');
 
-// Inventario: cantidad disponible por producto; se descuenta con cada pedido y al llegar a 0 queda sin stock
+// Inventario POR SUCURSAL: cada sucursal tiene su propia cantidad; se descuenta con cada pedido de esa sucursal y al llegar a 0 queda sin stock ahí
+function haySucursalesVarias() { return SUCURSALES_ADMIN.length > 1; }
+function colorInventario(n) { return n <= 0 ? '#f87171' : (n <= 5 ? '#fbbf24' : '#34d399'); }
+function stockAdmin(p, sid) { return (p.inventarios && sid) ? (p.inventarios[sid] == null ? null : p.inventarios[sid]) : (p.inventario == null ? null : p.inventario); }
+function textoInventario(p) {
+    if (haySucursalesVarias()) {
+        const partes = SUCURSALES_ADMIN.filter(s => stockAdmin(p, s.id) != null).map(s => `<span style="color:${colorInventario(stockAdmin(p, s.id))}; font-weight:bold;">${escapeHtml(s.nombre)}: ${stockAdmin(p, s.id)}</span>`);
+        return partes.length ? ' | Inventario: ' + partes.join(' · ') : '';
+    }
+    const n = stockAdmin(p, SUCURSALES_ADMIN[0] ? SUCURSALES_ADMIN[0].id : 0);
+    return n != null ? ` | <span style="color:${colorInventario(n)}; font-weight:bold;">Inventario: ${n}</span>` : '';
+}
 let inventarioProductoId = null;
 function abrirInventario(id) {
     const p = adminProductos.find(x => x.id === id); if (!p) return;
     inventarioProductoId = id;
     document.getElementById('inv-nombre').textContent = p.nombre;
-    document.getElementById('inv-cantidad').value = p.inventario != null ? p.inventario : '';
-    document.getElementById('inv-estado').textContent = p.inventario != null ? `Actualmente quedan ${p.inventario}.` : 'Este producto no tiene control de inventario (siempre disponible).';
-    document.getElementById('inv-quitar').style.display = p.inventario != null ? '' : 'none';
+    const multi = haySucursalesVarias();
+    const filas = document.getElementById('inv-sucursales'), unico = document.getElementById('inv-unico');
+    const estiloInput = 'width:110px; padding:0.6rem; background:#222c57; border:1px solid #4a5b94; color:white; border-radius:6px; font-size:1rem; outline:none;';
+    let tieneControl;
+    if (multi) {
+        unico.style.display = 'none';
+        filas.innerHTML = SUCURSALES_ADMIN.map(s => {
+            const v = stockAdmin(p, s.id);
+            return `<div style="display:flex; gap:8px; align-items:center; margin:6px 0;">
+                <span style="flex:1; font-weight:bold;">🏬 ${escapeHtml(s.nombre)}</span>
+                <input type="number" data-suc-inv="${s.id}" min="0" step="1" inputmode="numeric" placeholder="Sin control" value="${v != null ? v : ''}" style="${estiloInput}">
+            </div>`;
+        }).join('');
+        tieneControl = SUCURSALES_ADMIN.some(s => stockAdmin(p, s.id) != null);
+        document.getElementById('inv-estado').textContent = 'Cantidad disponible en cada sucursal. Déjala vacía donde no quieras llevar control de inventario (siempre disponible).';
+    } else {
+        filas.innerHTML = ''; unico.style.display = '';
+        const n = stockAdmin(p, SUCURSALES_ADMIN[0] ? SUCURSALES_ADMIN[0].id : 0);
+        document.getElementById('inv-cantidad').value = n != null ? n : '';
+        document.getElementById('inv-estado').textContent = n != null ? `Actualmente quedan ${n}.` : 'Este producto no tiene control de inventario (siempre disponible).';
+        tieneControl = n != null;
+    }
+    document.getElementById('inv-quitar').style.display = tieneControl ? '' : 'none';
     document.getElementById('modal-inventario').style.display = 'flex';
-    setTimeout(() => document.getElementById('inv-cantidad').focus(), 50);
+    setTimeout(() => { const f = multi ? filas.querySelector('input') : document.getElementById('inv-cantidad'); if (f) f.focus(); }, 50);
 }
 function cerrarInventario() { document.getElementById('modal-inventario').style.display = 'none'; inventarioProductoId = null; }
 async function guardarInventario(quitar) {
     if (inventarioProductoId === null) return;
-    let cantidad = null;
-    if (!quitar) {
-        const v = document.getElementById('inv-cantidad').value.trim();
-        if (v === '' || !/^\d+$/.test(v)) { alert('Escribe la cantidad disponible (un número entero, 0 o más).'); return; }
-        cantidad = parseInt(v, 10);
+    let body;
+    if (haySucursalesVarias()) {
+        const cantidades = {};
+        const campos = Array.from(document.querySelectorAll('#inv-sucursales input[data-suc-inv]'));
+        for (const inp of campos) {
+            const v = inp.value.trim();
+            if (quitar || v === '') cantidades[inp.dataset.sucInv] = null;
+            else if (!/^\d+$/.test(v)) { alert('Escribe la cantidad como un número entero (0 o más), o déjala vacía si esa sucursal no lleva inventario.'); return; }
+            else cantidades[inp.dataset.sucInv] = parseInt(v, 10);
+        }
+        body = { id: inventarioProductoId, cantidades };
+    } else {
+        let cantidad = null;
+        if (!quitar) {
+            const v = document.getElementById('inv-cantidad').value.trim();
+            if (v === '' || !/^\d+$/.test(v)) { alert('Escribe la cantidad disponible (un número entero, 0 o más).'); return; }
+            cantidad = parseInt(v, 10);
+        }
+        body = { id: inventarioProductoId, cantidad, sucursal_id: SUCURSALES_ADMIN[0] ? SUCURSALES_ADMIN[0].id : undefined };
     }
     try {
-        const r = await fetch(ADMIN_URL_INVENTARIO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id: inventarioProductoId, cantidad }) });
+        const r = await fetch(ADMIN_URL_INVENTARIO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify(body) });
         if (!r.ok) throw new Error();
         cerrarInventario();
         await cargarDatosAdmin();
@@ -2497,7 +2542,18 @@ if (document.getElementById('prod-codigo')) {
 }
 
 // Ventana de escaneo continuo: cada código leído suma al inventario del producto
+function sucursalEscaner() {
+    if (haySucursalesVarias()) return parseInt(document.getElementById('esc-sucursal').value, 10) || undefined;
+    return SUCURSALES_ADMIN[0] ? SUCURSALES_ADMIN[0].id : undefined;
+}
 function abrirEscaner() {
+    const multi = haySucursalesVarias();
+    const wrap = document.getElementById('esc-wrap-sucursal'); wrap.style.display = multi ? '' : 'none';
+    if (multi) {
+        const sel = document.getElementById('esc-sucursal'), previa = sel.value;
+        sel.innerHTML = SUCURSALES_ADMIN.map(s => `<option value="${s.id}">${escapeHtml(s.nombre)}</option>`).join('');
+        if (previa && SUCURSALES_ADMIN.some(s => String(s.id) === previa)) sel.value = previa;
+    }
     document.getElementById('esc-codigo').value = '';
     document.getElementById('esc-ultimo').textContent = '';
     document.getElementById('esc-resultado').innerHTML = '';
@@ -2516,7 +2572,7 @@ function procesarCodigoEscaneado(raw) {
     if (p) {
         res.innerHTML = `
             <p style="margin:0 0 4px; font-weight:bold; color:#38bdf8; font-size:1.05rem;">${escapeHtml(p.nombre)}</p>
-            <p style="margin:0 0 10px; font-size:0.85rem; color:var(--text-muted);">${p.inventario != null ? 'Inventario actual: ' + p.inventario : 'Sin control de inventario: al sumar empezará a llevarlo.'}</p>
+            <p style="margin:0 0 10px; font-size:0.85rem; color:var(--text-muted);">${(() => { const sidE = sucursalEscaner(), st = stockAdmin(p, sidE), donde = haySucursalesVarias() ? ' en ' + escapeHtml(nombreSucursalAdmin(sidE)) : ''; return st != null ? 'Inventario actual' + donde + ': ' + st : 'Sin control de inventario' + donde + ': al sumar empezará a llevarlo.'; })()}</p>
             <div style="display:flex; gap:8px; align-items:center;">
                 <label style="font-size:0.8rem; font-weight:bold; color:var(--text-muted);">CANTIDAD A SUMAR</label>
                 <input type="number" id="esc-cant" min="1" step="1" value="1" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault(); sumarInventarioEscaneado(${p.id});}" style="width:90px; ${estiloInput}">
@@ -2541,12 +2597,12 @@ async function sumarInventarioEscaneado(id) {
     const n = parseInt(document.getElementById('esc-cant').value, 10);
     if (!(n >= 1)) { alert('Escribe cuántas unidades vas a sumar (1 o más).'); return; }
     try {
-        const r = await fetch(ADMIN_URL_INVENTARIO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id, sumar: n }) });
+        const r = await fetch(ADMIN_URL_INVENTARIO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }, body: JSON.stringify({ id, sumar: n, sucursal_id: sucursalEscaner() }) });
         const d = await r.json().catch(() => ({}));
         if (!r.ok || d.success === false) throw new Error();
-        p.inventario = d.inventario; p.agotado = false;
+        if (d.inventarios) p.inventarios = d.inventarios; else p.inventario = d.inventario;
         renderListaProductos();
-        document.getElementById('esc-ultimo').textContent = '✅ ' + p.nombre + ': +' + n + ' → ahora ' + d.inventario;
+        document.getElementById('esc-ultimo').textContent = '✅ ' + p.nombre + (haySucursalesVarias() ? ' (' + nombreSucursalAdmin(sucursalEscaner()) + ')' : '') + ': +' + n + ' → ahora ' + d.inventario;
         document.getElementById('esc-resultado').innerHTML = '';
         enfocarEscaner();
     } catch (e) { alert('No se pudo guardar el inventario.'); }
