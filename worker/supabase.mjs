@@ -18,41 +18,89 @@ async function pedir(env, ruta, init) {
     return t ? JSON.parse(t) : null;
 }
 
-export async function leerEstado(env) {
-    const f = await pedir(env, '/rest/v1/app_state?id=eq.1&select=version,data', { headers: cab(env) });
+// ---------------------------------------------------------------------
+// MULTI-CLIENTE: una sola base de Supabase para varios negocios.
+//  - public.negocios  : un registro por cliente (dominios, plan, activo).
+//  - public.app_state : UNA fila por negocio; su id es el id del negocio.
+// Toda lectura/escritura de datos del negocio lleva su id (nid). El Worker lo obtiene
+// del dominio de la solicitud (ver index.mjs) y NUNCA de lo que mande el navegador.
+// ---------------------------------------------------------------------
+const entero = (n) => { const v = Number(n); if (!Number.isInteger(v) || v < 1) throw new Error('Negocio inválido'); return v; };
+
+export async function leerEstado(env, nid) {
+    const f = await pedir(env, `/rest/v1/app_state?id=eq.${entero(nid)}&select=version,data`, { headers: cab(env) });
     return f && f[0] ? f[0] : null;
 }
-export async function crearEstado(env, data) {
+export async function crearEstado(env, nid, data) {
     const r = await fetch(base(env) + '/rest/v1/app_state', {
         method: 'POST', headers: cab(env, { Prefer: 'resolution=ignore-duplicates,return=minimal' }),
-        body: JSON.stringify({ id: 1, version: 1, data })
+        body: JSON.stringify({ id: entero(nid), version: 1, data })
     });
     if (!r.ok) throw new Error(`Supabase ${r.status}: ${(await r.text()).slice(0, 300)}`);
 }
-// Guarda solo si nadie más escribió antes (bloqueo optimista). Devuelve true/false.
-export async function guardarEstado(env, versionLeida, data, evento) {
-    const f = await pedir(env, `/rest/v1/app_state?id=eq.1&version=eq.${versionLeida}&select=version`, {
+// Guarda solo si nadie más escribió antes (bloqueo optimista, por negocio). Devuelve true/false.
+export async function guardarEstado(env, nid, versionLeida, data, evento) {
+    const f = await pedir(env, `/rest/v1/app_state?id=eq.${entero(nid)}&version=eq.${Number(versionLeida)}&select=version`, {
         method: 'PATCH', headers: cab(env, { Prefer: 'return=representation' }),
         body: JSON.stringify({ data, version: versionLeida + 1, evento, updated_at: new Date().toISOString() })
     });
     return Array.isArray(f) && f.length === 1;
 }
-export async function leerVersion(env) {
-    const f = await pedir(env, '/rest/v1/app_state?id=eq.1&select=version,evento', { headers: cab(env) });
+export async function leerVersion(env, nid) {
+    const f = await pedir(env, `/rest/v1/app_state?id=eq.${entero(nid)}&select=version,evento`, { headers: cab(env) });
     return f && f[0] ? f[0] : { version: 0, evento: null };
 }
-// Solicitud diaria: toca la base para que Supabase no pause el proyecto
+// Solicitud diaria: toca la base (una sola petición) para que Supabase no pause el proyecto
 export async function mantenerActivo(env) {
-    const f = await pedir(env, '/rest/v1/app_state?id=eq.1&select=id', {
+    return await pedir(env, '/rest/v1/negocios?activo=eq.true&select=id', {
         method: 'PATCH', headers: cab(env, { Prefer: 'return=representation' }),
-        body: JSON.stringify({ last_ping: new Date().toISOString() })
+        body: JSON.stringify({ ultimo_ping: new Date().toISOString() })
     });
-    return f;
 }
-export async function subirImagen(env, nombre, bytes, tipo) {
-    const r = await fetch(`${base(env)}/storage/v1/object/imagenes/${nombre}`, {
+// Las imágenes de cada negocio van en su propia carpeta del bucket: imagenes/<id negocio>/<archivo>
+export async function subirImagen(env, nid, nombre, bytes, tipo) {
+    const ruta = `${entero(nid)}/${nombre}`;
+    const r = await fetch(`${base(env)}/storage/v1/object/imagenes/${ruta}`, {
         method: 'POST', headers: Object.assign({ 'Content-Type': tipo, 'x-upsert': 'true' }, auth(env)), body: bytes
     });
     if (!r.ok) throw new Error(`Storage ${r.status}: ${(await r.text()).slice(0, 200)}`);
-    return `${base(env)}/storage/v1/object/public/imagenes/${nombre}`;
+    return `${base(env)}/storage/v1/object/public/imagenes/${ruta}`;
+}
+
+// ---- Negocios (clientes de la plataforma) ----
+const COLS_NEGOCIO = 'id,slug,nombre,hosts,activo,max_sucursales,plan,marca_original,creado_en';
+export async function negocioPorHost(env, host) {
+    const h = String(host || '').toLowerCase().replace(/[^a-z0-9.\-:]/g, '');
+    if (!h) return null;
+    const f = await pedir(env, `/rest/v1/negocios?hosts=cs.${encodeURIComponent('{' + h + '}')}&select=${COLS_NEGOCIO}&limit=1`, { headers: cab(env) });
+    return f && f[0] ? f[0] : null;
+}
+export async function negocioPorId(env, id) {
+    const f = await pedir(env, `/rest/v1/negocios?id=eq.${entero(id)}&select=${COLS_NEGOCIO}`, { headers: cab(env) });
+    return f && f[0] ? f[0] : null;
+}
+export async function listarNegocios(env, soloActivos) {
+    return await pedir(env, `/rest/v1/negocios?${soloActivos ? 'activo=eq.true&' : ''}select=${COLS_NEGOCIO}&order=id.asc`, { headers: cab(env) }) || [];
+}
+export async function crearNegocio(env, n) {
+    const f = await pedir(env, '/rest/v1/negocios', {
+        method: 'POST', headers: cab(env, { Prefer: 'return=representation' }),
+        body: JSON.stringify({ slug: n.slug, nombre: n.nombre, hosts: n.hosts, max_sucursales: n.max_sucursales || 1, plan: n.plan || 'basico' })
+    });
+    return f && f[0];
+}
+export async function actualizarNegocio(env, id, cambios) {
+    const f = await pedir(env, `/rest/v1/negocios?id=eq.${entero(id)}&select=${COLS_NEGOCIO}`, {
+        method: 'PATCH', headers: cab(env, { Prefer: 'return=representation' }), body: JSON.stringify(cambios)
+    });
+    return f && f[0];
+}
+export async function borrarNegocioSinDatos(env, id) {
+    await pedir(env, `/rest/v1/negocios?id=eq.${entero(id)}`, { method: 'DELETE', headers: cab(env) });
+}
+
+// Solo el bloque "sitio" (título, logo, colores...) del negocio: liviano, sin traer pedidos ni usuarios
+export async function leerSitio(env, nid) {
+    const f = await pedir(env, `/rest/v1/app_state?id=eq.${entero(nid)}&select=sitio:data->sitio`, { headers: cab(env) });
+    return f && f[0] && f[0].sitio ? f[0].sitio : {};
 }

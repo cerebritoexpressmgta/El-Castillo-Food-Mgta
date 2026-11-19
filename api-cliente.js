@@ -9,11 +9,13 @@
     const FETCH_REAL = window.fetch.bind(window);
 
     // ---- Marca ----
+    // window.__MARCA la pone el Worker según el dominio (negocio). Si no existe (negocio original), se usa demo-config.js.
     function marca() {
+        const B = window.__MARCA || {};
         return {
-            nombre: String(CFG.nombreNegocio || 'Mi Restaurante').slice(0, 40),
-            emoji: String(CFG.emoji || '🍔').slice(0, 8),
-            eslogan: String(CFG.eslogan || '')
+            nombre: String(B.nombre || CFG.nombreNegocio || 'Mi Restaurante').slice(0, 40),
+            emoji: String(B.emoji || CFG.emoji || '🍔').slice(0, 8),
+            eslogan: String(B.nombre ? (B.eslogan || '') : (CFG.eslogan || ''))
         };
     }
     window.MARCA = marca();

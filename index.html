@@ -572,12 +572,13 @@ section.rv .tabs,section.rv #mapa-frame,section.rv .nos p{--i:1}
   async function cargarSitio() {
     let s = {}, suc = [], gal = [], res = [];
     try { const d = await (await fetch('/api/sitio')).json(); s = d.sitio || {}; suc = d.sucursales || []; gal = d.galeria || []; res = d.resenas || []; } catch (e) {}
-    const nombre = s.titulo || CFG.nombreNegocio || 'Mi Restaurante';
-    const emoji = CFG.emoji || '🍽️';
+    const B = window.__MARCA || {};
+    const nombre = s.titulo || B.nombre || CFG.nombreNegocio || 'Mi Restaurante';
+    const emoji = B.emoji || CFG.emoji || '🍽️';
     document.title = nombre;
     ['logo-nom', 'h-tit', 'foot-nom'].forEach(id => $(id).textContent = nombre);
     [$('logo-em'), $('h-em')].forEach(el => { if (!el.querySelector('img')) el.textContent = emoji; });
-    $('h-esl').textContent = s.eslogan || CFG.eslogan || '';
+    $('h-esl').textContent = s.eslogan || (B.nombre ? '' : CFG.eslogan) || '';
     if (s.historia) { $('historia').textContent = s.historia; $('nosotros').style.display = ''; $('nav-nos').style.display = ''; }
 
     // Un solo local: "Dónde estamos"; si no tiene datos de ubicación, la sección desaparece

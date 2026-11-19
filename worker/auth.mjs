@@ -1,4 +1,5 @@
 // Tokens firmados (HMAC-SHA256) y contraseñas con PBKDF2. Solo WebCrypto, sin dependencias.
+import { negocioActual } from './contexto.mjs';
 const enc = new TextEncoder();
 let SECRETO = '';
 export function configurarSecreto(s) { SECRETO = String(s || ''); }
@@ -12,7 +13,7 @@ async function claveHmac() {
 }
 
 export async function crearToken(username, rol) {
-    const payload = b64u(enc.encode(JSON.stringify({ sub: username, rol, exp: Date.now() + 12 * 3600e3 })));
+    const payload = b64u(enc.encode(JSON.stringify({ sub: username, rol, neg: negocioActual(), exp: Date.now() + 12 * 3600e3 })));
     const firma = await crypto.subtle.sign('HMAC', await claveHmac(), enc.encode(payload));
     return payload + '.' + b64u(firma);
 }
@@ -27,6 +28,7 @@ export async function verificarToken(authorization) {
         if (!valido) return null;
         const p = JSON.parse(new TextDecoder().decode(deB64u(payload)));
         if (!p || !p.exp || !p.rol || Date.now() > p.exp) return null;
+        if (p.neg !== negocioActual()) return null; // un token de un negocio NUNCA sirve en otro
         return p;
     } catch (e) { return null; }
 }
@@ -55,7 +57,7 @@ export async function verificarClave(clave, guardado) {
 // Tokens temporales (pasos intermedios del login: 2FA, cambio de clave, registro de huella).
 // Se firman con un prefijo distinto, así NUNCA sirven como sesión aunque alguien los presente en Authorization.
 export async function firmarObjeto(obj, ttlMs) {
-    const payload = b64u(enc.encode(JSON.stringify(Object.assign({}, obj, { exp: Date.now() + (ttlMs || 300e3) }))));
+    const payload = b64u(enc.encode(JSON.stringify(Object.assign({}, obj, { neg: negocioActual(), exp: Date.now() + (ttlMs || 300e3) }))));
     const firma = await crypto.subtle.sign('HMAC', await claveHmac(), enc.encode('tmp.' + payload));
     return payload + '.' + b64u(firma);
 }
@@ -65,6 +67,6 @@ export async function leerObjeto(token) {
         if (!payload || !firma) return null;
         if (!(await crypto.subtle.verify('HMAC', await claveHmac(), deB64u(firma), enc.encode('tmp.' + payload)))) return null;
         const p = JSON.parse(new TextDecoder().decode(deB64u(payload)));
-        return p && p.exp && Date.now() <= p.exp ? p : null;
+        return p && p.exp && Date.now() <= p.exp && p.neg === negocioActual() ? p : null;
     } catch (e) { return null; }
 }

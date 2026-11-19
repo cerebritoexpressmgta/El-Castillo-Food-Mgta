@@ -6,7 +6,7 @@
     var CAMPOS = ['colorPrincipal', 'colorSecundario', 'colorPortada', 'imagenPortada', 'logo', 'tituloSobrePortada'];
     var HEX = /^#[0-9a-fA-F]{6}$/;
     // Logo por defecto (ya optimizado y guardado en el proyecto). Si el dueño sube otro desde el panel, ese tiene prioridad.
-    var LOGO_DEFECTO = '/icons/logo-castillo.jpg?v=1';
+    var LOGO_DEFECTO = (window.__MARCA && window.__MARCA.iconoUrl) || '/icons/logo-castillo.jpg?v=1';
 
     function rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
     function hex(a) { return '#' + a.map(function (v) { return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); }).join(''); }

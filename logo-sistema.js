@@ -5,7 +5,7 @@
 // =====================================================================
 (function () {
     'use strict';
-    var DEFECTO = 'icons/logo-escudo.jpg?v=1', LLAVE = 'logoSistemaUrl';
+    var DEFECTO = (window.__MARCA && window.__MARCA.iconoUrl) || 'icons/logo-escudo.jpg?v=1', LLAVE = 'logoSistemaUrl';
 
     var st = document.createElement('style');
     st.textContent = 'img.logo-sistema{height:52px;width:52px;object-fit:cover;border-radius:14px;border:2px solid rgba(255,255,255,.55);box-shadow:0 3px 10px rgba(0,0,0,.35);flex-shrink:0;vertical-align:middle;background:#0b1220}' +

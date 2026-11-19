@@ -1,6 +1,7 @@
 // Rutas del API (portadas de mock-api.js). Se ejecutan en el Worker de Cloudflare.
 // Cada ruta recibe (ctx, db): db es el estado completo guardado en Supabase.
 import { DEMO_CONFIG as CFG } from './demo-config.mjs';
+import { contexto } from './contexto.mjs';
 import { crearToken, hashClave, verificarClave, firmarObjeto, leerObjeto } from './auth.mjs';
 import { registrarResenas } from './resenas.mjs';
 import { consultarBcvDetallado, probarFuentesBcv, aplicarTasaBcv, aplicarTasaManual, anotarFalloBcv, anotarIntentosBcv, infoTasa, configTasa } from './bcv.mjs';
@@ -13,9 +14,8 @@ function marca() { return { nombre: CFG.nombreNegocio || 'Mi Restaurante', emoji
 function siguienteId(db, tabla) { db.seq[tabla] = (db.seq[tabla] || 0) + 1; return db.seq[tabla]; }
 
 // Evento para el tablero en vivo (los clientes lo consultan por "polling")
-let eventoPendiente = null;
-function emitirTablero(mensaje, sucursalId) { eventoPendiente = { mensaje, sucursal_id: sucursalId || null }; }
-export function tomarEvento() { const e = eventoPendiente; eventoPendiente = null; return e; }
+function emitirTablero(mensaje, sucursalId) { contexto().evento = { mensaje, sucursal_id: sucursalId || null }; }
+export function tomarEvento() { const c = contexto(); const e = c.evento; c.evento = null; return e; }
 
     // ------------------------------------------------------------------
     // Reloj: igual que el backend, siempre hora de Caracas (UTC-4 fijo)
@@ -65,20 +65,21 @@ function requiereAdmin(ctx) {
 function staffOpcional(ctx) { return ctx.sesion || null; }
 
 // Fallos de login / clave (se guardan dentro del estado)
-let fallos = {};
-export function usarFallos(obj) { fallos = obj; }
+// (por solicitud: viven en el contexto, no en una variable global compartida entre negocios)
+export function usarFallos(obj) { contexto().fallos = obj; }
 
 // Plan contratado: total de locales (principal + sucursales). Lo define quien administra el servidor (MAX_SUCURSALES).
-let LIMITE_SUCURSALES = 1;
-export function usarLimiteSucursales(n) { LIMITE_SUCURSALES = n; }
+export function usarLimiteSucursales(n) { contexto().limite = n; }
+const limiteSucursales = () => contexto().limite;
 
     function cupoAgotado(clave, max, ventanaSeg) {
         const ahora = Date.now();
+        const fallos = contexto().fallos;
         fallos[clave] = (fallos[clave] || []).filter(t => ahora - t < ventanaSeg * 1000);
         return fallos[clave].length >= max;
     }
-    function anotarFallo(clave) { (fallos[clave] = fallos[clave] || []).push(Date.now()); }
-    function olvidarFallos(clave) { delete fallos[clave]; }
+    function anotarFallo(clave) { const fallos = contexto().fallos; (fallos[clave] = fallos[clave] || []).push(Date.now()); }
+    function olvidarFallos(clave) { delete contexto().fallos[clave]; }
     // ------------------------------------------------------------------
     // Datos de demo
     // ------------------------------------------------------------------
@@ -104,14 +105,16 @@ export function usarLimiteSucursales(n) { LIMITE_SUCURSALES = n; }
         final_delivery: '🛵 ¡[CLIENTE], tu pedido #[PEDIDO] ya va en camino! Buen provecho 🍟',
         final_pickup: '🛍️ ¡[CLIENTE], tu pedido #[PEDIDO] está listo para retirar! Buen provecho 🍟',
         en_camino: '🛵 ¡[CLIENTE], el motorizado ya salió con tu pedido #[PEDIDO]! Síguelo aquí: [SEGUIMIENTO]',
-        entregado: '✅ ¡[CLIENTE], tu pedido #[PEDIDO] fue entregado! Gracias por pedir en El Castillo, que lo disfrutes 🍟',
+        entregado: '✅ ¡[CLIENTE], tu pedido #[PEDIDO] fue entregado! Gracias por pedir con nosotros, que lo disfrutes 🍟',
         aviso_grupo_delivery:
             '🛵 *PEDIDO N° [PEDIDO]*\n\n👤 *NOMBRE:* [NOMBRE]\n\n📍 *DIRECCIÓN:* [DIRECCION]\n\n🥤 *REFRESCO:* [REFRESCOS]\n\n🍱 *BANDEJAS:* [BANDEJAS]\n\n📦 *CAJAS DE PIZZA:* [CAJAS_PIZZA]\n\n💵 *PAGO:* [PAGO]\n\n🏍️ *PRECIO DEL DELIVERY:* [PRECIO_DELIVERY]'
     };
     // Copia exacta del texto de fábrica (el backend lo usa si la plantilla guardada no trae [BANDEJAS])
     const PLANTILLA_AVISO_MOTORIZADOS = PLANTILLAS.aviso_grupo_delivery;
 
-export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
+// opciones.vacio = true: negocio NUEVO de otro cliente (sin menú, mesas ni banners de demostración).
+export function crearDbInicial(adminPinHash, adminUsername, adminNombre, opciones) {
+        const op = opciones || {}; const vacio = !!op.vacio;
         const hoy = hoyCaracas();
         const db = {
             version: VERSION_DATOS,
@@ -122,10 +125,10 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         };
 
         // --- Categorías (el "imagen" es un emoji: así no hay imágenes externas) ---
-        (CFG.categorias || []).forEach(c => db.categorias.push({ id: siguienteId(db, 'categorias'), nombre: c.nombre, imagen: c.emoji || '' }));
+        (vacio ? [] : (CFG.categorias || [])).forEach(c => db.categorias.push({ id: siguienteId(db, 'categorias'), nombre: c.nombre, imagen: c.emoji || '' }));
 
         // --- Productos ---
-        (CFG.productos || []).forEach(p => {
+        (vacio ? [] : (CFG.productos || [])).forEach(p => {
             db.productos.push({
                 id: siguienteId(db, 'productos'), nombre: p.nombre, categoria: p.categoria, precio: p.precio, descripcion: p.descripcion || '',
                 disponible: true, agotado: !!p.agotado, imagen: p.emoji || '', disponible_desde: null, disponible_hasta: null, dias_disponibles: null,
@@ -136,7 +139,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const prodPorNombre = n => db.productos.find(p => p.nombre === n);
 
         // --- Combos (los productos se enlazan por nombre) ---
-        (CFG.combos || []).forEach(c => {
+        (vacio ? [] : (CFG.combos || [])).forEach(c => {
             const items = (c.items || []).map(it => {
                 const cantidad = it.cantidad || 1;
                 if (it.categoria) return { tipo: 'categoria', valor: it.categoria, cantidad };
@@ -153,19 +156,21 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         });
 
         // --- Mesas ---
-        (CFG.mesas || []).forEach(m => db.mesas.push({ id: siguienteId(db, 'mesas'), nombre: m.nombre, zona: m.zona || 'Salón', capacidad: m.capacidad || 4, estado: 'libre', ocupada_desde: null }));
+        (vacio ? [] : (CFG.mesas || [])).forEach(m => db.mesas.push({ id: siguienteId(db, 'mesas'), nombre: m.nombre, zona: m.zona || 'Salón', capacidad: m.capacidad || 4, estado: 'libre', ocupada_desde: null }));
 
         // --- Anuncios (banners generados, sin imágenes externas) ---
+        if (!vacio) {
         db.anuncios.push(
             { id: siguienteId(db, 'anuncios'), imagen: bannerSvg(marca().emoji, (db.combos[0] ? db.combos[0].nombre : 'Promo'), (db.combos[0] && db.combos[0].promo_producto_id ? 'Lleva 2 y te regalamos un postre' : 'Pídelo ahora'), '#dc2626', '#f97316'), titulo: '¡Promo de la semana!', texto: 'Mira el combo destacado del menú y aprovecha la promoción.', activo: true, orden: 1, producto_ref: 'c_1' },
         );
+        }
 
         // --- Usuario administrador inicial ---
         db.usuarios.push({ id: siguienteId(db, 'usuarios'), username: adminUsername, pin: adminPinHash, nombre: adminNombre, rol: 'superadmin' });
 
         for (let d = 0; d < 7; d++) db.horarios.push({ id: d + 1, dia_semana: d, activo: true, hora_apertura: '00:00', hora_cierre: '23:59' });
 
-        db.sitio = { titulo: '', eslogan: marca().eslogan || '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '' };
+        db.sitio = { titulo: String(op.titulo || ''), eslogan: vacio ? '' : (marca().eslogan || ''), historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '' };
         db.sucursales = [{ id: siguienteId(db, 'sucursales'), nombre: 'Sucursal Principal', direccion: '', telefono: '', whatsapp: '', horario: 'Todos los días', mapa: '', coords: '', activa: true }];
         db.galeria = []; db.resenas = [];
 
@@ -380,7 +385,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     // Sucursales: quién ve qué
     // ------------------------------------------------------------------
     // Solo cuentan las activas que entran en el plan (las primeras N)
-    function sucursalesActivas(db) { return (db.sucursales || []).filter(s => s.activa !== false).slice(0, LIMITE_SUCURSALES); }
+    function sucursalesActivas(db) { return (db.sucursales || []).filter(s => s.activa !== false).slice(0, limiteSucursales()); }
     function usuarioDe(ctx, db) { return ctx.sesion ? (db.usuarios.find(u => String(u.username).toLowerCase() === String(ctx.sesion.sub).toLowerCase()) || null) : null; }
     // Sucursal fija del personal (null = ve todas, como el dueño)
     function sucursalDelPersonal(ctx, db) { const u = usuarioDe(ctx, db); return u && u.sucursal_id ? Number(u.sucursal_id) : null; }
@@ -1757,7 +1762,7 @@ ruta('GET', '/api/sitio', (ctx, db) => {
         ? (db.sucursales || []).map(s => Object.assign({}, s, { fuera_de_plan: s.activa !== false && !habilitadas.has(s.id) }))
         : (db.sucursales || []).filter(s => habilitadas.has(s.id));
     const resenas = (db.resenas || []).filter(r => todas || r.activa !== false);
-    return { sitio: Object.assign({}, SITIO_VACIO, db.sitio || {}), sucursales, limite_sucursales: LIMITE_SUCURSALES, galeria: db.galeria || [], resenas };
+    return { sitio: Object.assign({}, SITIO_VACIO, db.sitio || {}), sucursales, limite_sucursales: limiteSucursales(), galeria: db.galeria || [], resenas };
 });
 ruta('POST', '/api/sitio/guardar', (ctx, db) => {
     requiereAdmin(ctx); const d = ctx.body || {}; const s = d.sitio || {};
@@ -1773,8 +1778,8 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
     // El plan limita cuántas sucursales activas puede tener el negocio (solo se bloquea si se intenta AUMENTAR)
     const activasNuevas = lista.filter(x => x.activa !== false).length;
     const activasPrevias = (db.sucursales || []).filter(s => s.activa !== false).length;
-    if (activasNuevas > LIMITE_SUCURSALES && activasNuevas > activasPrevias) {
-        return { success: false, error: LIMITE_SUCURSALES === 1 ? 'Tu plan es para un solo local, sin sucursales adicionales.' : `Tu plan permite hasta ${LIMITE_SUCURSALES} locales (principal + sucursales).` };
+    if (activasNuevas > limiteSucursales() && activasNuevas > activasPrevias) {
+        return { success: false, error: limiteSucursales() === 1 ? 'Tu plan es para un solo local, sin sucursales adicionales.' : `Tu plan permite hasta ${limiteSucursales()} locales (principal + sucursales).` };
     }
     db.sucursales = lista.map(x => ({
         id: Number(x.id) > 0 ? Number(x.id) : siguienteId(db, 'sucursales'),

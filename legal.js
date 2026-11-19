@@ -1,12 +1,12 @@
 // Rellena el nombre del negocio y los datos de contacto desde la configuración de la web (panel → Datos de la web)
 (function () {
-    var nombre = 'El Castillo Food Mgta';
+    var nombre = (window.__MARCA && window.__MARCA.nombre) || 'El Castillo Food Mgta';
     function poner(sel, txt) { document.querySelectorAll(sel).forEach(function (e) { e.textContent = txt; }); }
     function limpiarWa(w) { return String(w || '').replace(/[^\d]/g, ''); }
     poner('[data-negocio]', nombre);
     fetch('/api/sitio').then(function (r) { return r.json(); }).then(function (d) {
         var s = (d && d.sitio) || {};
-        if (s.titulo) { nombre = s.titulo; poner('[data-negocio]', nombre); document.title = document.title.replace('El Castillo Food Mgta', nombre); }
+        if (s.titulo) { nombre = s.titulo; poner('[data-negocio]', nombre); document.title = document.title.replace(/El Castillo Food Mgta/g, nombre); }
         document.querySelectorAll('[data-contacto]').forEach(function (e) {
             var partes = [];
             if (s.email) { var a = document.createElement('a'); a.href = 'mailto:' + s.email; a.textContent = s.email; partes.push(['por correo: ', a]); }

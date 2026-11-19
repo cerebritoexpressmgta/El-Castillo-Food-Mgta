@@ -97,3 +97,59 @@ Si una persona activa 2FA con app y huella, al entrar puede usar cualquiera de l
 - En la web se muestra solo el primer nombre y la inicial del apellido (ej. "María P."); nunca el teléfono ni la dirección.
 - La web muestra hasta 12 reseñas. Si ya hay 12 publicadas, el panel pide eliminar una antes de aprobar otra.
 - Se guardan hasta 100 pendientes a la vez para no llenar la base.
+
+---
+
+## Multi-cliente: una sola base de Supabase para varios negocios
+
+Cada negocio es una fila en `negocios` y una fila en `app_state` (con el mismo `id`). El Worker decide a qué negocio
+pertenece cada solicitud **por el dominio** (`hosts`), nunca por algo que mande el navegador. Un token de sesión de un
+negocio no sirve en otro.
+
+### Migrar la base actual (una sola vez)
+1. Supabase > SQL Editor: abre `supabase/multi-cliente.sql`, cambia `TU-DOMINIO.com` por el dominio real de El Castillo y ejecútalo.
+   No borra nada: tu negocio actual pasa a ser el negocio n.º 1.
+2. Cloudflare > Worker > Configuración: agrega el secreto **`PLATAFORMA_CLAVE`** (mínimo 24 caracteres, solo para ti).
+3. Despliega. (Necesita el flag `nodejs_compat`, ya incluido en `wrangler.jsonc`.)
+4. Todos los usuarios tendrán que iniciar sesión otra vez (los tokens ahora llevan el negocio).
+
+### Dar de alta un cliente nuevo
+1. Apunta el dominio del cliente al mismo Worker (Cloudflare > Worker > Dominios personalizados).
+2. Crea el negocio (no hace falta tocar Supabase):
+```
+curl -X POST https://TU-DOMINIO/api/plataforma/negocios \
+  -H "X-Plataforma-Clave: TU_PLATAFORMA_CLAVE" -H "Content-Type: application/json" \
+  -d '{"slug":"barberia-x","nombre":"Barbería X","hosts":["barberia-x.com","www.barberia-x.com"],
+       "admin_user":"admin","admin_clave":"una-clave-larga","max_sucursales":1}'
+```
+Nace vacío (sin menú ni mesas de demostración), con su administrador.
+
+### Administrar clientes
+- Listar: `GET /api/plataforma/negocios`
+- Suspender / reactivar / cambiar plan o dominios: `POST /api/plataforma/negocios/actualizar` con `{"id":2,"activo":false}`, `{"id":2,"max_sucursales":3}` o `{"id":2,"hosts":[...]}`.
+- `MAX_SUCURSALES` ya no se usa; el límite es `negocios.max_sucursales`.
+- Las imágenes de cada negocio se guardan en su carpeta (`imagenes/<id>/...`).
+- Cuando todos tus dominios estén en la tabla `negocios`, borra `NEGOCIO_POR_DEFECTO` de `wrangler.jsonc` para que un dominio desconocido dé error.
+
+### Límites a tener en cuenta
+- `CLAVE_RECUPERACION` es una sola para toda la plataforma: es tu llave de rescate, no se la des a los clientes.
+- El cron diario actualiza la tasa BCV de todos los negocios. En el plan gratuito de Cloudflare hay un tope de 50 peticiones por ejecución (unos 20 negocios); pasando de eso, usa el plan de pago.
+
+---
+
+## Marca dinámica (nombre, logo y colores por negocio)
+
+El nombre sale de **Panel > Datos de la web > Título** de cada negocio (al crearlo se pone el `nombre` que enviaste). Si el dueño sube un
+**logo** o elige **colores** en el panel, se usan en la web, en la app instalable y en los íconos.
+
+Cómo funciona: para los negocios que **no** son el original, el Worker reescribe las páginas al servirlas (título, textos, íconos), genera
+`manifest.webmanifest` y `manifest-personal.webmanifest` con su nombre y le entrega a los scripts `window.__MARCA`. El negocio original
+(`negocios.marca_original = true`) se sirve tal cual, con sus archivos de siempre.
+
+- Sin logo propio, el negocio muestra un ícono con su inicial y su color principal (`/api/marca/icono.svg`).
+- Los cambios de nombre o logo tardan hasta 1 minuto en verse (caché).
+- La columna `marca_original` ya viene en `supabase/multi-cliente.sql` (el negocio 1 queda en `true`).
+- `/api/plataforma/negocios` acepta `color_principal` (ej. `"#112233"`) al crear el negocio.
+- No se reescriben `inicio.html` ni `embed.html` (son páginas de la demo).
+- iPhone: el ícono de «Añadir a inicio» no admite SVG. Un negocio que quiera su ícono en iOS debe subir un logo en PNG o JPG.
+- Las páginas ahora pasan por el Worker (las imágenes, scripts y estilos no). Cuenta contra tu cuota de solicitudes de Cloudflare.

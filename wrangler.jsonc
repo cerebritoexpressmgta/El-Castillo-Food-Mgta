@@ -2,16 +2,29 @@
   "name": "el-castillo-food-mgta",
   "main": "worker/index.mjs",
   "compatibility_date": "2025-01-01",
+  // Necesario para el contexto por solicitud (AsyncLocalStorage) que aísla a los negocios entre sí
+  "compatibility_flags": ["nodejs_compat"],
   // Evita que cada despliegue borre las variables que pongas a mano en el panel de Cloudflare
   "keep_vars": true,
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    // Además de /api, pasan por el Worker las páginas y manifiestos (para poner la marca de cada negocio).
+    // Imágenes, scripts y estilos los sirve Cloudflare directo, sin costo de Worker.
+    "run_worker_first": [
+      "/api/*", "/", "/*.html", "/manifest.webmanifest", "/manifest-personal.webmanifest",
+      "/index", "/inicio", "/menu", "/admin", "/panel", "/cocina", "/mesas", "/estadisticas",
+      "/menu_trabajadores", "/offline", "/privacidad", "/terminos", "/seguimiento", "/embed"
+    ]
   },
   // Solo datos NO secretos. Las llaves (SUPABASE_SERVICE_KEY, JWT_SECRET) van como "Secreto" en el panel.
+  // Secretos nuevos (multi-cliente): PLATAFORMA_CLAVE (mínimo 24 caracteres, para crear negocios).
+  // MAX_SUCURSALES ya no se usa: el plan de cada negocio vive en la tabla negocios (max_sucursales).
   "vars": {
-    "SUPABASE_URL": "https://cncrupyxesbzinvjunqm.supabase.co"
+    "SUPABASE_URL": "https://cncrupyxesbzinvjunqm.supabase.co",
+    // Negocio que atiende los dominios no registrados (workers.dev, pruebas). 1 = El Castillo.
+    // Cuando todos tus dominios estén registrados en la tabla negocios, bórrala para que un dominio desconocido dé error.
+    "NEGOCIO_POR_DEFECTO": "1"
   },
   // 12:00 UTC = 8:00 a. m. Venezuela: despierta Supabase y actualiza la tasa BCV.
   // Las otras dos (10:00 a. m. y 1:00 p. m.) solo reintentan la tasa si la de la mañana falló.
