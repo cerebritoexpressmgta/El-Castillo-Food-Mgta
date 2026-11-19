@@ -209,17 +209,35 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         });
         return need;
     }
-    function revisarInventario(db, articulos, esPersonal) {
+    // Inventario POR SUCURSAL: p.inventarios = { "<id sucursal>": cantidad }. Sin entrada = esa sucursal no lleva control (siempre disponible).
+    // "Agotado" ya no se guarda al llegar a 0: se calcula por sucursal (p.agotado queda solo para el marcado manual).
+    function sidInventario(db, sid) { sid = Number(sid) || 0; if (sid) return sid; const a = sucursalesActivas(db); return a.length === 1 ? a[0].id : 0; }
+    function mapaInventario(db, p) {
+        if (!p.inventarios || typeof p.inventarios !== 'object') {
+            p.inventarios = {};
+            if (p.inventario != null) { // el inventario general de antes pasa a la sucursal principal
+                const prin = sucursalesActivas(db)[0] || (db.sucursales || [])[0];
+                if (prin) { p.inventarios[prin.id] = p.inventario; p.inventario = null; p.agotado = false; }
+            }
+        }
+        return p.inventarios;
+    }
+    function stockEn(db, p, sid) { const m = mapaInventario(db, p); const s = sidInventario(db, sid); if (!s) return null; const v = m[s]; return v == null ? null : v; }
+    function agotadoEn(db, p, sid) { const st = stockEn(db, p, sid); return !!p.agotado || (st != null && st <= 0); } // stockEn primero: así se migra el dato viejo antes de leer p.agotado
+    function revisarInventario(db, articulos, esPersonal, sid) {
         if (esPersonal) return;
         inventarioNecesario(db, articulos).forEach((n, id) => {
-            const p = db.productos.find(x => x.id === id);
-            if (p && p.inventario != null && n > p.inventario) throw new HttpError(400, p.inventario > 0 ? `Solo quedan ${p.inventario} de ${p.nombre}. Ajusta la cantidad para continuar.` : `${p.nombre} se agotó. Quítalo del carrito para continuar.`);
+            const p = db.productos.find(x => x.id === id); if (!p) return;
+            const st = stockEn(db, p, sid);
+            if (st != null && n > st) throw new HttpError(400, st > 0 ? `Solo quedan ${st} de ${p.nombre}. Ajusta la cantidad para continuar.` : `${p.nombre} se agotó. Quítalo del carrito para continuar.`);
         });
     }
-    function descontarInventario(db, articulos) {
+    function descontarInventario(db, articulos, sid) {
+        const s = sidInventario(db, sid); if (!s) return;
         inventarioNecesario(db, articulos).forEach((n, id) => {
-            const p = db.productos.find(x => x.id === id);
-            if (p && p.inventario != null) { p.inventario = Math.max(0, p.inventario - n); if (p.inventario <= 0) p.agotado = true; }
+            const p = db.productos.find(x => x.id === id); if (!p) return;
+            const m = mapaInventario(db, p);
+            if (m[s] != null) m[s] = Math.max(0, m[s] - n);
         });
     }
     function esRefresco(categoria) { const t = String(categoria || '').toLowerCase(); return t.includes('bebida') || t.includes('refresco'); }
@@ -313,7 +331,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             }
 
             if (fila && sid && !esRegalo && !(tipo === 'p' ? itemDisponibleEn(fila, sid) : comboDisponibleEn(db, fila, sid))) throw new HttpError(400, `${fila.nombre} no está disponible en esta sucursal. Quítalo del carrito para continuar.`);
-            if (fila && !esPersonal && !esRegalo && fila.agotado) throw new HttpError(400, `${fila.nombre} se agotó. Quítalo del carrito para continuar.`);
+            if (fila && !esPersonal && !esRegalo && (tipo === 'p' ? agotadoEn(db, fila, sid) : fila.agotado)) throw new HttpError(400, `${fila.nombre} se agotó. Quítalo del carrito para continuar.`);
 
             if (esRegalo && tipo === 'p' && fila && (cupos[dbId] || 0) >= cantidad) {
                 cupos[dbId] -= cantidad; precio = 0; precioPaquete = null; cantPaquete = 0;
@@ -383,7 +401,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
     ruta('GET', '/api/menu', (ctx, db) => { const sid = parseInt(ctx.query.sucursal, 10) || 0; return ({
         menu: {
             categorias: db.categorias.map(c => ({ id: c.id, nombre: c.nombre, imagen: c.imagen })),
-            productos: db.productos.filter(p => itemDisponibleEn(p, sid)).map(p => ({ no_disponible_en: p.no_disponible_en || [], id: p.id, codigo_barras: p.codigo_barras || '', nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: p.agotado, inventario: p.inventario == null ? null : p.inventario, favorito: !!p.favorito, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
+            productos: db.productos.filter(p => itemDisponibleEn(p, sid)).map(p => ({ no_disponible_en: p.no_disponible_en || [], id: p.id, codigo_barras: p.codigo_barras || '', nombre: p.nombre, categoria: p.categoria, precio: p.precio, imagen: p.imagen, descripcion: p.descripcion, disponible: p.disponible, agotado: agotadoEn(db, p, sid), agotado_manual: !!p.agotado, inventario: stockEn(db, p, sid), inventarios: ctx.sesion ? mapaInventario(db, p) : undefined, favorito: !!p.favorito, disponible_desde: p.disponible_desde, disponible_hasta: p.disponible_hasta, dias_disponibles: p.dias_disponibles, bandejas: p.bandejas, cajas_pizza: p.cajas_pizza, precio_paquete: p.precio_paquete, cantidad_paquete: p.cantidad_paquete })),
             combos: db.combos.filter(c => comboDisponibleEn(db, c, sid)).map(c => ({ no_disponible_en: c.no_disponible_en || [], id: c.id, nombre: c.nombre, categoria: c.categoria, precio: c.precio, imagen: c.imagen, descripcion: c.descripcion, disponible: c.disponible, favorito: !!c.favorito, items_json: c.items_json, promo_cantidad_minima: c.promo_cantidad_minima, promo_producto_id: c.promo_producto_id, promo_producto_cantidad: c.promo_producto_cantidad, disponible_desde: c.disponible_desde, disponible_hasta: c.disponible_hasta, dias_disponibles: c.dias_disponibles, bandejas: c.bandejas, cajas_pizza: c.cajas_pizza }))
         }
     }); });
@@ -439,21 +457,33 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         return ok();
     });
     ruta('POST', '/api/menu/inventario', (ctx, db) => {
-        requiereAdmin(ctx); const { id, cantidad } = ctx.body || {};
-        const p = db.productos.find(x => x.id === Number(id));
+        requiereAdmin(ctx); const b = ctx.body || {};
+        const p = db.productos.find(x => x.id === Number(b.id));
         if (!p) throw new HttpError(404, 'Producto no encontrado');
-        if (cantidad === null) { p.inventario = null; return ok(); } // quitar el control de inventario
-        // Ingreso de mercancía (escáner): suma a lo que haya, sin depender de la cifra que tenga la pantalla
-        if (ctx.body.sumar !== undefined && ctx.body.sumar !== null) {
-            const s = Math.floor(Number(ctx.body.sumar));
-            if (!Number.isFinite(s) || s < 1 || s > 100000) throw new HttpError(422, 'Cantidad no válida');
-            p.inventario = (p.inventario == null ? 0 : p.inventario) + s; p.agotado = p.inventario <= 0;
-            return ok({ inventario: p.inventario });
+        const mapa = mapaInventario(db, p);
+        const entero = v => { const n = Math.floor(Number(v)); if (!Number.isFinite(n) || n < 0 || n > 100000) throw new HttpError(422, 'Cantidad no válida'); return n; };
+        // Varias sucursales a la vez: { cantidades: { "<sucursal>": número | null } } (null = sin control en esa sucursal)
+        if (b.cantidades && typeof b.cantidades === 'object') {
+            Object.keys(b.cantidades).forEach(k => {
+                const sc = idSucursalValido(db, k); if (!sc) throw new HttpError(422, 'Sucursal no válida');
+                const v = b.cantidades[k];
+                if (v === null) delete mapa[sc]; else mapa[sc] = entero(v);
+            });
+            return ok({ inventarios: mapa });
         }
-        const n = Math.floor(Number(cantidad));
-        if (!Number.isFinite(n) || n < 0 || n > 100000) throw new HttpError(422, 'Cantidad no válida');
-        p.inventario = n; p.agotado = n <= 0; // con 0 queda sin stock; si se repone, vuelve a estar disponible
-        return ok();
+        // Una sola sucursal (si el local tiene una sola, se usa esa)
+        const sc = idSucursalValido(db, b.sucursal_id) || sidInventario(db, 0);
+        if (!sc) throw new HttpError(422, 'Elige la sucursal.');
+        if (b.cantidad === null) { delete mapa[sc]; return ok({ inventarios: mapa, inventario: null }); } // quitar el control de inventario
+        // Ingreso de mercancía (escáner): suma a lo que haya, sin depender de la cifra que tenga la pantalla
+        if (b.sumar !== undefined && b.sumar !== null) {
+            const n = Math.floor(Number(b.sumar));
+            if (!Number.isFinite(n) || n < 1 || n > 100000) throw new HttpError(422, 'Cantidad no válida');
+            mapa[sc] = (mapa[sc] == null ? 0 : mapa[sc]) + n;
+            return ok({ inventarios: mapa, inventario: mapa[sc] });
+        }
+        mapa[sc] = entero(b.cantidad);
+        return ok({ inventarios: mapa, inventario: mapa[sc] });
     });
     // Asignar (o quitar) el código de barras de un producto que ya existe
     ruta('POST', '/api/menu/codigo', (ctx, db) => {
@@ -1234,7 +1264,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
         const tasa = tasaVigente(db);
         const cli = db.clientes.find(c => c.telefono === telefono);
         const { texto, total } = construirResumenPedido(db, p.articulos, esPersonal, sid);
-        revisarInventario(db, p.articulos, esPersonal);
+        revisarInventario(db, p.articulos, esPersonal, sid);
         const emp = calcularEmpaque(db, p.articulos);
         const esPickup = esEntregaPickup(tipo);
 
@@ -1287,7 +1317,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre) {
             sucursal_id: sid, sucursal_nombre: suc ? suc.nombre : null
         };
         db.pedidos.push(nuevo);
-        descontarInventario(db, p.articulos);
+        descontarInventario(db, p.articulos, sid);
         const idVisual = contarNumeroDiario(db, nuevo);
 
         if (mesa && mesa.estado === 'libre') { mesa.estado = 'ocupada'; mesa.ocupada_desde = nuevo.timestamp; }
