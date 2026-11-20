@@ -171,7 +171,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre, opcione
         for (let d = 0; d < 7; d++) db.horarios.push({ id: d + 1, dia_semana: d, activo: true, hora_apertura: '00:00', hora_cierre: '23:59' });
 
         db.sitio = { titulo: String(op.titulo || ''), eslogan: vacio ? '' : (marca().eslogan || ''), historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '' };
-        db.sucursales = [{ id: siguienteId(db, 'sucursales'), nombre: 'Sucursal Principal', direccion: '', telefono: '', whatsapp: '', horario: 'Todos los días', mapa: '', coords: '', activa: true }];
+        db.sucursales = [{ id: siguienteId(db, 'sucursales'), nombre: 'Sucursal Principal', direccion: '', telefono: '', whatsapp: '', horario: vacio ? '' : 'Todos los días', mapa: '', coords: '', activa: true }];
         db.galeria = []; db.resenas = [];
 
         Object.keys(PLANTILLAS).forEach(id => db.mensajes.push({ id, texto: PLANTILLAS[id] }));
@@ -1738,7 +1738,7 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre, opcione
 
 
 // ---- Web pública: datos del sitio y sucursales ----
-const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', logoSistema: '', tituloSobrePortada: false };
+const SITIO_VACIO = { titulo: '', eslogan: '', historia: '', whatsapp: '', instagram: '', facebook: '', tiktok: '', email: '', colorPrincipal: '', colorSecundario: '', colorPortada: '', imagenPortada: '', logo: '', logoSistema: '', tituloSobrePortada: false, etiquetaLocales: '' };
 const colorOk = v => (/^#[0-9a-fA-F]{6}$/.test(String(v || '').trim()) ? String(v).trim().toLowerCase() : '');
 // Horario propio de una sucursal: 7 días (0 = lunes) con activo + apertura/cierre. null = usa el horario general del negocio.
 const HORA_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -1770,7 +1770,7 @@ ruta('POST', '/api/sitio/guardar', (ctx, db) => {
         titulo: limpiarTexto(s.titulo, 80, true), eslogan: limpiarTexto(s.eslogan, 160, true), historia: limpiarTexto(s.historia, 800),
         whatsapp: String(s.whatsapp || '').replace(/\D/g, '').slice(0, 18), instagram: limpiarTexto(s.instagram, 60, true).replace(/^@/, ''),
         facebook: limpiarTexto(s.facebook, 200, true), tiktok: limpiarTexto(s.tiktok, 200, true).replace(/^@/, ''),
-        email: limpiarTexto(s.email, 120, true),
+        email: limpiarTexto(s.email, 120, true), etiquetaLocales: limpiarTexto(s.etiquetaLocales, 20, true),
         colorPrincipal: colorOk(s.colorPrincipal), colorSecundario: colorOk(s.colorSecundario), colorPortada: colorOk(s.colorPortada),
         imagenPortada: urlSegura(s.imagenPortada), logo: urlSegura(s.logo), logoSistema: urlSegura(s.logoSistema), tituloSobrePortada: s.tituloSobrePortada === true
     };

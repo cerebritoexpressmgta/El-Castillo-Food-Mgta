@@ -16,8 +16,8 @@ h1{font-size:22px;margin:0}h2{font-size:15px;margin:28px 0 10px;color:var(--mu);
 input{width:100%;padding:12px 14px;margin:6px 0 12px;border-radius:10px;border:1px solid var(--bd);background:#1e3158;color:var(--tx);font-size:15px}
 button,.btn{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
 button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}.ok{color:#34d399;font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
-.tile{display:block;text-decoration:none;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;transition:.15s}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-rows:1fr;gap:12px}
+.tile{display:block;box-sizing:border-box;min-height:128px;text-decoration:none;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;transition:.15s}
 .tile:hover{border-color:var(--ac);transform:translateY(-2px)}.tile b{display:block;font-size:16px;margin:8px 0 4px}.tile span{font-size:12px;color:var(--mu)}.tile i{font-style:normal;font-size:26px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row input{margin:0;flex:1;min-width:200px}
 .hidden{display:none}input[type=checkbox]{width:auto!important;margin:0 8px 0 0!important}.row label{display:flex;align-items:center}.galp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}.gi{background:#1e3158;border:1px solid var(--bd);border-radius:12px;overflow:hidden}.gi img{width:100%;height:110px;object-fit:cover;display:block}.gi input{margin:0;border:0;border-top:1px solid var(--bd);border-radius:0;padding:8px;font-size:12px}.gi button{width:100%;border-radius:0;padding:6px;font-size:12px}select{padding:8px;border-radius:8px;background:#1e3158;color:var(--tx);border:1px solid var(--bd)}.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.suc-it{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px}.suc-it label{font-size:12px;color:var(--mu)}.suc-it .row2 input{margin-bottom:6px}label{font-size:13px;color:var(--mu)}small{color:var(--mu)}
@@ -66,7 +66,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
 
   <h2>Ir a</h2>
   <div class="grid">
-    <a class="tile" href="admin.html"><i>⚙️</i><b>Configurar menú y negocio</b><span>Categorías, productos, combos, mesas, horarios, anuncios, usuarios y mensajes</span></a>
+    <a class="tile" href="admin.html"><i>⚙️</i><b>Configurar menú y negocio</b><span>Categorías, productos, mesas, horarios y usuarios</span></a>
     <a class="tile" href="cocina.html"><i>🍳</i><b>Cocina</b><span>Tablero de pedidos en vivo</span></a>
     <a class="tile" href="mesas.html"><i>🍽️</i><b>Mesas</b><span>Estado y cuentas por mesa</span></a>
     <a class="tile" href="menu_trabajadores.html"><i>📝</i><b>Tomar pedido (caja)</b><span>Registrar pedidos del personal</span></a>
@@ -85,6 +85,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
   <div class="card">
     <label>Nombre del negocio (título de la web)</label><input id="s-titulo" maxlength="80">
     <label>Frase corta (debajo del título)</label><input id="s-eslogan" maxlength="160">
+    <label>Cómo llamas a tus locales (ej: Sucursales, Tiendas, Locales)</label><input id="s-etiquetaLocales" maxlength="20" placeholder="Sucursales">
     <label>Quiénes somos (opcional)</label><textarea id="s-historia" maxlength="800" rows="3" style="width:100%;padding:12px 14px;margin:6px 0 12px;border-radius:10px;border:1px solid var(--bd);background:#1e3158;color:var(--tx);font:inherit"></textarea>
     <div class="row2">
       <div><label>WhatsApp (con código de país, solo números)</label><input id="s-whatsapp" placeholder="584121234567" inputmode="numeric"></div>
@@ -440,7 +441,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     const r = await api('GET', '/api/sitio?todas=1');
     if (r.s !== 200) return;
     const s = r.d.sitio || {};
-    ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { $('s-' + k).value = s[k] || ''; });
+    ['titulo', 'eslogan', 'etiquetaLocales', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { $('s-' + k).value = s[k] || ''; });
     tema = Object.assign({}, TEMA_VACIO, { colorPrincipal: s.colorPrincipal || '', colorSecundario: s.colorSecundario || '', colorPortada: s.colorPortada || '', imagenPortada: s.imagenPortada || '', logo: s.logo || '', logoSistema: s.logoSistema || '', tituloSobrePortada: s.tituloSobrePortada === true }); pintarTema();
     limiteSuc = r.d.limite_sucursales || 1;
     sucursales = r.d.sucursales || []; pintarSuc();
@@ -449,7 +450,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
   $('suc-add').onclick = () => { if (sucursales.filter(s => s.activa !== false).length >= limiteSuc) { alert('Llegaste al límite de tu plan (' + limiteSuc + ' local' + (limiteSuc === 1 ? '' : 'es') + ').'); return; } sucursales.push({ nombre: '', direccion: '', telefono: '', whatsapp: '', horario: '', horarios: null, mapa: '', activa: true }); pintarSuc(); };
   async function guardarWeb() {
     const ms = [$('msg-web'), $('msg-web2')]; ms.forEach(m => { m.className = 'err'; m.textContent = ''; });
-    const sitio = {}; ['titulo', 'eslogan', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });
+    const sitio = {}; ['titulo', 'eslogan', 'etiquetaLocales', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });
     Object.assign(sitio, tema);
     const r = await api('POST', '/api/sitio/guardar', { sitio, sucursales, galeria, resenas });
     if (r.d && r.d.success) { ms.forEach(m => { m.className = 'ok'; m.textContent = 'Guardado. Ya se ve en la web.'; }); try { if (tema.logoSistema) localStorage.setItem('logoSistemaUrl', tema.logoSistema); else localStorage.removeItem('logoSistemaUrl'); } catch (e) {} document.querySelectorAll('img.logo-sistema').forEach(i => i.src = tema.logoSistema || 'icons/logo-escudo.jpg?v=1'); cargarWeb(); }

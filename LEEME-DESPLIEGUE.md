@@ -153,3 +153,8 @@ Cómo funciona: para los negocios que **no** son el original, el Worker reescrib
 - No se reescriben `inicio.html` ni `embed.html` (son páginas de la demo).
 - iPhone: el ícono de «Añadir a inicio» no admite SVG. Un negocio que quiera su ícono en iOS debe subir un logo en PNG o JPG.
 - Las páginas ahora pasan por el Worker (las imágenes, scripts y estilos no). Cuenta contra tu cuota de solicitudes de Cloudflare.
+
+### Sección de locales de la web (Sucursales / Tiendas)
+- En **Panel > Datos de la web** hay un campo **«Cómo llamas a tus locales»** (ej. Tiendas, Locales). Cambia los títulos y el menú; vacío = «Sucursales».
+- Con un solo local la sección se llama «Dónde estamos». Un negocio nuevo no muestra la sección hasta que complete algo del local (horario, dirección, teléfono, mapa o coordenadas).
+- «Cómo llegar» y el mapa aparecen con la **dirección** (no hacen falta coordenadas). Las coordenadas o un enlace de Google Maps solo hacen la ubicación más exacta.

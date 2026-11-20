@@ -44,14 +44,22 @@ const ARCHIVOS_ORIGINAL = ['icons/logo-escudo.jpg?v=1', 'icons/logo-castillo.jpg
 export function reescribirHtml(texto, m) {
     if (m.original) return texto;
     const nombre = escHtml(m.nombre);
-    let t = texto.split('El Castillo Food Mgta').join(nombre).split('El Castillo').join(nombre);
-    // Los íconos/logo del castillo se cambian por el logo propio o el ícono generado
     const logo = m.logoFinal.replace(/["'<>\s]/g, c => encodeURIComponent(c)); // URL segura dentro de HTML y de textos JS
+    let t = texto.split('El Castillo Food Mgta').join(nombre).split('El Castillo').join(nombre);
+    t = t.split('Castillo Staff').join(escHtml(m.corto) + ' Staff').split('el escudo del Castillo').join('el ícono de tu negocio');
+    // Emoji del castillo (también dentro de los fondos en SVG): se cambia por el del negocio
+    t = t.split('🏰').join(m.emoji).split('%F0%9F%8F%B0').join(encodeURIComponent(m.emoji));
+    // Imágenes de fondo del castillo: sin imagen (queda el degradado)
+    t = t.replace(/url\((['"]?)\/?icons\/castillo-(?:fondo|portada)\.jpg(?:\?v=\d+)?\1\)/g, 'none');
+    // Logo e íconos del castillo -> logo propio o ícono generado
     ARCHIVOS_ORIGINAL.forEach(a => { t = t.split('/' + a).join(logo).split(a).join(logo); });
+    // Favicon: se quitan los del castillo (incluido /favicon.ico) y se pone uno solo
+    t = t.replace(/<link\s+rel="(?:icon|shortcut icon|apple-touch-icon)"[^>]*>\s*/gi, '');
+    const iconos = '<link rel="icon" href="' + logo + '"><link rel="apple-touch-icon" href="' + logo + '">';
     // Marca para los scripts (se pone al inicio del <head>, antes de que corra cualquiera)
     const dato = JSON.stringify({ nombre: m.nombre, emoji: m.emoji, eslogan: m.eslogan, color: m.color, iconoUrl: m.logoFinal })
         .replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-    return t.replace(/<head[^>]*>/i, (h) => h + '<script>window.__MARCA=' + dato + ';</script>');
+    return t.replace(/<head[^>]*>/i, (h) => h + iconos + '<script>window.__MARCA=' + dato + ';</script>');
 }
 
 // Manifiestos de la app instalable (clientes y personal), con el nombre de cada negocio

@@ -176,8 +176,9 @@ async function manejarApi(request, env, negocio) {
 const RUTA_HTML = (p) => p === '/' || /\.html$/.test(p) || !/\.[a-z0-9]+$/i.test(p);
 async function servirEstatico(request, env, url) {
     const path = url.pathname;
+    const esFavicon = path === '/favicon.ico';
     const esManifiesto = path === '/manifest.webmanifest' || path === '/manifest-personal.webmanifest';
-    if (request.method !== 'GET' || (!esManifiesto && !RUTA_HTML(path))) return env.ASSETS.fetch(request);
+    if (request.method !== 'GET' || (!esManifiesto && !esFavicon && !RUTA_HTML(path))) return env.ASSETS.fetch(request);
     let m = null;
     try {
         const negocio = await negocioDeHost(env, url.hostname);
@@ -185,6 +186,8 @@ async function servirEstatico(request, env, url) {
     } catch (e) { console.error('[marca]', e.message); }
     if (!m || m.original) return env.ASSETS.fetch(request); // negocio original o sin datos: archivos tal cual
 
+    // Los navegadores piden /favicon.ico por su cuenta: cada negocio apunta a su propio ícono
+    if (esFavicon) return new Response(null, { status: 302, headers: { Location: m.logoFinal, 'Cache-Control': 'no-cache' } });
     // Sin condicionales: el archivo original cambia al reescribirlo, un 304 reutilizaría la copia equivocada
     const h = new Headers(request.headers); h.delete('If-None-Match'); h.delete('If-Modified-Since');
     const r = await env.ASSETS.fetch(new Request(request.url, { method: 'GET', headers: h }));
