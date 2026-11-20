@@ -1,7 +1,10 @@
 // Menú desplegable de navegación SOLO PARA EL DUEÑO.
 // Aparece solo cuando el administrador inició sesión (usuario y contraseña). Los clientes nunca lo ven.
 (function () {
+  // iniciar() se puede volver a llamar (el panel lo hace justo después de iniciar sesión)
+  function iniciar() {
     try {
+        if (document.getElementById('menu-dueno')) return; // ya está puesto
         if (window.self !== window.top) return; // no mostrar dentro de la demo incrustada
 
         // Solo aparece si hay una sesión de administrador iniciada en este navegador
@@ -13,7 +16,7 @@
         } catch (e) {}
         if (!activo) return;
 
-        var logoSrc = 'icons/logo-escudo.jpg?v=1';
+        var logoSrc = (window.__MARCA && window.__MARCA.iconoUrl) || 'icons/logo-escudo.jpg?v=1';
         try { var lg = localStorage.getItem('logoSistemaUrl') || ''; if (/^(https:\/\/|\/|icons\/)/.test(lg)) logoSrc = lg; } catch (e) {}
 
         var paginas = [
@@ -61,4 +64,7 @@
 
         if (document.body) montar(); else document.addEventListener('DOMContentLoaded', montar);
     } catch (e) { /* nunca debe romper la página */ }
+  }
+  window.menuDuenoActualizar = iniciar;
+  iniciar();
 })();

@@ -5,7 +5,7 @@ import { consultarBcvDetallado, aplicarTasaBcv, anotarFalloBcv, anotarIntentosBc
 import { configurarSecreto, verificarToken, hashClave } from './auth.mjs';
 import { leerEstado, crearEstado, guardarEstado, leerVersion, mantenerActivo, subirImagen, negocioPorHost, negocioPorId, listarNegocios, crearNegocio, actualizarNegocio, borrarNegocioSinDatos } from './supabase.mjs';
 import { correrEnContexto } from './contexto.mjs';
-import { leerMarca, olvidarMarcas, iconoSvg, reescribirHtml, reescribirManifiesto } from './marca.mjs';
+import { leerMarca, olvidarMarcas, iconoSvg, reescribirHtml, reescribirManifiesto, reescribirFondos } from './marca.mjs';
 
 const json = (status, cuerpo) => new Response(JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 
@@ -177,8 +177,9 @@ const RUTA_HTML = (p) => p === '/' || /\.html$/.test(p) || !/\.[a-z0-9]+$/i.test
 async function servirEstatico(request, env, url) {
     const path = url.pathname;
     const esFavicon = path === '/favicon.ico';
+    const esFondos = path === '/fondos.css';
     const esManifiesto = path === '/manifest.webmanifest' || path === '/manifest-personal.webmanifest';
-    if (request.method !== 'GET' || (!esManifiesto && !esFavicon && !RUTA_HTML(path))) return env.ASSETS.fetch(request);
+    if (request.method !== 'GET' || (!esManifiesto && !esFavicon && !esFondos && !RUTA_HTML(path))) return env.ASSETS.fetch(request);
     let m = null;
     try {
         const negocio = await negocioDeHost(env, url.hostname);
@@ -198,6 +199,7 @@ async function servirEstatico(request, env, url) {
         const j = await r.json();
         return new Response(JSON.stringify(reescribirManifiesto(j, m, path.includes('personal'))), { status: 200, headers: salida });
     }
+    if (esFondos) { salida.set('Cache-Control', 'public, max-age=300'); return new Response(reescribirFondos(await r.text(), m), { status: 200, headers: salida }); }
     if (tipo.includes('text/html')) return new Response(reescribirHtml(await r.text(), m), { status: 200, headers: salida });
     return r;
 }

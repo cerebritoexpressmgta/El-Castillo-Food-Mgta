@@ -38,6 +38,19 @@ export function iconoSvg(m) {
         `<text x="256" y="256" dy=".35em" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="300" fill="#ffffff">${ini}</text></svg>`;
 }
 
+// Emojis del castillo en los fondos (vienen codificados dentro de los SVG): se cambian por símbolos neutros
+function neutralizarFondos(t, m) {
+    return t.replace(/%F0%9F%8F%B0/g, encodeURIComponent(m.emoji))      // 🏰 -> emoji del negocio
+            .replace(/%E2%9A%94(%EF%B8%8F)?/g, '%E2%AD%90')                // ⚔️ -> ⭐
+            .replace(/%F0%9F%91%91/g, '%E2%9C%A8')                         // 👑 -> ✨
+            .replace(/%F0%9F%9B%A1(%EF%B8%8F)?/g, '%F0%9F%94%B7');         // 🛡️ -> 🔷
+}
+// fondos.css: solo el fondo del panel del dueño (data-fondo="dueno") es temático del castillo
+export function reescribirFondos(css, m) {
+    if (m.original) return css;
+    return css.replace(/body\[data-fondo="dueno"\]\{[^}]*\}/, (b) => neutralizarFondos(b, m));
+}
+
 // Archivos de marca del negocio original que se sustituyen en los demás negocios
 const ARCHIVOS_ORIGINAL = ['icons/logo-escudo.jpg?v=1', 'icons/logo-castillo.jpg?v=1', 'icons/apple-touch-icon.png', 'icons/favicon-32.png', 'icons/favicon-16.png', 'icons/icon-192.png'];
 
@@ -48,7 +61,8 @@ export function reescribirHtml(texto, m) {
     let t = texto.split('El Castillo Food Mgta').join(nombre).split('El Castillo').join(nombre);
     t = t.split('Castillo Staff').join(escHtml(m.corto) + ' Staff').split('el escudo del Castillo').join('el ícono de tu negocio');
     // Emoji del castillo (también dentro de los fondos en SVG): se cambia por el del negocio
-    t = t.split('🏰').join(m.emoji).split('%F0%9F%8F%B0').join(encodeURIComponent(m.emoji));
+    t = t.split('🏰').join(m.emoji);
+    t = neutralizarFondos(t, m);
     // Imágenes de fondo del castillo: sin imagen (queda el degradado)
     t = t.replace(/url\((['"]?)\/?icons\/castillo-(?:fondo|portada)\.jpg(?:\?v=\d+)?\1\)/g, 'none');
     // Logo e íconos del castillo -> logo propio o ícono generado

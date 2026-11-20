@@ -12,7 +12,7 @@
     // Además de /api, pasan por el Worker las páginas y manifiestos (para poner la marca de cada negocio).
     // Imágenes, scripts y estilos los sirve Cloudflare directo, sin costo de Worker.
     "run_worker_first": [
-      "/api/*", "/", "/favicon.ico", "/*.html", "/manifest.webmanifest", "/manifest-personal.webmanifest",
+      "/api/*", "/", "/favicon.ico", "/fondos.css", "/*.html", "/manifest.webmanifest", "/manifest-personal.webmanifest",
       "/index", "/inicio", "/menu", "/admin", "/panel", "/cocina", "/mesas", "/estadisticas",
       "/menu_trabajadores", "/offline", "/privacidad", "/terminos", "/seguimiento", "/embed"
     ]

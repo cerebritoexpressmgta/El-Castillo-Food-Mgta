@@ -1,6 +1,6 @@
 // =====================================================================
 // Logo del sistema: la imagen que aparece arriba en Administración, Cocina y Mesas.
-// El dueño la cambia en el Panel (Apariencia → "Logo del sistema"); si no sube ninguna, se usa el escudo del Castillo.
+// El dueño la cambia en el Panel (Apariencia → "Logo del sistema"); si no sube ninguno, se usa el logo del negocio y, sin éste, el ícono por defecto.
 // Cualquier <img class="logo-sistema"> de esas pantallas se actualiza sola.
 // =====================================================================
 (function () {
@@ -24,7 +24,7 @@
 
     var base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
     fetch(base + '/api/sitio').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-        var u = d && d.sitio && d.sitio.logoSistema ? d.sitio.logoSistema : '';
+        var u = d && d.sitio ? (d.sitio.logoSistema || d.sitio.logo || '') : ''; // el logo del negocio sirve para todo si no hay uno aparte
         try { if (u) localStorage.setItem(LLAVE, u); else localStorage.removeItem(LLAVE); } catch (e) {}
         aplicar(u);
     }).catch(function () { /* sin conexión: queda el último logo conocido */ });
