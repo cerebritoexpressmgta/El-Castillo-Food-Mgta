@@ -68,7 +68,7 @@ export async function subirImagen(env, nid, nombre, bytes, tipo) {
 }
 
 // ---- Negocios (clientes de la plataforma) ----
-const COLS_NEGOCIO = 'id,slug,nombre,hosts,activo,max_sucursales,plan,marca_original,creado_en';
+const COLS_NEGOCIO = 'id,slug,nombre,hosts,activo,max_sucursales,plan,plantilla,precio_mensual,moneda,vence_el,dias_gracia,notas,marca_original,creado_en';
 export async function negocioPorHost(env, host) {
     const h = String(host || '').toLowerCase().replace(/[^a-z0-9.\-:]/g, '');
     if (!h) return null;
@@ -85,7 +85,7 @@ export async function listarNegocios(env, soloActivos) {
 export async function crearNegocio(env, n) {
     const f = await pedir(env, '/rest/v1/negocios', {
         method: 'POST', headers: cab(env, { Prefer: 'return=representation' }),
-        body: JSON.stringify({ slug: n.slug, nombre: n.nombre, hosts: n.hosts, max_sucursales: n.max_sucursales || 1, plan: n.plan || 'basico' })
+        body: JSON.stringify({ slug: n.slug, nombre: n.nombre, hosts: n.hosts, max_sucursales: n.max_sucursales || 1, plan: n.plan || 'basico', plantilla: n.plantilla || 'general', precio_mensual: n.precio_mensual || 0, moneda: n.moneda || 'USD', vence_el: n.vence_el || null, dias_gracia: n.dias_gracia == null ? 5 : n.dias_gracia, notas: n.notas || '' })
     });
     return f && f[0];
 }
@@ -103,4 +103,15 @@ export async function borrarNegocioSinDatos(env, id) {
 export async function leerSitio(env, nid) {
     const f = await pedir(env, `/rest/v1/app_state?id=eq.${entero(nid)}&select=sitio:data->sitio`, { headers: cab(env) });
     return f && f[0] && f[0].sitio ? f[0].sitio : {};
+}
+
+// ---- Pagos de suscripción ----
+const COLS_PAGO = 'id,negocio_id,fecha,monto,moneda,metodo,referencia,meses,vence_el_nuevo,notas,creado_en';
+export async function listarPagos(env, nid, limite) {
+    const f = nid ? `negocio_id=eq.${entero(nid)}&` : '';
+    return await pedir(env, `/rest/v1/negocio_pagos?${f}select=${COLS_PAGO}&order=fecha.desc,id.desc&limit=${Math.min(500, limite || 100)}`, { headers: cab(env) }) || [];
+}
+export async function crearPago(env, p) {
+    const f = await pedir(env, '/rest/v1/negocio_pagos', { method: 'POST', headers: cab(env, { Prefer: 'return=representation' }), body: JSON.stringify(p) });
+    return f && f[0];
 }

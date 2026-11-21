@@ -12,7 +12,7 @@
     // Además de /api, pasan por el Worker las páginas y manifiestos (para poner la marca de cada negocio).
     // Imágenes, scripts y estilos los sirve Cloudflare directo, sin costo de Worker.
     "run_worker_first": [
-      "/api/*", "/", "/favicon.ico", "/fondos.css", "/*.html", "/manifest.webmanifest", "/manifest-personal.webmanifest",
+      "/api/*", "/", "/favicon.ico", "/fondos.css", "/menu-fondo.css", "/*.html", "/manifest.webmanifest", "/manifest-personal.webmanifest",
       "/index", "/inicio", "/menu", "/admin", "/panel", "/cocina", "/mesas", "/estadisticas",
       "/menu_trabajadores", "/offline", "/privacidad", "/terminos", "/seguimiento", "/embed"
     ]
@@ -24,7 +24,16 @@
     "SUPABASE_URL": "https://cncrupyxesbzinvjunqm.supabase.co",
     // Negocio que atiende los dominios no registrados (workers.dev, pruebas). 1 = El Castillo.
     // Cuando todos tus dominios estén registrados en la tabla negocios, bórrala para que un dominio desconocido dé error.
-    "NEGOCIO_POR_DEFECTO": "1"
+    "NEGOCIO_POR_DEFECTO": "1",
+
+    // --- Panel de plataforma en cerebritoexpressmgta.com (ver LEEME-DESPLIEGUE.md) ---
+    // Supabase de TU página (el de admin.html). La URL y la clave "publishable" son públicas por diseño.
+    "CX_SUPABASE_URL": "https://kdouazmwwgmkyhsbaaqs.supabase.co",
+    "CX_SUPABASE_KEY": "sb_publishable_JvJnF7llHfaLO4wGwFQd2g_xZyIDuKS",
+    // Páginas desde las que se puede llamar al panel (separadas por coma, sin / final)
+    "PLATAFORMA_ORIGENES": "https://cerebritoexpressmgta.com,https://www.cerebritoexpressmgta.com"
+    // Agrega en Cloudflare (Variables): PLATAFORMA_EMAIL = tu correo del panel
+    // Opcional: PLATAFORMA_CONTACTO = texto que ven los clientes con el servicio vencido (ej. "WhatsApp +58 ...")
   },
   // 12:00 UTC = 8:00 a. m. Venezuela: despierta Supabase y actualiza la tasa BCV.
   // Las otras dos (10:00 a. m. y 1:00 p. m.) solo reintentan la tasa si la de la mañana falló.

@@ -1077,6 +1077,8 @@ export function crearDbInicial(adminPinHash, adminUsername, adminNombre, opcione
         u.pin = await hashClave(nueva); u.debe_cambiar = false;
         return await respuestaSesion(u);
     });
+    // Estado de la suscripción (solo el dueño/administrador lo ve; el público nunca)
+    ruta('GET', '/api/cuenta/estado', (ctx, db) => { requiereAdmin(ctx); return contexto().cuenta || { estado: 'sin_control' }; });
     ruta('GET', '/api/usuarios', (ctx, db) => { requiereAdmin(ctx); return db.usuarios.map(u => ({ id: u.id, nombre: u.nombre, username: u.username, rol: u.rol, sucursal_id: u.sucursal_id || null, tiene_2fa: tiene2fa(u), debe_cambiar: !!u.debe_cambiar })); });
     ruta('POST', '/api/usuarios/guardar', async (ctx, db) => {
         const admin = requiereAdmin(ctx); const d = ctx.body;

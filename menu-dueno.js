@@ -62,6 +62,34 @@
             document.addEventListener('click', function () { panel.style.display = 'none'; });
         }
 
+        // Aviso de suscripción (solo lo ve el dueño/administrador): por vencer o vencida con días de gracia
+        function fmt(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+        function avisoCuenta() {
+            try {
+                if (document.getElementById('aviso-cuenta')) return;
+                var tk = localStorage.getItem('tokioAuthToken'); if (!tk) return;
+                fetch('/api/cuenta/estado', { headers: { Authorization: 'Bearer ' + tk } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
+                    if (!c || (c.estado !== 'por_vencer' && c.estado !== 'vencido')) return;
+                    if (c.estado === 'por_vencer' && sessionStorage.getItem('avisoCuentaCerrado') === c.vence_el) return;
+                    var d = c.dias, plural = function (n) { return n + (n === 1 ? ' día' : ' días'); };
+                    var texto = c.estado === 'por_vencer'
+                        ? (d === 0 ? 'Tu suscripción vence HOY (' + fmt(c.vence_el) + ').' : 'Tu suscripción vence el ' + fmt(c.vence_el) + ' (en ' + plural(d) + ').') + ' Renueva para evitar que el servicio se interrumpa.'
+                        : 'Tu suscripción venció el ' + fmt(c.vence_el) + '. Podrás usar el servicio hasta el ' + fmt(c.bloqueo_el) + (d > 0 ? ' (' + plural(d) + ' más)' : ' (hoy es el último día)') + '; después se suspenderá TODO, incluida la web para tus clientes.';
+                    var el = document.createElement('div'); el.id = 'aviso-cuenta';
+                    el.style.cssText = 'position:sticky;top:0;z-index:2147482999;padding:10px 40px 10px 14px;text-align:center;font:600 14px/1.4 system-ui,sans-serif;color:#fff;background:' + (c.estado === 'vencido' ? '#b91c1c' : '#b45309') + ';box-shadow:0 2px 8px rgba(0,0,0,.4)';
+                    el.textContent = texto + (c.contacto ? ' Contacto: ' + c.contacto : '');
+                    if (c.estado === 'por_vencer') {
+                        var x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Cerrar aviso');
+                        x.style.cssText = 'position:absolute;right:8px;top:6px;background:transparent;border:0;color:#fff;font-size:18px;cursor:pointer';
+                        x.onclick = function () { try { sessionStorage.setItem('avisoCuentaCerrado', c.vence_el); } catch (e) {} el.remove(); };
+                        el.appendChild(x);
+                    }
+                    (document.body || document.documentElement).insertBefore(el, (document.body || document.documentElement).firstChild);
+                }).catch(function () {});
+            } catch (e) {}
+        }
+        if (document.body) avisoCuenta(); else document.addEventListener('DOMContentLoaded', avisoCuenta);
+
         if (document.body) montar(); else document.addEventListener('DOMContentLoaded', montar);
     } catch (e) { /* nunca debe romper la página */ }
   }

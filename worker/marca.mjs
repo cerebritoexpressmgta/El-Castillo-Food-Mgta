@@ -1,6 +1,7 @@
 // MARCA DINÁMICA: nombre, logo y colores de cada negocio salen de SUS datos (panel > Datos de la web),
 // no de textos escritos en las páginas. El Worker reescribe el HTML y genera los manifiestos por dominio.
 import { leerSitio } from './supabase.mjs';
+import { plantillaDe, patronSvg } from './plantillas.mjs';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const cache = new Map(); // negocioId -> { m, hasta }
@@ -17,7 +18,9 @@ export async function leerMarca(env, negocio) {
     const m = {
         nombre,
         corto: nombre.length > 12 ? nombre.slice(0, 12).trim() : nombre,
-        emoji: '🍽️',
+        plantilla: negocio.plantilla || 'general',
+        emojis: plantillaDe(negocio.plantilla).emojis,
+        emoji: plantillaDe(negocio.plantilla).emojis[0] || '🍽️',
         eslogan: String(s.eslogan || '').slice(0, 120),
         color: HEX.test(s.colorPrincipal || '') ? s.colorPrincipal : '#0f766e',
         logo: urlHttps(s.logoSistema) || urlHttps(s.logo),
@@ -45,10 +48,18 @@ function neutralizarFondos(t, m) {
             .replace(/%F0%9F%91%91/g, '%E2%9C%A8')                         // 👑 -> ✨
             .replace(/%F0%9F%9B%A1(%EF%B8%8F)?/g, '%F0%9F%94%B7');         // 🛡️ -> 🔷
 }
-// fondos.css: solo el fondo del panel del dueño (data-fondo="dueno") es temático del castillo
+// Fondos con los símbolos de la plantilla del negocio. 'restaurante' (sin símbolos propios) solo quita lo del castillo.
+const RE_PATRON = /url\("data:image\/svg\+xml,[^"]*%3Ctext[^"]*"\)/g;
+function fondosDePlantilla(t, m) {
+    if (!m.emojis || !m.emojis.length) return neutralizarFondos(t, m);
+    let i = 0;
+    return t.replace(RE_PATRON, () => patronSvg(m.emojis, (i++ * 3) % m.emojis.length));
+}
+// fondos.css y menu-fondo.css: solo el fondo del panel del dueño (data-fondo="dueno") es temático del castillo
 export function reescribirFondos(css, m) {
     if (m.original) return css;
-    return css.replace(/body\[data-fondo="dueno"\]\{[^}]*\}/, (b) => neutralizarFondos(b, m));
+    if (m.emojis && m.emojis.length) return fondosDePlantilla(css, m);          // todos los fondos con los símbolos de la plantilla
+    return css.replace(/body\[data-fondo="dueno"\]\{[^}]*\}/, (b) => neutralizarFondos(b, m)); // restaurante: solo se quita lo del castillo
 }
 
 // Archivos de marca del negocio original que se sustituyen en los demás negocios
@@ -62,7 +73,7 @@ export function reescribirHtml(texto, m) {
     t = t.split('Castillo Staff').join(escHtml(m.corto) + ' Staff').split('el escudo del Castillo').join('el ícono de tu negocio');
     // Emoji del castillo (también dentro de los fondos en SVG): se cambia por el del negocio
     t = t.split('🏰').join(m.emoji);
-    t = neutralizarFondos(t, m);
+    t = fondosDePlantilla(t, m);
     // Imágenes de fondo del castillo: sin imagen (queda el degradado)
     t = t.replace(/url\((['"]?)\/?icons\/castillo-(?:fondo|portada)\.jpg(?:\?v=\d+)?\1\)/g, 'none');
     // Logo e íconos del castillo -> logo propio o ícono generado

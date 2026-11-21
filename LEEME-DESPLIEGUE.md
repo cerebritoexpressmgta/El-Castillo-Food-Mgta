@@ -158,3 +158,46 @@ Cómo funciona: para los negocios que **no** son el original, el Worker reescrib
 - En **Panel > Datos de la web** hay un campo **«Cómo llamas a tus locales»** (ej. Tiendas, Locales). Cambia los títulos y el menú; vacío = «Sucursales».
 - Con un solo local la sección se llama «Dónde estamos». Un negocio nuevo no muestra la sección hasta que complete algo del local (horario, dirección, teléfono, mapa o coordenadas).
 - «Cómo llegar» y el mapa aparecen con la **dirección** (no hacen falta coordenadas). Las coordenadas o un enlace de Google Maps solo hacen la ubicación más exacta.
+
+---
+
+## Panel de plataforma (Negocios, pagos y bloqueo por falta de pago)
+
+Se maneja desde la pestaña **🏢 Negocios** de `admin.html` en cerebritoexpressmgta.com (tu inicio de sesión con 2FA). También funciona por terminal con `PLATAFORMA_CLAVE`.
+
+### Activarlo (una sola vez, en este orden)
+1. **Supabase del sistema** (SQL Editor): ejecuta `supabase/plataforma.sql`. Agrega plan, vencimiento, plantilla y la tabla de pagos. No borra nada.
+2. **Cloudflare > Worker > Variables:**
+   - `PLATAFORMA_EMAIL` = el correo con el que entras a tu panel (varios, separados por coma). **Obligatoria.**
+   - `PLATAFORMA_CONTACTO` (opcional) = texto que ven tus clientes con la suscripción vencida, ej. `WhatsApp +58 412 0000000`.
+   - Ya vienen en `wrangler.jsonc`: `CX_SUPABASE_URL`, `CX_SUPABASE_KEY` (públicas) y `PLATAFORMA_ORIGENES` (tu dominio). Si tu página está en otro dominio, cámbialo ahí.
+   - `PLATAFORMA_EXIGIR_2FA` = `false` solo si algún día no quieres exigir el segundo paso (no recomendado).
+3. Despliega el Worker y sube a tu página el `admin.html` y `config.js` nuevos (en `config.js` va la dirección del Worker en `plataforma`).
+
+### Cómo funciona el acceso
+El panel manda tu sesión de Supabase al Worker; el Worker se la pregunta a tu Supabase y solo acepta tu correo **con el segundo paso (2FA) verificado**. La clave de plataforma nunca viaja desde el navegador. Solo tu página puede llamarlo (CORS).
+
+### Suspensión en dos etapas
+Cada negocio tiene `vence_el` y `dias_gracia` (por defecto 5):
+| Estado | Cuándo | Qué pasa |
+|---|---|---|
+| Sin control | sin fecha de vencimiento | nunca se bloquea por fecha (El Castillo queda así) |
+| Al día | faltan más de 3 días | nada |
+| Por vencer | faltan 3 días o menos | aviso en el panel del dueño (se puede cerrar) |
+| Vencido | ya venció, dentro de los días de gracia | aviso fijo en el panel del dueño con la fecha límite; **todo sigue funcionando** |
+| Bloqueado | pasaron los días de gracia | **se bloquea todo**: web pública, menú, pedidos y panel |
+| Suspendido | botón «Suspender» | se bloquea todo de inmediato |
+- Se calcula con las fechas en cada solicitud: no hace falta tarea programada. Hay hasta 1 minuto de retraso (caché).
+- **Registrar un pago** extiende el vencimiento (desde el vencimiento actual; si venció hace más de un mes, desde hoy) y reactiva solo. El botón «Reactivar» reactiva sin pago.
+- Solo el dueño del negocio (y administradores) ven el aviso; el público y el personal no.
+
+### Plantillas por tipo de negocio
+Se eligen al crear el negocio o al editarlo: General, Restaurante / comida, Taller mecánico, Peluquería / belleza, Abasto / bodega, Carnicería y Tienda en línea. Definen:
+- Los símbolos del fondo de todas las pantallas (cambian al instante al cambiar la plantilla).
+- Los colores iniciales y cómo se llaman los locales (Talleres, Salones, Tiendas…).
+- «Restaurante» conserva los fondos de comida originales y solo quita lo del castillo.
+Al editar, marca «Aplicar también los colores…» si quieres que los colores de la plantilla pisen los que el cliente eligió.
+Para agregar una plantilla nueva: `worker/plantillas.mjs`.
+
+### Terminal (respaldo)
+`POST /api/plataforma/negocios` (crear), `/negocios/actualizar` (editar, suspender), `/pagos` (registrar pago), `GET /negocios` y `GET /pagos?negocio_id=` con la cabecera `X-Plataforma-Clave`.

@@ -3,8 +3,10 @@
 import { rutas, HttpError, crearDbInicial, usarFallos, tomarEvento, usarLimiteSucursales, ahoraCaracas } from './rutas.mjs';
 import { consultarBcvDetallado, aplicarTasaBcv, anotarFalloBcv, anotarIntentosBcv } from './bcv.mjs';
 import { configurarSecreto, verificarToken, hashClave } from './auth.mjs';
-import { leerEstado, crearEstado, guardarEstado, leerVersion, mantenerActivo, subirImagen, negocioPorHost, negocioPorId, listarNegocios, crearNegocio, actualizarNegocio, borrarNegocioSinDatos } from './supabase.mjs';
+import { leerEstado, crearEstado, guardarEstado, leerVersion, mantenerActivo, subirImagen, negocioPorHost, negocioPorId, listarNegocios } from './supabase.mjs';
 import { correrEnContexto } from './contexto.mjs';
+import { manejarPlataforma } from './plataforma.mjs';
+import { estadoCuenta, estaBloqueado, paginaBloqueada } from './cuenta.mjs';
 import { leerMarca, olvidarMarcas, iconoSvg, reescribirHtml, reescribirManifiesto, reescribirFondos } from './marca.mjs';
 
 const json = (status, cuerpo) => new Response(JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
@@ -31,71 +33,6 @@ async function cargarOCrear(env, negocio) {
     const db = crearDbInicial(await hashClave(env.ADMIN_PASSWORD), env.ADMIN_USER || 'admin', env.ADMIN_NAME || 'Administrador');
     await crearEstado(env, negocio.id, db);
     return await leerEstado(env, negocio.id);
-}
-
-// ---- Administración de la plataforma (solo tú, con el secreto PLATAFORMA_CLAVE) ----
-function igualSeguro(a, b) {
-    a = String(a || ''); b = String(b || '');
-    if (a.length !== b.length) return false;
-    let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    return d === 0;
-}
-const HOST_OK = /^(?=.{4,253}$)([a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$|^localhost(:\d+)?$/;
-async function manejarPlataforma(request, env, path) {
-    const clave = String(env.PLATAFORMA_CLAVE || '');
-    if (clave.length < 24) return json(503, { detail: 'Configura el secreto PLATAFORMA_CLAVE (mínimo 24 caracteres)' });
-    if (!igualSeguro(request.headers.get('X-Plataforma-Clave'), clave)) return json(403, { detail: 'No autorizado' });
-    const metodo = request.method.toUpperCase();
-
-    if (metodo === 'GET' && path === '/api/plataforma/negocios') return json(200, { negocios: await listarNegocios(env, false) });
-
-    const cuerpo = await request.json().catch(() => ({}));
-    if (metodo === 'POST' && path === '/api/plataforma/negocios') {
-        const slug = String(cuerpo.slug || '').toLowerCase();
-        const nombre = String(cuerpo.nombre || '').trim();
-        const hosts = (Array.isArray(cuerpo.hosts) ? cuerpo.hosts : []).map(h => String(h).toLowerCase().trim());
-        const adminUser = String(cuerpo.admin_user || 'admin').trim();
-        const adminClave = String(cuerpo.admin_clave || '');
-        if (!/^[a-z0-9-]{3,40}$/.test(slug)) return json(422, { detail: 'slug inválido (3 a 40: letras minúsculas, números y guiones)' });
-        if (nombre.length < 2) return json(422, { detail: 'Falta el nombre del negocio' });
-        if (!hosts.length || !hosts.every(h => HOST_OK.test(h))) return json(422, { detail: 'hosts inválidos (ej: ["mi-cliente.com","www.mi-cliente.com"])' });
-        if (adminClave.length < 8) return json(422, { detail: 'admin_clave: mínimo 8 caracteres' });
-        for (const h of hosts) if (await negocioPorHost(env, h)) return json(409, { detail: 'El dominio ' + h + ' ya pertenece a otro negocio' });
-        const max = Math.max(1, parseInt(cuerpo.max_sucursales, 10) || 1);
-        const color = /^#[0-9a-fA-F]{6}$/.test(String(cuerpo.color_principal || '')) ? String(cuerpo.color_principal) : '';
-        const n = await crearNegocio(env, { slug, nombre, hosts, max_sucursales: max, plan: String(cuerpo.plan || 'basico') });
-        try {
-            const db = crearDbInicial(await hashClave(adminClave), adminUser, String(cuerpo.admin_nombre || 'Administrador'), { vacio: true, titulo: nombre });
-            if (color) db.sitio.colorPrincipal = color;
-            try { const base = await leerEstado(env, parseInt(env.NEGOCIO_POR_DEFECTO, 10) || 1); if (base && base.data && base.data.tasa) db.tasa = base.data.tasa; } catch (e) { /* la tasa se actualiza con el cron */ }
-            await crearEstado(env, n.id, db);
-        } catch (e) {
-            await borrarNegocioSinDatos(env, n.id).catch(() => {}); // deshace para no dejar un negocio a medias
-            throw e;
-        }
-        cacheNegocios.clear(); olvidarMarcas();
-        return json(201, { negocio: n, admin_user: adminUser });
-    }
-    if (metodo === 'POST' && path === '/api/plataforma/negocios/actualizar') {
-        const id = parseInt(cuerpo.id, 10);
-        if (!(id >= 1)) return json(422, { detail: 'Falta id' });
-        const cambios = {};
-        if (typeof cuerpo.activo === 'boolean') cambios.activo = cuerpo.activo;
-        if (cuerpo.max_sucursales != null) cambios.max_sucursales = Math.max(1, parseInt(cuerpo.max_sucursales, 10) || 1);
-        if (cuerpo.nombre) cambios.nombre = String(cuerpo.nombre).trim();
-        if (cuerpo.plan) cambios.plan = String(cuerpo.plan);
-        if (Array.isArray(cuerpo.hosts)) {
-            const hosts = cuerpo.hosts.map(h => String(h).toLowerCase().trim());
-            if (!hosts.length || !hosts.every(h => HOST_OK.test(h))) return json(422, { detail: 'hosts inválidos' });
-            for (const h of hosts) { const o = await negocioPorHost(env, h); if (o && o.id !== id) return json(409, { detail: 'El dominio ' + h + ' ya pertenece a otro negocio' }); }
-            cambios.hosts = hosts;
-        }
-        if (!Object.keys(cambios).length) return json(422, { detail: 'Nada que cambiar' });
-        const n = await actualizarNegocio(env, id, cambios);
-        cacheNegocios.clear(); olvidarMarcas();
-        return n ? json(200, { negocio: n }) : json(404, { detail: 'Negocio no existe' });
-    }
-    return json(404, { detail: 'Not Found' });
 }
 
 async function manejarApi(request, env, negocio) {
@@ -177,13 +114,19 @@ const RUTA_HTML = (p) => p === '/' || /\.html$/.test(p) || !/\.[a-z0-9]+$/i.test
 async function servirEstatico(request, env, url) {
     const path = url.pathname;
     const esFavicon = path === '/favicon.ico';
-    const esFondos = path === '/fondos.css';
+    const esFondos = path === '/fondos.css' || path === '/menu-fondo.css';
     const esManifiesto = path === '/manifest.webmanifest' || path === '/manifest-personal.webmanifest';
     if (request.method !== 'GET' || (!esManifiesto && !esFavicon && !esFondos && !RUTA_HTML(path))) return env.ASSETS.fetch(request);
     let m = null;
     try {
         const negocio = await negocioDeHost(env, url.hostname);
-        if (negocio && negocio.activo !== false) m = await leerMarca(env, negocio);
+        if (negocio) {
+            // Servicio bloqueado (pasaron los días de gracia o suspendido a mano): las páginas muestran un aviso en lugar del sitio
+            if (estaBloqueado(estadoCuenta(negocio)) && !esManifiesto && !esFavicon && !esFondos) {
+                return new Response(paginaBloqueada(negocio.nombre, env.PLATAFORMA_CONTACTO), { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+            }
+            if (negocio.activo !== false) m = await leerMarca(env, negocio);
+        }
     } catch (e) { console.error('[marca]', e.message); }
     if (!m || m.original) return env.ASSETS.fetch(request); // negocio original o sin datos: archivos tal cual
 
@@ -208,16 +151,17 @@ export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         if (url.pathname.startsWith('/api/plataforma/')) {
-            try { return await manejarPlataforma(request, env, url.pathname.replace(/\/+$/, '')); }
+            try { return await manejarPlataforma(request, env, url.pathname.replace(/\/+$/, ''), { olvidar: () => { cacheNegocios.clear(); olvidarMarcas(); } }); }
             catch (e) { console.error('[plataforma]', e); return json(500, { detail: 'Error interno: ' + e.message }); }
         }
         if (url.pathname.startsWith('/api/')) {
             try {
                 const negocio = await negocioDeHost(env, url.hostname);
                 if (!negocio) return json(404, { detail: 'Este dominio no está registrado en la plataforma' });
-                if (negocio.activo === false) return json(403, { detail: 'Este negocio está suspendido. Contacta a soporte.' });
+                const cuenta = estadoCuenta(negocio);
+                if (estaBloqueado(cuenta)) return json(403, { detail: 'Servicio suspendido por falta de renovación. Contacta a soporte.', bloqueado: true });
                 // Cada solicitud corre en su propio contexto: fallos, evento y límite NO se comparten entre negocios
-                return await correrEnContexto({ negocioId: negocio.id, limite: Math.max(1, parseInt(negocio.max_sucursales, 10) || 1) }, () => manejarApi(request, env, negocio));
+                return await correrEnContexto({ negocioId: negocio.id, limite: Math.max(1, parseInt(negocio.max_sucursales, 10) || 1), cuenta: Object.assign({ contacto: String(env.PLATAFORMA_CONTACTO || '') }, cuenta) }, () => manejarApi(request, env, negocio));
             }
             catch (e) { console.error('[api fatal]', e); return json(500, { detail: 'Error interno: ' + e.message }); }
         }
