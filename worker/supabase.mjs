@@ -115,3 +115,21 @@ export async function crearPago(env, p) {
     const f = await pedir(env, '/rest/v1/negocio_pagos', { method: 'POST', headers: cab(env, { Prefer: 'return=representation' }), body: JSON.stringify(p) });
     return f && f[0];
 }
+
+// Borra la carpeta de imágenes del negocio (imagenes/<id>/...). Se llama DESPUÉS de borrar el negocio; si falla, solo quedan archivos huérfanos.
+export async function borrarImagenesNegocio(env, nid) {
+    const pref = `${entero(nid)}/`; let borradas = 0;
+    for (let i = 0; i < 5; i++) {
+        const r = await fetch(`${base(env)}/storage/v1/object/list/imagenes`, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth(env)), body: JSON.stringify({ prefix: pref, limit: 1000, offset: 0 }) });
+        if (!r.ok) throw new Error('Storage ' + r.status);
+        const lista = await r.json();
+        if (!Array.isArray(lista) || !lista.length) break;
+        const rutas = lista.filter(o => o && o.name).map(o => pref + o.name);
+        if (!rutas.length) break;
+        const d = await fetch(`${base(env)}/storage/v1/object/imagenes`, { method: 'DELETE', headers: Object.assign({ 'Content-Type': 'application/json' }, auth(env)), body: JSON.stringify({ prefixes: rutas }) });
+        if (!d.ok) throw new Error('Storage ' + d.status);
+        borradas += rutas.length;
+        if (lista.length < 1000) break;
+    }
+    return { ok: true, borradas };
+}

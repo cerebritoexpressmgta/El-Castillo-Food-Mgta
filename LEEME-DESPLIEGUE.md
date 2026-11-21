@@ -201,3 +201,9 @@ Para agregar una plantilla nueva: `worker/plantillas.mjs`.
 
 ### Terminal (respaldo)
 `POST /api/plataforma/negocios` (crear), `/negocios/actualizar` (editar, suspender), `/pagos` (registrar pago), `GET /negocios` y `GET /pagos?negocio_id=` con la cabecera `X-Plataforma-Clave`.
+
+### Eliminar un cliente
+En la pestaña Negocios, botón **🗑️ Eliminar**: pide escribir exactamente `Eliminar cliente` (con mayúscula inicial) y no deja continuar hasta que coincida. Es **definitivo**: borra su menú, pedidos, usuarios, configuración, pagos e imágenes (`imagenes/<id>/`).
+- El negocio original (El Castillo) no se puede eliminar: ni hay botón ni el servidor lo acepta.
+- El servidor repite la comprobación de la frase, así que también aplica por terminal: `POST /api/plataforma/negocios/eliminar` con `{"id":2,"confirmar":"Eliminar cliente"}`.
+- Después quita su dominio en Cloudflare (Worker > Dominios y rutas personalizados). Si solo quieres pausarlo, usa **Suspender**.

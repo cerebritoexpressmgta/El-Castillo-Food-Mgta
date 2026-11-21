@@ -3,7 +3,7 @@
 //   a) Sesión del panel web: el navegador manda el token de Supabase (CX_SUPABASE_URL); el Worker confirma que es el
 //      correo del dueño (PLATAFORMA_EMAIL) y que pasó la verificación en dos pasos (aal2).
 //   b) Cabecera X-Plataforma-Clave = secreto PLATAFORMA_CLAVE (respaldo para la terminal).
-import { leerEstado, guardarEstado, crearEstado, listarNegocios, negocioPorHost, negocioPorId, crearNegocio, actualizarNegocio, borrarNegocioSinDatos, listarPagos, crearPago } from './supabase.mjs';
+import { leerEstado, guardarEstado, crearEstado, listarNegocios, negocioPorHost, negocioPorId, crearNegocio, actualizarNegocio, borrarNegocioSinDatos, listarPagos, crearPago, borrarImagenesNegocio } from './supabase.mjs';
 import { crearDbInicial } from './rutas.mjs';
 import { hashClave } from './auth.mjs';
 import { PLANTILLAS, plantillaValida, plantillaDe, listarPlantillas } from './plantillas.mjs';
@@ -11,6 +11,7 @@ import { estadoCuenta, hoyCaracasISO, sumarMeses, diasEntre } from './cuenta.mjs
 
 const HOST_OK = /^(?=.{4,253}$)([a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$|^localhost(:\d+)?$/;
 const FECHA_OK = /^\d{4}-\d{2}-\d{2}$/;
+const FRASE_ELIMINAR = 'Eliminar cliente';
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 function igualSeguro(a, b) {
@@ -161,6 +162,20 @@ export async function manejarPlataforma(request, env, path, hooks) {
         }
         hooks.olvidar();
         return R(200, { negocio: conCuenta(n) });
+    }
+
+    // ---- Eliminar un cliente (definitivo). Exige escribir la frase exacta; el negocio original no se puede eliminar ----
+    if (path === '/api/plataforma/negocios/eliminar') {
+        const id = parseInt(cuerpo.id, 10);
+        if (!(id >= 1)) return R(422, { detail: 'Falta id' });
+        if (String(cuerpo.confirmar || '').trim() !== FRASE_ELIMINAR) return R(422, { detail: 'Confirmación incorrecta: escribe exactamente «' + FRASE_ELIMINAR + '»' });
+        const n = await negocioPorId(env, id);
+        if (!n) return R(404, { detail: 'Negocio no existe' });
+        if (n.marca_original || String(id) === String(env.NEGOCIO_POR_DEFECTO || '')) return R(409, { detail: 'El negocio original no se puede eliminar' });
+        await borrarNegocioSinDatos(env, id);   // borra también su estado y sus pagos (cascada)
+        let imagenes; try { imagenes = await borrarImagenesNegocio(env, id); } catch (e) { imagenes = { ok: false, error: e.message }; }
+        hooks.olvidar();
+        return R(200, { eliminado: { id, nombre: n.nombre, hosts: n.hosts }, imagenes });
     }
 
     // ---- Registrar un pago: extiende el vencimiento y reactiva ----
