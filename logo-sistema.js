@@ -24,7 +24,7 @@
 
     var base = (typeof API_BASE !== 'undefined') ? API_BASE : '';
     fetch(base + '/api/sitio').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-        var u = d && d.sitio ? (d.sitio.logoSistema || d.sitio.logo || '') : ''; // el logo del negocio sirve para todo si no hay uno aparte
+        var u = d && d.sitio ? (d.sitio.logo || d.sitio.logoSistema || '') : ''; // el logo del negocio sirve para todo si no hay uno aparte
         try { if (u) localStorage.setItem(LLAVE, u); else localStorage.removeItem(LLAVE); } catch (e) {}
         aplicar(u);
     }).catch(function () { /* sin conexión: queda el último logo conocido */ });

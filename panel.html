@@ -112,12 +112,6 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
         <img id="logo-prev" alt="" style="display:none;height:56px;margin-top:8px;border-radius:8px;background:#fff;padding:4px">
       </div>
       <div>
-        <label>Logo distinto para Administración, Cocina y Mesas (opcional)</label>
-        <div class="row"><input id="logosis-file" type="file" accept="image/*" style="margin:0"><button class="sec" id="logosis-quitar" type="button">Restablecer</button></div>
-        <img id="logosis-prev" alt="" style="height:56px;width:56px;object-fit:cover;margin-top:8px;border-radius:14px;background:#fff;padding:2px">
-        <div id="logosis-estado" style="font-size:12px;opacity:.75;margin-top:4px"></div>
-      </div>
-      <div>
         <label>Imagen de portada (opcional, reemplaza el color)</label>
         <div class="row"><input id="port-file" type="file" accept="image/*" style="margin:0"><button class="sec" id="port-quitar" type="button">Quitar</button></div>
         <img id="port-prev" alt="" style="display:none;height:70px;margin-top:8px;border-radius:8px">
@@ -297,7 +291,6 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     const pi = $('port-prev'), lg = $('logo-prev');
     pi.style.display = tema.imagenPortada ? 'block' : 'none'; if (tema.imagenPortada) pi.src = tema.imagenPortada;
     lg.style.display = tema.logo ? 'inline-block' : 'none'; if (tema.logo) lg.src = tema.logo;
-    $('logosis-prev').src = tema.logoSistema || tema.logo || 'icons/logo-escudo.jpg?v=1'; $('logosis-estado').textContent = tema.logoSistema ? 'Imagen propia (se verá al guardar).' : (tema.logo ? 'Usa el logo del negocio.' : 'Imagen por defecto: el escudo del Castillo.');
     const p = tema.colorPrincipal || '#b4231a', a = tema.colorSecundario || '#d99a1e', h = tema.colorPortada || '#6b2412';
     $('vp-hero').style.background = tema.imagenPortada ? 'linear-gradient(to bottom, rgba(0,0,0,.06) 38%, rgba(0,0,0,.82) 100%), url("' + tema.imagenPortada + '") center 30%/cover no-repeat' : 'linear-gradient(135deg,' + h + ',#000)';
     $('port-titulo').checked = tema.tituloSobrePortada === true;
@@ -317,8 +310,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
   $('c-portada').oninput = e => { tema.colorPortada = e.target.value; pintarTema(); };
   $('tema-reset').onclick = () => { tema.colorPrincipal = tema.colorSecundario = tema.colorPortada = ''; pintarTema(); };
   $('port-titulo').onchange = e => { tema.tituloSobrePortada = e.target.checked; pintarTema(); };
-  $('logo-quitar').onclick = () => { tema.logo = ''; pintarTema(); };
-  $('logosis-quitar').onclick = () => { tema.logoSistema = ''; pintarTema(); };
+  $('logo-quitar').onclick = () => { tema.logo = ''; tema.logoSistema = ''; pintarTema(); }; // un solo logo para todo
   $('port-quitar').onclick = () => { tema.imagenPortada = ''; pintarTema(); };
   async function subirUna(archivo, campo, max) {
     try {
@@ -329,7 +321,6 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     } catch (err) { alert('Error: ' + err.message); }
   }
   $('logo-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'logo', 600); };
-  $('logosis-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'logoSistema', 400); };
   $('port-file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) subirUna(f, 'imagenPortada', 1920); };
 
   // ---- Datos de la web y sucursales ----
@@ -453,7 +444,7 @@ button.sec{background:#3a5086}.err{color:#f87171;font-size:13px;min-height:18px}
     const sitio = {}; ['titulo', 'eslogan', 'etiquetaLocales', 'historia', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'email'].forEach(k => { sitio[k] = $('s-' + k).value; });
     Object.assign(sitio, tema);
     const r = await api('POST', '/api/sitio/guardar', { sitio, sucursales, galeria, resenas });
-    if (r.d && r.d.success) { ms.forEach(m => { m.className = 'ok'; m.textContent = 'Guardado. Ya se ve en la web.'; }); try { const lsis = tema.logoSistema || tema.logo; if (lsis) localStorage.setItem('logoSistemaUrl', lsis); else localStorage.removeItem('logoSistemaUrl'); } catch (e) {} document.querySelectorAll('img.logo-sistema').forEach(i => i.src = tema.logoSistema || tema.logo || (window.__MARCA && window.__MARCA.iconoUrl) || 'icons/logo-escudo.jpg?v=1'); cargarWeb(); }
+    if (r.d && r.d.success) { ms.forEach(m => { m.className = 'ok'; m.textContent = 'Guardado. Ya se ve en la web.'; }); try { const lsis = tema.logo || tema.logoSistema; if (lsis) localStorage.setItem('logoSistemaUrl', lsis); else localStorage.removeItem('logoSistemaUrl'); } catch (e) {} document.querySelectorAll('img.logo-sistema').forEach(i => i.src = tema.logo || tema.logoSistema || (window.__MARCA && window.__MARCA.iconoUrl) || 'icons/logo-escudo.jpg?v=1'); cargarWeb(); }
     else ms.forEach(m => { m.textContent = (r.d && (r.d.error || r.d.detail)) || 'No se pudo guardar'; });
   }
   $('guardar-web').onclick = guardarWeb; $('guardar-web2').onclick = guardarWeb;
